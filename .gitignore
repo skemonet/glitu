@@ -1,0 +1,6 @@
+target/
+dist/
+/site/static/
+# Les présentations, hors du dépôt
+/decks/
+__pycache__/

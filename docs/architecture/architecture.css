@@ -1,0 +1,6 @@
+/* Couleurs du schéma d'architecture : une teinte par rôle */
+.projet  { --c: #64748b; }
+.tool   { --c: #2563eb; }
+.sortie  { --c: #0891b2; }
+.static  { --c: #7c3aed; }
+.mainteneur { --c: #475569; }

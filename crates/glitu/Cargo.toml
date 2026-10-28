@@ -1,0 +1,18 @@
+[package]
+name = "glitu"
+description = "Présentations écrites en markdown : compilation, serveur de prévisualisation, oracle de rendu"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+# Le compilateur (markdown → slides, schémas skemo), partagé avec le navigateur
+glitu-core = { path = "../glitu-core" }
+sha2 = "0.10"
+tungstenite = { version = "0.30", default-features = false, features = ["handshake"] }
+png = "0.17"
+base64 = "0.22"
+serde_json = "1"
+
+[build-dependencies]
+wasm-bindgen-cli-support = "=0.2.129"

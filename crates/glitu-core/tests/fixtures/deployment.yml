@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hellonode-deployment
+  labels:
+    hello: node
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      hello: node
+  template:
+    metadata:
+      labels:
+        hello: node
+    spec:
+      containers:
+        - name: hellonode-container
+          image: registry.k8s.io/e2e-test-images/agnhost:2.39
+          command: ["/agnhost"]
+          args: ["netexec", "--http-port=8080", "--udp-port=8081"]

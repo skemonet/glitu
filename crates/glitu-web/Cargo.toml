@@ -1,0 +1,24 @@
+[package]
+name = "glitu-web"
+description = "Moteur de présentation dans le navigateur (wasm) : navigation, étapes, thèmes, terminal"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+wasm-bindgen = "=0.2.129"
+js-sys = "0.3.106"
+avt = "0.18"
+serde_json = "1"
+web-sys = { version = "0.3.106", features = [
+  "Window", "Document", "Element", "HtmlElement", "Node", "NodeList", "DomTokenList", "CssStyleDeclaration",
+  "HtmlCanvasElement", "CanvasRenderingContext2d", "HtmlCollection", "KeyboardEvent", "MouseEvent", "Event",
+  "EventTarget", "Location", "History", "DomRect", "MediaQueryList", "Performance", "ResizeObserver",
+  "ResizeObserverEntry", "CustomEvent", "CustomEventInit", "SvgElement", "SvgGraphicsElement", "SvgPathElement",
+  "HtmlImageElement", "FontFaceSet", "console", "SvgGeometryElement", "TouchEvent", "TouchList", "Touch",
+  "CanvasGradient", "Url", "CssStyleDeclaration", "WheelEvent", "HtmlInputElement", "HtmlMediaElement", "Navigator",
+  "HtmlIFrameElement", "MessageEvent", "KeyboardEventInit", "PointerEvent", "Storage", "CanvasPattern", "AddEventListenerOptions", "SvgTextContentElement", "SvgPoint",
+] }

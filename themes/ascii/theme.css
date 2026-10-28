@@ -1,0 +1,48 @@
+/* ==========================================================================
+   Thème « ascii » sur le template commun (glitu/template.css) : palette, polices, voiles.
+   ASCII ambre : un champ de caractères qui coule, en ambre de vieux terminal ; tout en chasse fixe.
+   Backdrop animé « ascii » (glitu.json) ; panneau de texte en léger dégradé.
+   ========================================================================== */
+:root {
+  --font: "IBM Plex Sans", "Segoe UI", "Noto Color Emoji", "Apple Color Emoji", "Segoe UI Emoji", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", "DejaVu Sans Mono", ui-monospace, monospace;
+  --title-font: "Familjen Grotesk", var(--font);
+  --title-weight: 700;
+  --label-font: var(--mono);
+  /* Titres pleins, surtitre sans pastille, chiffre de chapitre plein ; le backdrop porte son voile */
+  --cover-size: 88px;
+  --cover-title: linear-gradient(var(--heading), var(--heading));
+  --eyebrow-pad: 0;
+  --eyebrow-bg: transparent;
+  --eyebrow-line: transparent;
+  --chapter-num: var(--accent);
+  --chapter-num-stroke: 0 transparent;
+  --chapter-num-size: 150px;
+  --chapter-bg: var(--base);
+  --cover-veil: none;
+  --chapter-veil: none;
+  --body-veil: none;
+  --accent: #ffb347;
+  --accent-2: #ffcf8a;
+  --base: #110c06;
+  --line: rgba(255,179,71,.25);
+  --text: #ffe2b8;
+  --text-dim: #b88a52;
+  --heading: #fff1dc;
+  --bar-bg: rgba(17,12,6,.94);
+  --progress-bg: rgba(17,12,6,.94);
+  --bar-sep: rgba(255,179,71,.4);
+  --seg-bg: rgba(255,179,71,.14);
+  --panel-bg: linear-gradient(180deg, rgba(31,21,9,.96), rgba(14,10,5,.97));
+  --code-inline: #ffb347;
+  --code-inline-bg: rgba(255,179,71,.1);
+  --link-line: rgba(255,179,71,.4);
+  --backdrop-base: #110c06;
+  --glow: rgba(255,179,71,.35);
+  --win-bg: rgba(10,7,3,.96);
+  --win-border: rgba(255,179,71,.35);
+  --font: "IBM Plex Mono", "DejaVu Sans Mono", "Noto Color Emoji", ui-monospace, monospace;
+  --title-font: var(--mono);
+  --cover-size: 68px;
+  --chapter-num-size: 132px;
+}

@@ -1,0 +1,8 @@
+/* All of the options in this arg are valid, so handle them. */
+p = arg + 1;
+do {
+    if (*p == 'n')
+        nflag = 0;
+    if (*p == 'e')
+        eflag = '\\';
+} while (*++p);

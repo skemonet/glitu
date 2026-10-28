@@ -1,0 +1,175 @@
+/* glitu — styles du moteur, à la suite de vendor/reveal.min.css (assemblés au build).
+   1. reveal.css de reveal.js 5.1.0 (MIT, © Hakim El Hattab), tel quel : le moteur produit le même
+      DOM que reveal.js, les thèmes écrits pour reveal.js s'appliquent donc sans changement.
+   2. Numéros de ligne du code (highlightjs-line-numbers, MIT) et terminal (asciinema-player 3,
+      Apache-2.0, © Marcin Kulik). */
+
+
+/* ----- Code : numéros de ligne, une copie par étape de surlignage ---------- */
+.reveal .hljs { min-height: 100%; }
+.reveal .hljs table { margin: initial; }
+.reveal .hljs-ln-code, .reveal .hljs-ln-numbers { padding: 0; border: 0; }
+.reveal .hljs-ln-numbers { opacity: .6; padding-right: .75em; text-align: right; vertical-align: top; }
+.reveal .hljs.has-highlights.fragment { transition: all .2s ease; }
+.reveal .hljs:not(:first-child).fragment { position: absolute; top: 0; left: 0; width: 100%; box-sizing: border-box; }
+.hljs-ln { border-collapse: collapse; }
+.hljs-ln td { padding: 0; }
+.hljs-ln-n:before { content: attr(data-line-number); }
+
+/* ----- Terminal ---------------------------------------------------------- */
+div.ap-wrapper { outline: none; height: 100%; display: flex; justify-content: center; }
+div.ap-wrapper div.ap-player {
+  text-align: left; display: inline-block; padding: 0; position: relative; box-sizing: content-box;
+  overflow: hidden; max-width: 100%; border-radius: 4px; font-size: 15px;
+  background-color: var(--term-color-background);
+}
+.ap-player {
+  --term-color-foreground: #ffffff;
+  --term-color-background: #000000;
+  --term-font-family: "DejaVu Sans Mono", monospace;
+}
+div.ap-term {
+  position: relative; font-family: var(--term-font-family);
+  border-width: .75em; border-radius: 0; border-style: solid; border-color: var(--term-color-background);
+  box-sizing: content-box;
+}
+div.ap-term canvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }
+div.ap-term pre.ap-term-text {
+  position: absolute; inset: 0; box-sizing: content-box; overflow: hidden; padding: 0; margin: 0; display: block;
+  white-space: pre; word-wrap: normal; word-break: normal; cursor: text; color: var(--term-color-foreground);
+  outline: none; line-height: var(--term-line-height); font-family: inherit; font-size: inherit;
+  font-variant-ligatures: none; border: 0; border-radius: 0; background-color: transparent !important;
+}
+pre.ap-term-text .ap-line {
+  display: block; width: 100%; height: var(--term-line-height); position: absolute;
+  top: calc(100% * var(--row) / var(--term-rows)); letter-spacing: normal; overflow: hidden;
+}
+pre.ap-term-text .ap-line span {
+  position: absolute; left: calc(100% * var(--offset) / var(--term-cols));
+  padding: 0; display: inline-block; height: 100%;
+}
+pre.ap-term-text .ap-bold { font-weight: bold; }
+pre.ap-term-text .ap-faint { opacity: .5; }
+pre.ap-term-text .ap-underline { text-decoration: underline; }
+pre.ap-term-text .ap-italic { font-style: italic; }
+pre.ap-term-text .ap-strike { text-decoration: line-through; }
+.ap-line span { color: var(--term-color-foreground); }
+
+/* ----- Notes de l'orateur (touche S) ------------------------------------- */
+.glitu-notes-hint { display: none; }
+
+/* Visible jusqu'à un clic (`@2-4`) : masqué quand sa marque `.until` paraît */
+.reveal .fragment.until,.reveal .fragment.mark-on{display:none}
+.reveal :has(> .fragment.until.visible){opacity:0!important;visibility:hidden!important}
+
+/* Marques tracées à la main (`[texte]{.circle @2}`) : le trait se dessine quand la marque paraît */
+.reveal .mark{position:relative;isolation:isolate;white-space:nowrap;--mark-color:#f59e0b}
+.reveal .mark.red{--mark-color:#ef4444}.reveal .mark.green{--mark-color:#22c55e}.reveal .mark.blue{--mark-color:#3b82f6}
+.reveal .mark.yellow{--mark-color:#facc15}.reveal .mark.cyan{--mark-color:#22d3ee}.reveal .mark.purple{--mark-color:#a855f7}
+.reveal .mark-svg{position:absolute;left:-.2em;top:-.1em;width:calc(100% + .4em);height:calc(100% + .2em);overflow:visible;pointer-events:none;clip-path:inset(-50% 100% -50% -10%);transition:clip-path .7s ease-out}
+.reveal .mark-svg path{fill:none;stroke:var(--mark-color);stroke-width:3px;stroke-linecap:round;stroke-linejoin:round}
+.reveal .mark-highlight .mark-svg{z-index:-1}.reveal .mark-highlight .mark-svg path{stroke-width:.75em;stroke-opacity:.32;stroke-linecap:butt}
+.reveal .mark:not(:has(> .mark-on)) .mark-svg,.reveal .mark:has(> .mark-on.visible) .mark-svg{clip-path:inset(-50% -10% -50% -10%)}
+
+/* ----- Dessin sur les slides (touche D) ----------------------------------- */
+.reveal svg.drawing{position:absolute;inset:0;width:100%;height:100%;z-index:60;pointer-events:none;overflow:visible}
+.reveal svg.drawing path{fill:none;stroke-width:4;stroke-linecap:round;stroke-linejoin:round}
+/* Toucher : un doigt change de slide (le moteur), deux zooment et déplacent la vue. touch-action
+   ne s'hérite pas et s'arrête au premier conteneur défilant (overflow: hidden compris, fenêtres
+   de code, panneau…) : sans cette règle, un doigt y déplacerait la vue */
+.reveal .slides,.reveal .slides *{touch-action:pinch-zoom}
+.reveal.drawing,.reveal.drawing *{cursor:crosshair;touch-action:none}
+.reveal.drawing::after{content:"Dessin — 1-5 couleur · Z annuler · X effacer · D sortir";position:fixed;left:50%;bottom:10px;translate:-50% 0;z-index:100;padding:4px 12px;border-radius:6px;background:rgba(0,0,0,.6);color:#fff;font:13px system-ui,sans-serif}
+
+/* ----- Télécommande (?remote) --------------------------------------------- */
+html.glitu-remote .reveal{height:40vh!important}
+.remote-pad{position:fixed;left:0;right:0;top:40vh;bottom:0;display:flex;flex-direction:column;gap:12px;padding:12px;box-sizing:border-box;background:#0b0f19;color:#e8edf5;font:18px/1.5 system-ui,sans-serif}
+.remote-buttons{display:grid;grid-template-columns:1fr 2fr;gap:12px}
+.remote-buttons button{font-size:40px;padding:18px 0;border:0;border-radius:14px;background:#1b2333;color:#fff}
+.remote-buttons .next{background:#2563eb}
+.remote-notes{flex:1;overflow:auto}.remote-notes .where{color:#22d3ee;font-size:14px;letter-spacing:.1em;text-transform:uppercase}
+.remote-notes .note-click.past{opacity:.45}
+
+/* Code animé (```` ```md magic-move ````) : versions superposées, seule la dernière montrée
+   s'affiche ; les mots sont des boîtes, que le moteur peut déplacer */
+.reveal pre.magic-move { display: grid; }
+.reveal pre.magic-move > code { grid-area: 1 / 1; }
+.reveal pre.magic-move > code.fragment { opacity: 1; transition: none; }
+.reveal pre.magic-move:has(> code.fragment.visible) > code:not(.fragment),
+.reveal pre.magic-move > code.fragment.visible:has(~ code.fragment.visible) { visibility: hidden; }
+.reveal pre.magic-move .mm { display: inline-block; }
+.reveal pre.magic-move > code.mm-leaving { visibility: visible !important; }
+.reveal pre.magic-move > code.mm-leaving .mm { opacity: 0; transition: opacity .25s ease; }
+.reveal pre.magic-move > code.mm-leaving .mm-kept { visibility: hidden; }
+
+/* Annotations du code (`// [!code ++]`…) */
+.reveal pre code .line { display: inline-block; min-width: 100%; box-sizing: border-box; }
+.reveal pre code .line.add { background: rgba(34, 197, 94, .16); }
+.reveal pre code .line.remove { background: rgba(239, 68, 68, .16); opacity: .7; }
+.reveal pre code .line.add::before { content: "+"; position: absolute; margin-left: -1ch; color: #22c55e; }
+.reveal pre code .line.remove::before { content: "−"; position: absolute; margin-left: -1ch; color: #ef4444; }
+.reveal pre code .line.highlighted { background: rgba(148, 163, 184, .18); }
+.reveal pre code .line.error { background: rgba(239, 68, 68, .2); }
+.reveal pre code .line.warning { background: rgba(234, 179, 8, .2); }
+.reveal pre code.has-focus .line:not(.focused) { opacity: .35; filter: blur(.6px); transition: opacity .3s, filter .3s; }
+.reveal pre code.has-focus:hover .line { opacity: 1; filter: none; }
+
+/* Slides animées (`{.animate}`) : pas de transition de slide, ce sont les éléments qui bougent */
+.reveal.auto-animating .slides section { transition: none !important; animation: none !important; }
+
+/* Calques communs à toutes les slides (`global-top`, `global-bottom` dans l'en-tête) : en bas
+   à droite par défaut, au-dessus ou au-dessous du contenu */
+.reveal .slides section > .global-layer {
+  position: absolute; inset: 0; pointer-events: none; display: flex; align-items: flex-end;
+  padding: 0 28px calc(var(--footer-h, 0px) + 14px); box-sizing: border-box; font-size: 16px; opacity: .85;
+}
+.reveal .slides section > .global-top { z-index: 40; justify-content: flex-end; }
+.reveal .slides section > .global-bottom { z-index: 0; justify-content: flex-start; }
+.reveal .global-layer img { height: 1.8em; margin: 0; }
+
+/* Vue défilante (`?view=scroll`, ou téléphone) : les pages d'impression à la largeur de la fenêtre */
+html.scroll-view, html.scroll-view body { overflow-y: auto !important; overflow-x: hidden !important; height: auto !important; }
+html.scroll-view .reveal .slides .pdf-page { zoom: var(--page-zoom, 1); }
+html.scroll-view .reveal .slides .pdf-page + .pdf-page { margin-top: 2px; }
+html.scroll-view .reveal :is(.controls, .progress, .slide-number) { display: none !important; }
+html.scroll-view .reveal, html.scroll-view .reveal * { touch-action: auto; }   /* le doigt fait défiler la page */
+
+/* Mises en évidence au clic (`@3-4:halo`, `chase`, `magnify`, voir le moteur : fx.rs).
+   Couleur : --fx-color, sinon la seconde couleur d'accent du thème. Le halo et le chase
+   durent 3 s au plus, même si leurs clics continuent */
+.reveal { --fx: var(--fx-color, var(--accent-2, #22d3ee)); }
+.reveal .fx-on.fragment.visible { opacity: 1 !important; }   /* une puce passée, mise en évidence, ne s'estompe pas */
+/* Halo : une seule lueur, qui monte puis s'éteint */
+.reveal .fx-halo { animation: fx-halo 3s ease-in-out forwards; }
+.reveal .fx-halo-off { animation: fx-halo-off .6s ease-out forwards; }
+@keyframes fx-halo {
+  0%, 100% { filter: drop-shadow(0 0 0 transparent); }
+  50% { filter: drop-shadow(0 0 4px var(--fx)) drop-shadow(0 0 16px var(--fx)); }
+}
+@keyframes fx-halo-off {
+  from { filter: drop-shadow(0 0 4px var(--fx)) drop-shadow(0 0 16px var(--fx)); }
+  to { filter: drop-shadow(0 0 0 transparent); }
+}
+/* Chase : une lumière qui fait une fois le tour du contour, à vitesse uniforme ; le
+   moteur règle son avance et l'opacité du cadre image par image (fx.rs) */
+.reveal .fx-ring { position: absolute; z-index: 40; pointer-events: none; opacity: 0; }
+.reveal .fx-ring.off { opacity: 0 !important; transition: opacity .2s ease; }
+.reveal .fx-ring svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.reveal .fx-ring rect { fill: none; stroke: var(--fx); stroke-width: 3; }
+.reveal .fx-ring .chase-trail-1 { opacity: .45; }
+.reveal .fx-ring .chase-trail-2 { opacity: .18; }
+.reveal .fx-ring .chase-light { stroke-linecap: round; filter: drop-shadow(0 0 2px #fff) drop-shadow(0 0 7px var(--fx)); }
+@keyframes fx-fixe {
+  from { filter: drop-shadow(0 0 4px var(--fx)) drop-shadow(0 0 16px var(--fx)); }
+  to { filter: none; }
+}
+/* La magnify (et Alt + clic) glisse plutôt que de sauter */
+body.reveal-viewport { transition: transform .8s cubic-bezier(.45,.05,.25,1); }
+/* Sans animation (préférence du système, captures de l'export et de l'oracle) : la lueur et le
+   cadre restent allumés 3 s, immobiles */
+@media (prefers-reduced-motion: reduce) {
+  .reveal .fx-halo { animation: fx-fixe 3s step-end forwards; }
+  .reveal .fx-halo-off { animation: none; }
+  .reveal .fx-ring :is(.chase-trail-1, .chase-trail-2) { display: none; }   /* la lumière seule, sur tout le contour */
+  body.reveal-viewport { transition: none; }
+}

@@ -1,0 +1,14 @@
+/* Types des schémas skemo, accordés au thème de la présentation (accent bleu → cyan).
+   La taille des textes pour la projection vient de glitu.json (skemo.fontScale),
+   ou du bloc lui-même : ```skemo font-scale="2" */
+.workstation    { --c: #64748b; }
+.cluster  { --c: #3b82f6; }
+.node    { --c: #64748b; }
+.tool    { --c: #0891b2; --label: "CLI"; }
+.system  { --c: #2563eb; --label: "API"; }
+.agent    { --c: #4f46e5; --label: "AGENT"; }
+.app      { --c: #ea580c; --label: "APP"; }
+.pod      { --c: #2563eb; --label: "POD"; }
+.service  { --c: #0891b2; --label: "SVC"; }
+.svc-network { --c: #ca8a04; }
+.milestone    { --c: #22d3ee; }

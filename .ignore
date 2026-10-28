@@ -1,0 +1,12 @@
+# Ignoré par les recherches (ripgrep et les outils qui s'en servent), pas par git : du code
+# tiers ou généré, des copies et des captures, qui coûtent cher à relire et n'apprennent rien
+site/static/
+site/dist/
+crates/glitu/assets/vendor/
+themes/*/fonts/
+themes/black/
+tests/oracle/
+tests/reveal-md/reference/
+docs/reference/
+Cargo.lock
+*.cast

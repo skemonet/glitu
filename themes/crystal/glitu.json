@@ -1,0 +1,22 @@
+{
+  "version": "0.1.0",
+  "styles": [
+    "fonts.css",
+    "theme.css"
+  ],
+  "template": true,
+  "backdrop": "crystal",
+  "logo": "logo.svg",
+  "width": 1280,
+  "height": 720,
+  "margin": 0,
+  "maxScale": 8,
+  "center": false,
+  "controls": false,
+  "progress": false,
+  "slideNumber": false,
+  "transition": "fade",
+  "skemo": {
+    "fontScale": 1.35
+  }
+}

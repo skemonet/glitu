@@ -1,0 +1,13 @@
+[package]
+name = "glitu-core"
+description = "Le compilateur des présentations : markdown → slides HTML, coloration du code, schémas skemo"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+# Le moteur skemo lui-même (dépôt voisin ../skemo, lu seulement) : les schémas sont rendus à la volée
+skemo-engine = { path = "../../../skemo/repos/engine/crates/engine", default-features = false }
+skemo-lang = { path = "../../../skemo/repos/lang" }
+pulldown-cmark = { version = "0.13", default-features = false, features = ["html"] }
+pulldown-latex = "0.8"

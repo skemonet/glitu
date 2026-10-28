@@ -1,0 +1,48 @@
+/* ==========================================================================
+   Thème « paper » sur le template commun (glitu/template.css) : palette, polices, voiles.
+   Paper découpé : couches de paper ondulées du vert d'eau au bleu pétrole, ombres portées, grain.
+   Backdrop animé « paper » (glitu.json) ; panneau de texte en léger dégradé.
+   ========================================================================== */
+:root {
+  --font: "IBM Plex Sans", "Segoe UI", "Noto Color Emoji", "Apple Color Emoji", "Segoe UI Emoji", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", "DejaVu Sans Mono", ui-monospace, monospace;
+  --title-font: "Familjen Grotesk", var(--font);
+  --title-weight: 700;
+  --label-font: var(--mono);
+  /* Titres pleins, surtitre sans pastille, chiffre de chapitre plein ; le backdrop porte son voile */
+  --cover-size: 88px;
+  --cover-title: linear-gradient(var(--heading), var(--heading));
+  --eyebrow-pad: 0;
+  --eyebrow-bg: transparent;
+  --eyebrow-line: transparent;
+  --chapter-num: var(--accent);
+  --chapter-num-stroke: 0 transparent;
+  --chapter-num-size: 150px;
+  --chapter-bg: var(--base);
+  --cover-veil: none;
+  --chapter-veil: none;
+  --body-veil: none;
+  --accent: #2c7a75;
+  --accent-2: #1b4e52;
+  --base: #f2f6f5;
+  --line: rgba(18,50,54,.13);
+  --text: #123236;
+  --text-dim: #4a6b6c;
+  --heading: #0b2427;
+  --ink: #123236;
+  --bar-bg: rgba(242,246,245,.92);
+  --progress-bg: rgba(242,246,245,.92);
+  --bar-sep: rgba(18,50,54,.3);
+  --seg-bg: rgba(18,50,54,.12);
+  --panel-bg: linear-gradient(180deg, rgba(255,255,255,.95), rgba(229,242,239,.94));
+  --code-inline: #1b4e52;
+  --code-inline-bg: rgba(44,122,117,.1);
+  --link-line: rgba(44,122,117,.4);
+  --backdrop-base: #f2f6f5;
+  --glow: rgba(44,122,117,.3);
+  --win-bg: #143438;
+  --win-border: rgba(18,50,54,.3);
+  /* Formes en bas de l'écran : titres de couverture et de chapitre en haut */
+  --cover-place: flex-start;
+  --cover-pad: 88px 112px 0;
+}

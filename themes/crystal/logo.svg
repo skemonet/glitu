@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 150 40">
+  <!-- Logo de démonstration : remplacez ce fichier par le vôtre (blanc, fond transparent) -->
+  <path d="M4 34 L14 6 H26 L16 34 Z" fill="#fff"/>
+  <path d="M20 34 L30 6 H36 L26 34 Z" fill="#fff" opacity=".6"/>
+  <text x="42" y="25" font-family="Arial, Helvetica, sans-serif" font-size="21" font-weight="900" fill="#fff" letter-spacing="1">LOGO</text>
+  <text x="43" y="35" font-family="Arial, Helvetica, sans-serif" font-size="7.5" fill="#fff" letter-spacing=".6">VOTRE MARQUE</text>
+</svg>

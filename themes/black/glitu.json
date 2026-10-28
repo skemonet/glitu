@@ -1,0 +1,12 @@
+{
+  "version": "0.1.0",
+  "styles": ["reset.css", "black.css", "zenburn.css"],
+  "width": 960,
+  "height": 700,
+  "margin": 0.04,
+  "center": true,
+  "controls": true,
+  "progress": true,
+  "slideNumber": true,
+  "transition": "default"
+}

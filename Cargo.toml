@@ -1,0 +1,19 @@
+[workspace]
+resolver = "2"
+members = ["crates/glitu", "crates/glitu-core", "crates/glitu-web"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+# Sans les symboles de débogage : le binaire distribué passe de 22 à 18 Mo
+strip = true
+
+# Le moteur web est petit et souvent rechargé : on l'optimise pour la taille
+[profile.release.package.glitu-web]
+opt-level = "s"
