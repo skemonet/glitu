@@ -3,10 +3,13 @@
 Work started on 2026-10-29 and interrupted; this is what remains.
 
 ## Blocking
-- [ ] **skemo dependency**: `glitu-core` depends on `skemo-engine` / `skemo-lang` through local
-      paths (`../../../skemo/…`). The repository does not build until skemo is public; then switch
-      to git dependencies pinned on a tag.
-- [ ] Re-capture `tests/oracle` (slide 12 differs since skemo v0.8 changed the default card look).
+- [x] **skemo dependency**: `skemo-engine` / `skemo-lang` are git dependencies on
+      https://github.com/skemonet/skemo, pinned to a revision.
+- [ ] Pin skemo on a tag once skemo publishes one.
+- [x] Re-capture `tests/oracle` (slide 12 differed since skemo changed the default card look).
+- [ ] `tests/reveal-md/reference` (rendered by reveal-md, outside the project) differs by 0.68 % on
+      slide 0 with Chromium 1243 (text antialiasing only); re-render it with reveal-md in the
+      browser used by the CI.
 
 ## Translation to English (code, comments, messages, docs)
 - [x] `crates/glitu-core` (translated and refactored, 41 tests)
@@ -14,7 +17,8 @@ Work started on 2026-10-29 and interrupted; this is what remains.
 - [ ] `crates/glitu/assets/export.js` comments
 - [ ] `crates/glitu-web` (all modules: comments, UI strings of the help and speaker view)
 - [ ] CSS comments: `assets/glitu.css`, `assets/template.css`, `themes/*`
-- [ ] `README.md` (still in French), `tests/oracle/README.md`, `tests/reveal-md/README.md`,
+- [x] `tests/oracle/README.md`, Cargo descriptions and comments
+- [ ] `README.md` (still in French), `tests/reveal-md/README.md`,
       `themes/black/README.md`, `docs/architecture/`
 - [ ] `tools/asciicast.py`
 

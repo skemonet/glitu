@@ -13,8 +13,7 @@ use crate::raster;
 
 /// Goes through the presentation click by click; writes NN_<slide>-<click>.png and index.json
 pub fn capture(url: &str, out: &Path) -> Result<Vec<String>, String> {
-    let _ = fs::remove_dir_all(out);
-    fs::create_dir_all(out).map_err(|e| format!("{}: {e}", out.display()))?;
+    clear_captures(out)?;
     let mut b = Browser::launch(9343 + (std::process::id() % 200) as u16, 1280, 720, 1.0)?;
     let base = url.split('#').next().unwrap_or(url);
     b.send("Page.navigate", json!({ "url": format!("{base}#/0") }))?;
@@ -39,6 +38,19 @@ pub fn capture(url: &str, out: &Path) -> Result<Vec<String>, String> {
     let index = serde_json::to_string_pretty(&names).map_err(|e| e.to_string())?;
     fs::write(out.join("index.json"), index + "\n").map_err(|e| e.to_string())?;
     Ok(names)
+}
+
+/// Removes a previous capture (PNG files and index.json) but keeps the rest of the folder (README)
+fn clear_captures(out: &Path) -> Result<(), String> {
+    fs::create_dir_all(out).map_err(|e| format!("{}: {e}", out.display()))?;
+    for entry in fs::read_dir(out).map_err(|e| format!("{}: {e}", out.display()))?.flatten() {
+        let path = entry.path();
+        let name = entry.file_name().to_string_lossy().into_owned();
+        if name == "index.json" || path.extension().is_some_and(|e| e == "png") {
+            fs::remove_file(&path).map_err(|e| format!("{}: {e}", path.display()))?;
+        }
+    }
+    Ok(())
 }
 
 fn decode(path: &Path) -> Result<raster::Rgb, String> {
@@ -114,5 +126,18 @@ mod tests {
         assert_eq!(d.image, [25, 25, 25, 255, 0, 0]);
         let c = raster::Rgb { width: 1, height: 1, pixels: vec![0, 0, 0] };
         assert_eq!(diff(&a, &c).percent, 100.0);
+    }
+
+    #[test]
+    fn a_new_capture_keeps_the_readme() {
+        let dir = std::env::temp_dir().join(format!("glitu-oracle-clear-{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        for f in ["README.md", "index.json", "00_0-0.png"] {
+            fs::write(dir.join(f), "x").unwrap();
+        }
+        clear_captures(&dir).unwrap();
+        let left: Vec<_> = fs::read_dir(&dir).unwrap().flatten().map(|e| e.file_name()).collect();
+        fs::remove_dir_all(&dir).unwrap();
+        assert_eq!(left, ["README.md"]);
     }
 }

@@ -1,20 +1,22 @@
-# Oracle de rendu
+# Rendering oracle
 
-Une capture par état (slide × clic) de `tests/fonctions/slides.md`, la démonstration de toutes
-les syntaxes. C'est la référence du moteur ; capturée le 2026-10-26 (elle portait avant sur une
-ancienne présentation Kubernetes, retirée du dépôt).
+One screenshot per state (slide × click) of `tests/features/slides.md`, the demo of every syntax.
+It is the reference of the engine.
 
 ```sh
-target/release/glitu serve tests/fonctions/slides.md -p 8123 &
+target/release/glitu serve tests/features/slides.md -p 8123 &
 target/release/glitu oracle check http://localhost:8123/ tests/oracle
 ```
 
-Les captures sont reproductibles : `prefers-reduced-motion` coupe les animations, `Math.random`
-est rejoué à l'identique (fond cristal), et chaque état est capturé quand l'écran ne bouge plus
-(terminal en train de taper). Un état échoue au-delà de 0,5 % de pixels différents ; l'image des
-différences est alors écrite à côté du rendu (`diff_*.png`).
+Screenshots are reproducible: `prefers-reduced-motion` turns animations off, `Math.random` is
+replayed identically (crystal backdrop), and each state is captured once the screen stops moving
+(a terminal typing). A state fails beyond 0.5 % of differing pixels; the image of the differences
+is then written next to the rendering (`diff_*.png`).
 
-Les schémas sont redessinés à chaque construction par le moteur skemo du dépôt voisin : une
-évolution de skemo change donc les slides à schémas. Recapturer alors la
-référence après avoir regardé le nouveau rendu :
-`target/release/glitu oracle capture http://localhost:8123/ tests/oracle` (garder ce README).
+Text antialiasing depends on the Chromium build and the system fonts: capture and check with the
+same browser (`CHROMIUM=/path/to/chrome`).
+
+Diagrams are redrawn at every build by the skemo engine (git dependency of `glitu-core`, pinned to
+a revision): bumping skemo can change the slides with diagrams. Re-capture the reference after
+looking at the new rendering (the capture keeps this README):
+`target/release/glitu oracle capture http://localhost:8123/ tests/oracle`.

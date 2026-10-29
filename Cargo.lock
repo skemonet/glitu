@@ -1004,6 +1004,7 @@ checksum = "3a219298ac11a56ea9a6d2120044824d6f01aeb034955e7af7bc16858527deea"
 [[package]]
 name = "skemo-engine"
 version = "0.1.0-rc.2"
+source = "git+https://github.com/skemonet/skemo?rev=28d0a4347545c0218e08e10295f0016fd945b7c5#28d0a4347545c0218e08e10295f0016fd945b7c5"
 dependencies = [
  "harfrust",
  "org-eclipse-elk-graph-json",
@@ -1016,6 +1017,7 @@ dependencies = [
 [[package]]
 name = "skemo-lang"
 version = "0.1.0-rc.2"
+source = "git+https://github.com/skemonet/skemo?rev=28d0a4347545c0218e08e10295f0016fd945b7c5#28d0a4347545c0218e08e10295f0016fd945b7c5"
 dependencies = [
  "serde",
  "serde_json",
@@ -1024,6 +1026,7 @@ dependencies = [
 [[package]]
 name = "skemo-router"
 version = "0.1.0-rc.2"
+source = "git+https://github.com/skemonet/skemo?rev=28d0a4347545c0218e08e10295f0016fd945b7c5#28d0a4347545c0218e08e10295f0016fd945b7c5"
 
 [[package]]
 name = "slab"

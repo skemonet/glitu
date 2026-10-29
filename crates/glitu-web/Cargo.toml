@@ -1,6 +1,6 @@
 [package]
 name = "glitu-web"
-description = "Moteur de présentation dans le navigateur (wasm) : navigation, étapes, thèmes, terminal"
+description = "In-browser presentation engine (wasm): navigation, steps, themes, terminal"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

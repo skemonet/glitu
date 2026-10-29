@@ -1,12 +1,12 @@
 [package]
 name = "glitu"
-description = "Présentations écrites en markdown : compilation, serveur de prévisualisation, oracle de rendu"
+description = "Presentations written in markdown: build, preview server, rendering oracle"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 
 [dependencies]
-# Le compilateur (markdown → slides, schémas skemo), partagé avec le navigateur
+# The compiler (markdown → slides, skemo diagrams), shared with the browser
 glitu-core = { path = "../glitu-core" }
 sha2 = "0.10"
 tungstenite = { version = "0.30", default-features = false, features = ["handshake"] }

@@ -11,9 +11,9 @@ license = "MIT OR Apache-2.0"
 opt-level = 3
 lto = true
 codegen-units = 1
-# Sans les symboles de débogage : le binaire distribué passe de 22 à 18 Mo
+# Without debug symbols: the distributed binary goes from 22 to 18 MB
 strip = true
 
-# Le moteur web est petit et souvent rechargé : on l'optimise pour la taille
+# The web engine is small and often reloaded: optimise it for size
 [profile.release.package.glitu-web]
 opt-level = "s"

@@ -1,13 +1,14 @@
 [package]
 name = "glitu-core"
-description = "Le compilateur des présentations : markdown → slides HTML, coloration du code, schémas skemo"
+description = "The presentation compiler: markdown → HTML slides, code highlighting, skemo diagrams"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 
 [dependencies]
-# Le moteur skemo lui-même (dépôt voisin ../skemo, lu seulement) : les schémas sont rendus à la volée
-skemo-engine = { path = "../../../skemo/repos/engine/crates/engine", default-features = false }
-skemo-lang = { path = "../../../skemo/repos/lang" }
+# The skemo engine itself (https://github.com/skemonet/skemo): diagrams are rendered on the fly.
+# Pinned to a revision until skemo publishes tags.
+skemo-engine = { git = "https://github.com/skemonet/skemo", rev = "28d0a4347545c0218e08e10295f0016fd945b7c5", default-features = false }
+skemo-lang = { git = "https://github.com/skemonet/skemo", rev = "28d0a4347545c0218e08e10295f0016fd945b7c5" }
 pulldown-cmark = { version = "0.13", default-features = false, features = ["html"] }
 pulldown-latex = "0.8"
