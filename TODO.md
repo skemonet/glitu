@@ -30,7 +30,7 @@ Work started on 2026-10-29 and interrupted; this is what remains.
       appearing step by step (the presentation's own markdown and skemo source, with the project
       tree in the explorer: markdown, asciicast) → an asciicast of `glitu build` with pauses at
       each click.
-- [ ] Include it in the glitu website (`site/` is not in this repository); linked from the README.
+- [x] Include it in the website (`site/`, `tools/site.sh`, GitHub Pages); linked from the README.
 - [x] Re-capture `tests/oracle` afterwards.
 - [ ] Theme logo placeholder still reads "VOTRE MARQUE" (`themes/*/logo.svg`).
 

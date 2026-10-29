@@ -9,6 +9,9 @@
 
 ## ▶ Demo: glitu, presented with glitu
 
+**Website:** https://skemonet.github.io/glitu/ — the demo as one page:
+https://skemonet.github.io/glitu/demo.html
+
 [**`tests/features/slides.md`**](tests/features/slides.md) presents glitu itself: its publishing
 modes, a frieze, the architecture diagram built click by click, its own source with the project
 tree, and a terminal recording of `glitu build`; then a tour of every syntax.
@@ -254,6 +257,13 @@ theme: ./themes-maison/x   # thème tiers, chemin relatif à la présentation
 `glitu.json` de chaque thème, obligatoire), à publier tel quel sur static.glitu.net (rsync, scp…).
 Les versions déjà présentes dans `site/static/` restent : on publie par ajout. Seul le mainteneur
 publie.
+
+## Website (GitHub Pages)
+
+`tools/site.sh [site/dist]` writes the website: the home page `site/index.html` (with its
+`site/img/`) and the demo, `tests/features/slides.md`, built as one standalone page (`demo.html`).
+The `Website` workflow (`.github/workflows/pages.yml`) builds it on every push and publishes it on
+GitHub Pages from `main` (Settings → Pages → Source: GitHub Actions).
 
 ## Site glitu.net (mainteneur)
 

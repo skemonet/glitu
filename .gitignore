@@ -1,6 +1,6 @@
 target/
 dist/
 /site/static/
-# Les présentations, hors du dépôt
+# Presentations kept out of the repository
 /decks/
 __pycache__/
