@@ -1,29 +1,29 @@
 diagram(dir="right")
 
   card#deck.deck(icon="folder-open") A presentation
-    li slides.md: text, diagrams, code
-    li terminals, images
+    | slides.md: text, diagrams, code
+    | terminals, images
     to(glitu)
 
   card#glitu.tool(icon="terminal") glitu
-    li build · serve
-    li glitu-core compiler
-    li skemo diagrams
+    | build · serve
+    | glitu-core compiler
+    | skemo diagrams
     to(offline online site)
 
   zone#outputs.output What you get
     card#offline.output(icon="file-down") Offline
-      li one file, everything inside
+      | one file, everything inside
     card#online.output(icon="globe") Online
-      li a short HTML
+      | a short HTML
       to(static).dashed loads
     card#site.output(icon="refresh-cw") Local site
-      li glitu serve, like Hugo
+      | glitu serve, like Hugo
 
   card#static.static(icon="cloud") static.glitu.net
-    li engine, themes
-    li one version per folder
+    | engine, themes
+    | one version per folder
 
   card#maintainer.maintainer(icon="user-cog") Maintainer
-    li glitu-site static
+    | glitu-site static
     to(static).dashed publishes

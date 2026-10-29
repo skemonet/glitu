@@ -1,7 +1,7 @@
 //! skemo diagrams step by step: the `@n` markers of the diagram (`data-step`, `data-until`,
 //! `data-focus` attributes of the SVG) follow the current click of the slide.
 //! The build adds an invisible fragment (`.sk-step`) per step of the diagram. A line replaced by
-//! another at the same click (`li 172.30.0.3 @5-5` then `li 172.30.0.6 @6`) morphs into it, like
+//! another at the same click (`| 172.30.0.3 @5-5` then `| 172.30.0.6 @6`) morphs into it, like
 //! animated code: the characters kept slide, the others fade out or appear; the new ones stay
 //! marked (`.sk-diff`) until the next click, for whoever missed the animation.
 
