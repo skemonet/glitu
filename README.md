@@ -5,11 +5,22 @@
 > repository owner accepts no responsibility for its use. Read it and test it before relying on it.
 >
 > **Status:** work in progress — the English translation of the documentation and of part of the
-> code is not finished (see [TODO.md](TODO.md)), and building requires the skemo diagram engine,
-> which is not public yet.
+> code is not finished (see [TODO.md](TODO.md)).
 
-**Demo presentation:** [`tests/features/slides.md`](tests/features/slides.md) (built and served
-with `glitu serve tests/features/slides.md`).
+## ▶ Demo: glitu, presented with glitu
+
+[**`tests/features/slides.md`**](tests/features/slides.md) presents glitu itself: its publishing
+modes, a frieze, the architecture diagram built click by click, its own source with the project
+tree, and a terminal recording of `glitu build`; then a tour of every syntax.
+
+```sh
+rustup target add wasm32-unknown-unknown
+cargo build --release
+target/release/glitu serve tests/features/slides.md    # http://localhost:8000
+```
+
+Diagrams are drawn by [skemo](https://github.com/skemonet/skemo), a git dependency fetched by
+Cargo.
 
 **License:** dual-licensed under [MIT](LICENSE-MIT) or [Apache-2.0](LICENSE-APACHE), at your option.
 
@@ -17,7 +28,7 @@ with `glitu serve tests/features/slides.md`).
 
 # glitu — des présentations écrites en markdown, rendues par un moteur Rust
 
-Toute la présentation tient dans **`slides.md`** : le texte, les schémas (code [skemo](../skemo)),
+Toute la présentation tient dans **`slides.md`** : le texte, les schémas (code [skemo](https://github.com/skemonet/skemo)),
 le code montré à l'écran. Seuls les enregistrements de terminal (`casts/*.cast`) et les images
 éventuelles sont des fichiers à part. Le rendu vient d'un **thème** (`themes/crystal/`) :
 bandeau, panneau de texte à gauche, visuel à droite, backdrop « crystal », progression par chapitre.
@@ -31,7 +42,7 @@ Le moteur et les thèmes sont publiés par le mainteneur sur **static.glitu.net*
 version (`glitu/0.1.0/`, `themes/crystal/0.1.0/`).
 
 ```sh
-rustup target add wasm32-unknown-unknown     # une fois ; le dépôt skemo doit être à côté (../skemo)
+rustup target add wasm32-unknown-unknown     # une fois ; skemo est récupéré par Cargo (dépendance git)
 cargo build --release                         # produit target/release/glitu (moteurs wasm et skemo embarqués)
 
 target/release/glitu serve                     # http://localhost:8000, recharge à chaque modification
@@ -254,8 +265,8 @@ utilisateurs : une seule source) et la démonstration (`tests/features`). À ser
 ## Schémas
 
 Les blocs skemo sont rendus à la volée, à chaque construction, par le moteur skemo lui-même :
-`glitu` est lié à la bibliothèque `skemo-engine` du dépôt voisin `../skemo` (par chemin, lu
-seulement), avec la feuille `skemo.css` du thème, complétée par celle de la présentation : un
+`glitu` est lié à la bibliothèque `skemo-engine` de [skemo](https://github.com/skemonet/skemo)
+(dépendance git, épinglée sur une révision), avec la feuille `skemo.css` du thème, complétée par celle de la présentation : un
 `skemo.css` à côté du markdown y ajoute ses propres types (`.pod { --c: #2563eb; --label: "POD"; }`),
 gardé avec le markdown dans la page construite. Pas de binaire externe ni de cache : modifier un
 schéma dans `slides.md` le redessine aussitôt (`glitu serve` recharge la page). Un avertissement
@@ -282,7 +293,7 @@ Un enregistrement asciicast (v2 ou v3) se rejoue segment par segment : le lecteu
 commandes, s'arrête sur chaque marker et attend le clic suivant ; un clic pendant la frappe
 termine le segment en cours. L'émulation du terminal est faite par `avt`, celui d'asciinema.
 Pour un vrai enregistrement : `asciinema rec` avec `rec.add_marker_key`, ou ajouter des lignes
-`[temps, "m", "label"]` au fichier. `tools/gen_kubectl_cast.py` fabrique celui de l'exemple.
+`[temps, "m", "label"]` au fichier. `tools/build_cast.py` fabrique celui de la démo.
 
 ## Thème
 

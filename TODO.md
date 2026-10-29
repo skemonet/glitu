@@ -20,18 +20,19 @@ Work started on 2026-10-29 and interrupted; this is what remains.
 - [x] `tests/oracle/README.md`, Cargo descriptions and comments
 - [ ] `README.md` (still in French), `tests/reveal-md/README.md`,
       `themes/black/README.md`, `docs/architecture/`
-- [ ] `tools/asciicast.py`
+- [x] `tools/asciicast.py`
 
 ## Demo presentation (`tests/features/slides.md`)
-- [ ] Rewrite in English as a presentation of glitu itself, following the structure of the
+- [x] Rewrite in English as a presentation of glitu itself, following the structure of the
       maintainer's Kubernetes deck: title → text appearing step by step (the publishing modes:
       static site, standalone page, `--web` page, PPTX/PDF/PNG export) → a frieze appearing step by
       step → a component diagram of the open-source architecture built click by click → code
       appearing step by step (the presentation's own markdown and skemo source, with the project
       tree in the explorer: markdown, asciicast) → an asciicast of `glitu build` with pauses at
       each click.
-- [ ] Include it in the glitu website; link it prominently from the README.
-- [ ] Re-capture `tests/oracle` afterwards.
+- [ ] Include it in the glitu website (`site/` is not in this repository); linked from the README.
+- [x] Re-capture `tests/oracle` afterwards.
+- [ ] Theme logo placeholder still reads "VOTRE MARQUE" (`themes/*/logo.svg`).
 
 ## Quality
 - [ ] Apply `cargo fmt` (decide on `rustfmt.toml`: default or `max_width = 120`).

@@ -1,108 +1,104 @@
 ---
-title: ignoré (fichier inclus)
+title: ignored (included file)
 ---
 
-# Mises en page
+# Layouts
 
-Une slide, une forme
+One slide, one shape
 
-## Sommaire {.toc}
+## Contents {.toc}
 
-## Deux colonnes {.cols}
+## Two columns {.cols}
 
-### Avant
+### Before
 
-- Un texte @1
-- Visible des clics 2 à 3 @2-3
-- Arrive par le bas @+1:up
+- A text @1
+- Visible from click 2 to 3 @2-3
+- Comes in from below @+1:up
 
 ::right::
 
-### Après
+### After
 
-Un paragraphe qui apparaît @2
+A paragraph that appears @2
 
 ```yaml title="config.yml" @3
 replicas: 3
 ```
 
-## Citation {.quote}
+## Quote {.quote}
 
-La simplicité est la sophistication suprême.
+Simplicity is the ultimate sophistication.
 
-— Léonard de Vinci
+— Leonardo da Vinci
 
-## Chiffre clé {.fact transition="zoom"}
+## Key figure {.fact transition="zoom"}
 
 ### 98 %
 
-des incidents évités par l'automatisation
+of incidents avoided by automation
 
-## Affirmation {.statement background="#1e3a8a"}
+## Statement {.statement background="#1e3a8a"}
 
-Le code est la [documentation]{.underline .cyan @1} qui ne [ment]{.circle @2} [jamais]{.highlight @3}.
+Code is the [documentation]{.underline .cyan @1} that [never]{.circle @2} [lies]{.highlight @3}.
 
-## Centrée {.center class="sombre" zoom="0.8"}
+## Centred {.center class="dark" zoom="0.8"}
 
-### Du texte centré
+### Centred text
 
-[Encadré]{.box .green}, [barré]{.strike .red} et [qui apparaît]{@1}.
+[Boxed]{.box .green}, [struck out]{.strike .red} and [appearing]{@1}.
 
-## Icônes et polices
+## Icons and fonts
 
-### :mdi:github: Dépôt
+### :mdi:github: Repository
 
-- :mdi:rocket-launch: Rapide
-- :mdi:shield-check: Sûr
+- :mdi:rocket-launch: Fast
+- :mdi:shield-check: Safe
 
-## Mises en évidence
+## Highlights
 
-### Au clic
+### On click
 
-- Une lueur qui pulse @1 @2-3:halo
-- Une lumière qui tourne autour @4-5:chase
-- Un mot [agrandi]{@6-7:magnify} le temps de deux clics
+- A glow that pulses @1 @2-3:halo
+- A light that runs around @4-5:chase
+- A word [magnified]{@6-7:magnify} for two clicks
 
 ```skemo
-diagram(dir="down" lang="fr")
+diagram(dir="down")
   card#api.system API                @1
     to(pod)
   card#pod.pod Pod                    @1 @8-9:halo
 ```
 
-Note: Les mises en évidence s'ajoutent à l'apparition : halo, chase, magnify, sur un texte, un mot, une fenêtre de code ou un nœud de schéma.
+Note: Highlights add to the appearance: halo, chase, magnify, on a text, a word, a code window or a diagram node.
 
-## Titre {.intro}
+## Title {.intro}
 
-Une slide titre au milieu de la présentation
+A title slide in the middle of the presentation
 
 glitu · 2026
 
-## Intercalaire {.section}
+## Interlude {.section}
 
-Sans numéro ni changement de chapitre
+Without a number nor a change of chapter
 
-## Image à droite {.image-right image="img/desk.jpg"}
+## Image on the right {.image-right image="img/desk.jpg"}
 
-### Le texte à gauche
+### The text on the left
 
-- L'image couvre la moitié droite
-- `{.image-left}` la met à gauche
+- The image covers the right half
+- `{.image-left}` puts it on the left
 
-## Colonnes avec en-tête {.cols}
+## Columns with a header {.cols}
 
-Un en-tête sur toute la largeur, puis deux colonnes
+A header across the full width, then two columns
 
 ::left::
 
-- À gauche
+- On the left
 
 ::right::
 
-- À droite
+- On the right
 
-## Page web {.iframe url="https://glitu.net"}
-
-## Merci {.end}
-
-Des questions ?
+## Web page {.iframe url="https://glitu.net"}

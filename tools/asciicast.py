@@ -1,12 +1,12 @@
-"""Écriture d'enregistrements asciicast v2 rejoués pas à pas par glitu.
+"""Writes asciicast v2 recordings, played step by step by glitu.
 
-Un marker "m" clôt chaque segment : le lecteur s'y arrête jusqu'au clic suivant.
+A "m" marker ends each segment: the player stops there until the next click.
 
     from asciicast import Recording
-    rec = Recording(cols=78, rows=18, prompt="moi@poste:~$ ")
-    rec.command("ls", ["a  b"])     # tapée, sa sortie, puis l'invite suivante
-    rec.pause("ls")                  # le lecteur attend le clic
-    rec.save("casts/demo.cast", title="démo")
+    rec = Recording(cols=78, rows=18, prompt="me@desk:~$ ")
+    rec.command("ls", ["a  b"])     # typed, its output, then the next prompt
+    rec.pause("ls")                  # the player waits for the click
+    rec.save("casts/demo.cast", title="demo")
 """
 import json
 import random
@@ -26,7 +26,7 @@ class Recording:
         self.events.append([round(self.t, 3), "o", data])
 
     def line(self, text="", dt=0.04, plain=None):
-        """Une ligne de sortie ; `plain` : son texte sans couleurs, pour vérifier la largeur"""
+        """One line of output; `plain`: its text without colours, to check the width"""
         assert len(plain if plain is not None else text) <= self.cols, text
         self.out(text + "\r\n", dt)
 
@@ -34,13 +34,13 @@ class Recording:
         self.out(self.prompt_text, dt)
 
     def type(self, cmd):
-        """La commande tapée au clavier, touche par touche, puis Entrée"""
+        """The command typed on the keyboard, key by key, then Enter"""
         for ch in cmd:
             self.out(ch, self.random.uniform(0.045, 0.12))
         self.out("\r\n", 0.4)
 
     def command(self, cmd, output=(), first_dt=0.5, dt=0.04):
-        """Commande tapée, ses lignes de sortie, puis l'invite suivante (la première au début)"""
+        """A typed command, its output lines, then the next prompt (the first one at the start)"""
         if not self.events:
             self.prompt(0.0)
         self.type(cmd)
@@ -49,7 +49,7 @@ class Recording:
         self.prompt()
 
     def pause(self, label, wait=0.6):
-        """Fin de segment : le lecteur attend le clic suivant"""
+        """End of a segment: the player waits for the next click"""
         self.t += wait
         self.events.append([round(self.t, 3), "m", label])
 
@@ -65,4 +65,4 @@ class Recording:
             for e in self.events:
                 f.write(json.dumps(e, ensure_ascii=False) + "\n")
         markers = sum(1 for e in self.events if e[1] == "m")
-        print(f"{dest}: {len(self.events)} événements, {self.t:.1f} s, {markers} markers → {markers + 1} .cast-step")
+        print(f"{dest}: {len(self.events)} events, {self.t:.1f} s, {markers} markers → {markers + 1} .cast-step")

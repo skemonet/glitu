@@ -1,6 +1,6 @@
-//! Exemple de code importé dans les slides (`<<< src/total.rs#somme`)
+//! Code imported in the slides (`<<< src/total.rs#sum`)
 
-// #region somme
+// #region sum
 pub fn total(v: &[i32]) -> i32 {
     v.iter().sum()
 }

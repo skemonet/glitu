@@ -1,38 +1,30 @@
 ---
-lang: fr
-title: Fonctions de glitu
-subtitle: Formules, inclusions, notes au clic
-author: glitu
+lang: en
+title: glitu
+subtitle: Presentations written in markdown, rendered by a Rust engine
+author: The glitu project
+date: 2026
 font-title: Poppins
 font-mono: Fira Code
-global-top: "glitu · démonstration"
+global-top: "glitu · demo"
 ---
 
-# Formules
+<!-- include: chapters/publishing.md -->
 
-En LaTeX, rendues au build
+<!-- include: chapters/history.md -->
 
-## Une formule dans le texte
+<!-- include: chapters/architecture.md -->
 
-### Énergie
+<!-- include: chapters/source.md -->
 
-- L'équivalence $E = mc^2$ @1
-- Une somme $\sum_{i=1}^{n} i = \frac{n(n+1)}{2}$ @2
+<!-- include: chapters/terminal.md -->
 
-```math @1
-\int_{-\infty}^{+\infty} e^{-x^2}\,dx = \sqrt{\pi}
-```
-
-Note: Commencer par l'énergie. [click] Puis la somme de Gauss. [click] Enfin l'intégrale.
-
-## Une formule en bloc
-
-$$
-\begin{pmatrix} a & b \\ c & d \end{pmatrix}
-\begin{pmatrix} x \\ y \end{pmatrix} =
-\begin{pmatrix} ax + by \\ cx + dy \end{pmatrix}
-$$
+<!-- include: chapters/formulas.md -->
 
 <!-- include: chapters/layouts.md -->
 
 <!-- include: chapters/code.md -->
+
+## Thank you {.end}
+
+github.com/skemonet/glitu

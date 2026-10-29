@@ -1,0 +1,9 @@
+/* Diagram types of the demo, next to the theme's own (themes/crystal/skemo.css) */
+.era      { --c: #334155; }
+.event    { --c: #0891b2; }
+.now      { --c: #22d3ee; }
+.project  { --c: #64748b; }
+.crate    { --c: #2563eb; --label: "CRATE"; }
+.wasm     { --c: #4f46e5; --label: "WASM"; }
+.output   { --c: #0891b2; }
+.static   { --c: #7c3aed; }

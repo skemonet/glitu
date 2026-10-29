@@ -1,8 +1,8 @@
 # Code
 
-Animé, annoté
+Animated, annotated
 
-## Code animé
+## Animated code
 
 ````md magic-move title="total.rs"
 ```rust
@@ -30,35 +30,35 @@ fn total(v: &[i32]) -> i32 {
 ```
 ````
 
-Note: Une version par clic : les mots gardés glissent à leur nouvelle place.
+Note: One version per click: the words kept slide to their new place.
 
-## Code annoté
+## Annotated code
 
 ```python title="app.py"
-def bonjour(nom):
-    print("Bonjour " + nom)  # [!code --]
-    print(f"Bonjour {nom}")  # [!code ++]
-    return nom  # [!code focus]
+def hello(name):
+    print("Hello " + name)  # [!code --]
+    print(f"Hello {name}")  # [!code ++]
+    return name  # [!code focus]
 ```
 
-## Code importé
+## Imported code
 
-<<< ../src/total.rs#somme title="src/total.rs"
+<<< ../src/total.rs#sum title="src/total.rs"
 
-Note: Le code vient du fichier, région « somme » : il reste à jour.
+Note: The code comes from the file, region "sum": it stays up to date.
 
-## Slides animées {.animate .center}
+## Animated slides {.animate .center}
 
-[Glisse ici]{#etiquette .highlight}
+[Slides here]{#label .highlight}
 
-- Un premier point
+- A first point
 
-## Slides animées {.animate .center}
+## Animated slides {.animate .center}
 
-- Un premier point
-- Un deuxième, qui arrive en fondu
-- Un troisième
+- A first point
+- A second one, fading in
+- A third one
 
-[Glisse ici]{#etiquette .highlight}
+[Slides here]{#label .highlight}
 
-Note: Les éléments communs aux deux slides glissent ; les nouveaux apparaissent.
+Note: The elements shared by the two slides slide; the new ones appear.
