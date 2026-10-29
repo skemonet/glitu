@@ -9,8 +9,7 @@
 
 ## ▶ Demo: glitu, presented with glitu
 
-**Website:** https://skemonet.github.io/glitu/ — the demo as one page:
-https://skemonet.github.io/glitu/demo.html
+**Website:** https://glitu.net — the demo as one page: https://glitu.net/demo.html
 
 [**`tests/features/slides.md`**](tests/features/slides.md) presents glitu itself: its publishing
 modes, a frieze, the architecture diagram built click by click, its own source with the project
@@ -263,7 +262,8 @@ publie.
 `tools/site.sh [site/dist]` writes the website: the home page `site/index.html` (with its
 `site/img/`) and the demo, `tests/features/slides.md`, built as one standalone page (`demo.html`).
 The `Website` workflow (`.github/workflows/pages.yml`) builds it on every push and publishes it on
-GitHub Pages from `main` (Settings → Pages → Source: GitHub Actions).
+GitHub Pages from `main` (Settings → Pages → Source: GitHub Actions), under the custom domain
+`glitu.net` (Settings → Pages → Custom domain; `www.glitu.net` redirects to it).
 
 ## Site glitu.net (mainteneur)
 
