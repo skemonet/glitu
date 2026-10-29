@@ -1,6 +1,6 @@
 /* ==========================================================================
-   Thème « crystal » : le template commun (glitu/template.css) tel quel, ses valeurs par défaut
-   sont celles de ce thème ; backdrop « crystal » (glitu.json). Seule la palette est rappelée ici.
+   "crystal" theme: the shared template (glitu/template.css) as is, its default values are
+   those of this theme; "crystal" backdrop (glitu.json). Only the palette is repeated here.
    ========================================================================== */
 :root {
   --accent: #3b82f6;

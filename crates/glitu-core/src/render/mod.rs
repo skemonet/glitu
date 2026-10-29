@@ -404,7 +404,7 @@ fn cover_html(meta: &BTreeMap<String, String>, title: &str) -> String {
     s + "</div></section>"
 }
 
-/// Text: « ### heading + bullets » groups; visual: the first diagram, code, terminal or image
+/// Text: `### heading + bullets` groups; visual: the first diagram, code, terminal or image
 fn text_and_visual<'a>(blocks: &[&'a Block]) -> (Vec<Group>, Option<&'a Block>) {
     let mut groups: Vec<Group> = Vec::new();
     let mut visual = None;
@@ -499,7 +499,7 @@ fn group_html(g: &Group) -> String {
     s
 }
 
-/// Speaker notes: the « Note: » paragraph and everything after it
+/// Speaker notes: the `Note:` paragraph and everything after it
 fn split_notes(slide: &Slide) -> (Vec<&Block>, Vec<String>) {
     let (mut blocks, mut notes) = (Vec::new(), Vec::new());
     for b in &slide.blocks {

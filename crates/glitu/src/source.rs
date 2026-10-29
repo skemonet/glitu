@@ -162,7 +162,7 @@ impl Reader {
             && code.len() - code.trim_start_matches('`').len() >= n
         {
             return Err(format!(
-                "{}: « <<< {spec} » contains backticks, make the fence of the magic-move block longer",
+                "{}: `<<< {spec}` contains backticks, make the fence of the magic-move block longer",
                 path.display()
             ));
         }
@@ -177,7 +177,7 @@ fn snippet(dir: &Path, spec: &str, files: &mut Vec<File>) -> Result<String, Stri
     let (path, part) = target.split_once('#').unwrap_or((target, ""));
     let file = dir.join(path);
     let text = fs::read_to_string(&file).map_err(|e| format!("{}: {e}", file.display()))?;
-    let code = excerpt(&text, part).ok_or_else(|| format!("{}: part « {part} » not found", file.display()))?;
+    let code = excerpt(&text, part).ok_or_else(|| format!("{}: part `{part}` not found", file.display()))?;
     files.push(File { path: file.clone(), text });
     let ext = Path::new(path).extension().and_then(|e| e.to_str()).unwrap_or("");
     let rest = rest.trim();

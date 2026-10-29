@@ -1,7 +1,7 @@
 /* ==========================================================================
-   Thème « ascii » sur le template commun (glitu/template.css) : palette, polices, voiles.
-   ASCII ambre : un champ de caractères qui coule, en ambre de vieux terminal ; tout en chasse fixe.
-   Backdrop animé « ascii » (glitu.json) ; panneau de texte en léger dégradé.
+   "ascii" theme on the shared template (glitu/template.css): palette, fonts, veils.
+   Amber ASCII: a flowing field of characters, in the amber of an old terminal; all monospaced.
+   Animated "ascii" backdrop (glitu.json); text panel in a slight gradient.
    ========================================================================== */
 :root {
   --font: "IBM Plex Sans", "Segoe UI", "Noto Color Emoji", "Apple Color Emoji", "Segoe UI Emoji", system-ui, sans-serif;
@@ -9,7 +9,7 @@
   --title-font: "Familjen Grotesk", var(--font);
   --title-weight: 700;
   --label-font: var(--mono);
-  /* Titres pleins, surtitre sans pastille, chiffre de chapitre plein ; le backdrop porte son voile */
+  /* Solid titles, overline without a dot, solid chapter number; the backdrop carries its veil */
   --cover-size: 88px;
   --cover-title: linear-gradient(var(--heading), var(--heading));
   --eyebrow-pad: 0;

@@ -1,6 +1,6 @@
-//! Médias, comme reveal.js : `data-src` se charge quand la slide approche (images, vidéos,
-//! sons, iframes) ; `data-autoplay` lance la vidéo ou le son à l'arrivée sur la slide ; en la
-//! quittant, ce qui joue s'arrête (sauf `data-ignore`).
+//! Media, as in reveal.js: `data-src` loads when the slide gets close (images, videos, sounds,
+//! iframes); `data-autoplay` starts the video or the sound on arriving on the slide; on leaving
+//! it, what plays stops (except `data-ignore`).
 
 use wasm_bindgen::JsCast;
 use web_sys::{Element, HtmlMediaElement};
@@ -10,7 +10,7 @@ use crate::engine::{self, Ev};
 
 const LAZY: &str = "img[data-src], video[data-src], audio[data-src], iframe[data-src], source[data-src]";
 
-/// Charge les `data-src` des slides proches de la courante
+/// Loads the `data-src` of the slides close to the current one
 fn load_near() {
     let (h, v, _) = engine::position();
     for (x, y, slide) in engine::all_leaves() {
@@ -21,7 +21,7 @@ fn load_near() {
             if let Some(src) = data(&el, "src") {
                 let _ = el.set_attribute("src", &src);
                 let _ = el.remove_attribute("data-src");
-                // Une <source> ne se charge qu'en relançant son lecteur
+                // A <source> only loads by restarting its player
                 if el.tag_name() == "SOURCE"
                     && let Some(m) = el.parent_element().and_then(|p| p.dyn_into::<HtmlMediaElement>().ok())
                 {
@@ -45,7 +45,7 @@ fn stop(slide: &Element) {
 fn autoplay(slide: &Element) {
     for m in media(slide, "video[data-autoplay], audio[data-autoplay]") {
         m.set_current_time(0.0);
-        // Le navigateur peut refuser la lecture sans geste de l'utilisateur : on n'insiste pas
+        // The browser may refuse to play without a gesture of the user: do not insist
         let _ = m.play();
     }
 }

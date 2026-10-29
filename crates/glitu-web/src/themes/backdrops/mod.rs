@@ -1,11 +1,11 @@
-//! Backdrops animés des thèmes à template, autres que le crystal : constellation, paper découpé,
-//! aurora, ASCII ambre, plan technique, isométrique. Un pilote commun (canvas à la taille de la
-//! slide, ralenti, atténuation) et une scène par backdrop, qui ne fait que dessiner une image à un
-//! instant donné.
+//! Animated backdrops of the template themes, other than crystal: constellation, cut paper,
+//! aurora, amber ASCII, blueprint, isometric. A shared driver (canvas the size of the slide,
+//! slowing down, dimming) and one scene per backdrop, which only draws an image at a given
+//! instant.
 //!
-//! L'atténuation (`dim`) va de 0, la scène entière (couverture, chapitres), à 1, la scène
-//! effacée côté texte (slides de texte pleine largeur) ; les slides à panneau sont entre les
-//! deux. Elle glisse d'une valeur à l'autre au changement de slide, même quand le backdrop est figé.
+//! The dimming (`dim`) goes from 0, the whole scene (cover, chapters), to 1, the scene erased
+//! on the text side (full-width text slides); panel slides are in between. It glides from one
+//! value to the other when the slide changes, even when the backdrop is still.
 
 mod ascii;
 mod aurora;
@@ -26,20 +26,20 @@ use crate::dom;
 
 pub const TAU: f64 = PI * 2.0;
 
-/// Une scène : son dessin à l'instant `t`, en px de slide
+/// A scene: its drawing at instant `t`, in slide px
 pub trait Scene {
-    /// Instant de la première image (choisi pour qu'elle soit belle)
+    /// Instant of the first image (chosen so that it looks good)
     fn start(&self) -> f64;
-    /// Images par seconde quand il tourne
+    /// Frames per second when it runs
     fn fps(&self) -> f64 {
         30.0
     }
-    /// Prépare ce qui ne dépend que de la taille (sprites, positions tirées au hasard)
+    /// Prepares what depends only on the size (sprites, random positions)
     fn build(&mut self, _w: f64, _h: f64) {}
     fn draw(&self, ctx: &CanvasRenderingContext2d, w: f64, h: f64, t: f64, dim: f64);
 }
 
-/// Le backdrop nommé dans glitu.json (`"backdrop"`), s'il en est un d'ici
+/// The backdrop named in glitu.json (`"backdrop"`), if it is one of these
 pub fn scene(name: &str) -> Option<Box<dyn Scene>> {
     Some(match name {
         "constellation" => Box::new(constellation::Constellation::default()),
@@ -60,9 +60,9 @@ struct Backdrop {
     reduce: bool,
     w: f64, h: f64, scale: f64,
     t: f64, last: f64, raf: i32,
-    /// Vitesse de l'animation (0 : figée, 1 : normale), qui tend vers `target`
+    /// Speed of the animation (0: still, 1: normal), which tends towards `target`
     rate: f64, target: f64,
-    /// Atténuation, qui tend vers `dim_to`
+    /// Dimming, which tends towards `dim_to`
     dim: f64, dim_to: f64,
 }
 
@@ -74,7 +74,7 @@ impl Backdrop {
         self.scene.draw(&self.ctx, self.w, self.h, self.t, self.dim);
     }
 
-    // Comme le crystal : la scène en px de slide, l'image à la résolution réelle de l'écran
+    // As crystal: the scene in slide px, the image at the real resolution of the screen
     fn resize(&mut self) -> bool {
         let host = dom::html(&self.host);
         let (w, h) = (host.offset_width() as f64, host.offset_height() as f64);
@@ -128,14 +128,14 @@ impl Animated {
         self.0.borrow().canvas.to_data_url().ok()
     }
 
-    /// Allure (tourne ou se fige, sans changer d'image) et atténuation voulues pour la slide
+    /// Pace (runs or stands still, without changing image) and dimming wanted for the slide
     pub fn set_motion(&self, motion: Motion, dim: f64) {
         let mut f = self.0.borrow_mut();
         let animated = matches!(motion, Motion::Animated { .. }) && !f.reduce;
         f.target = if animated { 1.0 } else { 0.0 };
         f.dim_to = dim;
         if f.reduce {
-            // Sans animation : la nouvelle atténuation tout de suite
+            // Without animation: the new dimming at once
             f.dim = dim;
             f.draw();
             return;
@@ -171,12 +171,12 @@ impl Animated {
     }
 }
 
-/// Rapidité du ralenti et de la reprise (par seconde), comme le crystal
+/// Speed of slowing down and resuming (per second), as crystal
 const EASING: f64 = 3.0;
-/// Rapidité de l'atténuation : une demi-seconde environ
+/// Speed of the dimming: about half a second
 const DIMMING: f64 = 6.0;
 
-// ----- Outils des scènes ------------------------------------------------------------------
+// ----- Scene tools ------------------------------------------------------------------------
 
 pub fn lerp(a: f64, b: f64, t: f64) -> f64 {
     a + (b - a) * t
@@ -192,12 +192,12 @@ pub fn rgba(hex: &str, a: f64) -> String {
     format!("rgba({},{},{},{:.3})", n >> 16, (n >> 8) & 255, n & 255, a)
 }
 
-/// Hasard à graine fixe : chaque backdrop garde le même dessin d'une projection à l'autre
+/// Random with a fixed seed: each backdrop keeps the same drawing from one showing to the next
 pub fn seeded(seed: i32) -> impl FnMut() -> f64 {
     rng(seed)
 }
 
-/// Bruit de valeur en 3D, lissé (table de permutation tirée une fois pour toutes)
+/// 3D value noise, smoothed (permutation table drawn once and for all)
 pub struct Noise([u8; 512]);
 
 impl Noise {
@@ -231,13 +231,13 @@ impl Noise {
         )
     }
 
-    /// Deux octaves
+    /// Two octaves
     pub fn fbm(&self, x: f64, y: f64, z: f64) -> f64 {
         (self.n3(x, y, z) + 0.5 * self.n3(x * 2.03, y * 2.03, z + 3.1)) / 1.5
     }
 }
 
-/// Voile horizontal d'une couleur, d'opacité `a0` à gauche (côté texte) à `a1` à droite
+/// Horizontal veil of a colour, of opacity `a0` on the left (text side) to `a1` on the right
 pub fn veil(ctx: &CanvasRenderingContext2d, w: f64, h: f64, hex: &str, a0: f64, a1: f64) {
     if a0 <= 0.0 && a1 <= 0.0 { return }
     let g = ctx.create_linear_gradient(0.0, 0.0, w, 0.0);
@@ -248,7 +248,7 @@ pub fn veil(ctx: &CanvasRenderingContext2d, w: f64, h: f64, hex: &str, a0: f64, 
     ctx.fill_rect(0.0, 0.0, w, h);
 }
 
-/// Un canvas hors de la page
+/// A canvas outside the page
 pub fn offscreen(w: u32, h: u32) -> (HtmlCanvasElement, CanvasRenderingContext2d) {
     let c: HtmlCanvasElement = dom::create("canvas").unchecked_into();
     c.set_width(w.max(1));
@@ -257,7 +257,7 @@ pub fn offscreen(w: u32, h: u32) -> (HtmlCanvasElement, CanvasRenderingContext2d
     (c, ctx)
 }
 
-/// Grain de paper : un carré de bruit répété, fondu en incrustation
+/// Paper grain: a tile of noise repeated, blended as an overlay
 pub struct Grain(HtmlCanvasElement);
 
 impl Grain {

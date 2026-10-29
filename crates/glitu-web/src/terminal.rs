@@ -1,14 +1,14 @@
-//! Terminal rejoué étape par étape : un enregistrement asciicast (v2 ou v3) est découpé par
-//! ses markers ; chaque clic joue le segment suivant (frappe comprise), le lecteur s'arrête sur
-//! le marker et attend le clic d'après. Un clic pendant la frappe termine le segment en cours.
+//! Terminal replayed step by step: an asciicast recording (v2 or v3) is cut at its markers;
+//! each click plays the next segment (typing included), the player stops on the marker and
+//! waits for the click after. A click during the typing ends the current segment.
 //!
 //!   <div class="cast-stage" data-cast="#cast-1" data-idle-time-limit="1">
 //!     <span class="fragment cast-step" data-fragment-index="1"></span>   …
 //!   </div>
 //!
-//! Le rendu reprend la structure et les classes d'asciinema-player 3 (`.ap-player`,
-//! `.ap-term`, `.ap-line`…), que les thèmes habillent ; l'émulation du terminal est faite
-//! par `avt`, l'émulateur d'asciinema.
+//! The rendering takes the structure and the classes of asciinema-player 3 (`.ap-player`,
+//! `.ap-term`, `.ap-line`…), dressed by the themes; the terminal emulation is done by `avt`,
+//! asciinema's emulator.
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -25,7 +25,7 @@ const BLOCK_H: f64 = 8.0;
 const BLOCK_V: f64 = 24.0;
 const LINE_HEIGHT: f64 = 1.3333333333;
 
-// ---------------------------------------------------------------- enregistrement
+// ---------------------------------------------------------------- recording
 
 enum Kind {
     Output(String),
@@ -54,7 +54,7 @@ fn parse(text: &str, idle_limit: Option<f64>) -> Result<Recording, String> {
     for line in lines {
         let ev: Value = serde_json::from_str(line).map_err(|e| e.to_string())?;
         let (t, code, payload) = (ev[0].as_f64().unwrap_or(0.0), ev[1].as_str().unwrap_or(""), ev[2].as_str().unwrap_or(""));
-        // v2 : temps absolu ; v3 : intervalle depuis l'événement précédent
+        // v2: absolute time; v3: interval since the previous event
         let mut delta = if v3 { t } else { t - raw_prev };
         raw_prev = if v3 { raw_prev + t } else { t };
         if let Some(l) = limit {
@@ -75,17 +75,17 @@ fn parse(text: &str, idle_limit: Option<f64>) -> Result<Recording, String> {
     Ok(Recording { cols: cols as usize, rows: rows as usize, events })
 }
 
-// ---------------------------------------------------------------- lecteur
+// ---------------------------------------------------------------- player
 
 struct Player {
     rec: Recording,
     vt: Vt,
-    /// Prochain événement à appliquer
+    /// Next event to apply
     next: usize,
-    /// Temps courant de la lecture (s)
+    /// Current time of the playback (s)
     time: f64,
     playing: bool,
-    /// Instant (performance.now) correspondant au temps 0 pendant la lecture
+    /// Instant (performance.now) matching time 0 during the playback
     origin: f64,
     timer: i32,
     view: View,
@@ -102,8 +102,8 @@ struct View {
 type Shared = Rc<RefCell<Player>>;
 
 impl Player {
-    /// En lecture ou non ; `data-playing` le dit à la page : les captures (export, oracle)
-    /// attendent la fin de la frappe, dont les pauses ressemblent à un écran immobile
+    /// Playing or not; `data-playing` tells the page: captures (export, oracle) wait for the end of
+    /// the typing, whose pauses look like a still screen
     fn set_playing(&mut self, on: bool) {
         self.playing = on;
         let _ = if on { self.view.text.set_attribute("data-playing", "") } else { self.view.text.remove_attribute("data-playing") };
@@ -115,7 +115,7 @@ impl Player {
         self.time = 0.0;
     }
 
-    /// Applique les événements jusqu'à l'index `end` exclu
+    /// Applies the events up to index `end` excluded
     fn apply_until(&mut self, end: usize) {
         while self.next < end.min(self.rec.events.len()) {
             match &self.rec.events[self.next].1 {
@@ -135,12 +135,12 @@ impl Player {
         self.rec.events.iter().enumerate().filter(|(_, (_, k))| matches!(k, Kind::Marker)).map(|(i, _)| i).collect()
     }
 
-    /// Position : avant tout (0), juste après un marker, ou à la fin
+    /// Position: before everything (0), just after a marker, or at the end
     fn seek(&mut self, to: Seek) {
         let end = match to {
             Seek::Start => self.rec.events.iter().take_while(|(t, _)| *t <= 0.0).count(),
             Seek::Marker(i) => if let Some(&m) = self.markers().get(i) { m + 1 } else {
-                dom::warn("[terminal] marker introuvable dans l'enregistrement");
+                dom::warn("[terminal] marker not found in the recording");
                 self.rec.events.len()
             },
             Seek::End => self.rec.events.len(),
@@ -209,7 +209,7 @@ impl Player {
 }
 
 
-/// Couleurs 16 à 255 de xterm
+/// Colours 16 to 255 of xterm
 fn xterm(i: u8) -> String {
     if i >= 232 {
         let v = 8 + (i as u32 - 232) * 10;
@@ -245,7 +245,7 @@ fn play(p: &Shared) {
     tick(p);
 }
 
-/// Applique les événements échus, s'arrête sur un marker, programme la suite
+/// Applies the events due, stops on a marker, schedules the rest
 fn tick(p: &Shared) {
     let mut pl = p.borrow_mut();
     if !pl.playing {
@@ -278,7 +278,7 @@ fn tick(p: &Shared) {
     pl.timer = dom::timeout(wait, move || tick(&me));
 }
 
-// ---------------------------------------------------------------- étapes de la slide
+// ---------------------------------------------------------------- steps of the slide
 
 struct Stage {
     el: Element,
@@ -293,7 +293,7 @@ fn shown(stage: &Element) -> usize {
     qsa(stage, ".cast-step.visible").len()
 }
 
-/// Écran attendu quand n étapes sont affichées
+/// Expected screen when n steps are shown
 fn end_of(stage: &Element, n: usize) -> Seek {
     let total = steps(stage).len();
     if n == 0 { Seek::Start } else if n < total { Seek::Marker(n - 1) } else { Seek::End }
@@ -308,7 +308,7 @@ fn sync(stage: &Element, p: &Shared) {
     p.borrow_mut().seek(end_of(stage, shown(stage)));
 }
 
-/// Mesure d'asciinema-player : largeur d'un caractère et bordures, à 15 px, hors slide
+/// asciinema-player's measure: width of a character and borders, at 15 px, outside the slide
 fn measure(font: &str) -> (f64, f64, f64, f64) {
     let player = dom::create("div");
     player.set_class_name("ap-default-term-ff");
@@ -339,7 +339,7 @@ fn mount(stage: &Element, theme: &str, font: &str) -> Result<Shared, String> {
     let src = data(stage, "cast").unwrap_or_default();
     let text = match src.strip_prefix('#') {
         Some(id) => dom::document().get_element_by_id(id).and_then(|e| e.text_content()).ok_or(format!("enregistrement introuvable : {src}"))?,
-        None => return Err(format!("{src} : seuls les enregistrements embarqués (#id) sont lus")),
+        None => return Err(format!("{src}: only embedded recordings (#id) are read")),
     };
     let idle = data(stage, "idle-time-limit").and_then(|v| v.parse().ok());
     let rec = parse(text.trim(), idle)?;
@@ -371,7 +371,7 @@ fn mount(stage: &Element, theme: &str, font: &str) -> Result<Shared, String> {
     let _ = wrapper.append_child(&player);
     let _ = screen.append_child(&wrapper);
 
-    // Mise à l'échelle « fit: width » d'asciinema-player
+    // "fit: width" scaling of asciinema-player
     let (char_w, char_h, borders_w, borders_h) = measure(font);
     let fit = {
         let (term, player, wrapper) = (term.clone(), player.clone(), wrapper.clone());
@@ -438,7 +438,7 @@ fn enter(slide: &Element, theme: &str, font: &str) {
             continue;
         }
         STAGES.with(|s| s.borrow_mut().push(Stage { el: el.clone(), player: None }));
-        // Le terminal se monte une fois la police chargée (sa largeur sert à la mise à l'échelle)
+        // The terminal mounts once the font is loaded (its width is used for the scaling)
         let font_ref = font.to_string();
         let (theme, font, el2) = (theme.to_string(), font.to_string(), el.clone());
         let ready = move || match mount(&el2, &theme, &font) {
@@ -483,7 +483,7 @@ pub fn install(theme: &str) {
         .unwrap_or_else(|| "monospace".into());
     let theme = theme.to_string();
     engine::on(move |ev| match ev {
-        // À l'impression, chaque terminal montre son écran final
+        // When printing, each terminal shows its final screen
         Ev::Ready if engine::printing() => engine::all_leaves().iter().for_each(|(_, _, s)| enter(s, &theme, &font)),
         Ev::Ready => enter(&engine::current_slide(), &theme, &font),
         Ev::SlideChanged { previous } => {
@@ -496,8 +496,8 @@ pub fn install(theme: &str) {
             }
             enter(&engine::current_slide(), &theme, &font);
         }
-        // Joue le segment i ; s'il restait du segment précédent, on le saute. Dans l'aperçu
-        // « Ensuite » de l'orateur, directement l'écran à la fin du segment
+        // Plays segment i; if some of the previous segment was left, it is skipped. In the speaker's
+        // "Next" preview, directly the screen at the end of the segment
         Ev::FragmentShown(frags) => on_steps(frags, |stage, p, i| {
             if engine::upcoming() {
                 sync(stage, p);

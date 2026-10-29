@@ -1,10 +1,10 @@
-//! Petits raccourcis DOM.
+//! Small DOM shortcuts.
 
 use wasm_bindgen::JsCast;
 use wasm_bindgen::prelude::*;
 use web_sys::{Document, Element, HtmlElement, Window};
 
-/// Texte pour du HTML : `&`, `<`, `>` et `"` échappés
+/// Text for HTML: `&`, `<`, `>` and `"` escaped
 pub fn esc(s: &str) -> String {
     s.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;").replace('"', "&quot;")
 }
@@ -69,8 +69,8 @@ pub fn on<E: JsCast + 'static>(target: &web_sys::EventTarget, event: &str, f: im
     cb.forget();
 }
 
-/// Comme `on`, mais l'écouteur peut annuler l'action du navigateur (`prevent_default`) : les
-/// navigateurs rendent passifs par défaut ceux du toucher posés sur le document
+/// Like `on`, but the listener may cancel the browser's action (`prevent_default`): browsers
+/// make passive by default the touch listeners set on the document
 pub fn on_active<E: JsCast + 'static>(target: &web_sys::EventTarget, event: &str, f: impl FnMut(E) + 'static) {
     let mut f = f;
     let cb = Closure::<dyn FnMut(web_sys::Event)>::new(move |e: web_sys::Event| f(e.unchecked_into()));

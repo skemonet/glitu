@@ -1,10 +1,10 @@
-//! glitu-web : le moteur de présentation, compilé en WebAssembly.
+//! glitu-web: the presentation engine, compiled to WebAssembly.
 //!
-//! La page (produite par `glitu build`) contient les slides en HTML ; `start` les anime :
-//! navigation et étapes (engine), thème (themes), schémas skemo (skemo), terminal rejoué
-//! (terminal), code animé (magic), slides animées (animate), vue de l'orateur (notes), télécommande (remote), dessin (draw), et ce que
-//! reveal.js offre en présentant : vue d'ensemble, écran noir, aller à une slide, aide,
-//! médias, défilement automatique, zoom, export PDF.
+//! The page (produced by `glitu build`) holds the slides in HTML; `start` animates them:
+//! navigation and steps (engine), theme (themes), skemo diagrams (skemo), replayed terminal
+//! (terminal), animated code (magic), animated slides (animate), speaker view (notes), remote (remote), drawing (draw), and what
+//! reveal.js offers when presenting: overview, black screen, go to a slide, help, media,
+//! automatic advance, zoom, PDF export.
 
 mod animate;
 mod attributes;
@@ -32,7 +32,7 @@ mod zoom;
 
 use wasm_bindgen::prelude::*;
 
-/// Options passées par la page : réglages du thème (glitu.json), son nom et son logo
+/// Options passed by the page: settings of the theme (glitu.json), its name and its logo
 #[wasm_bindgen]
 pub fn start(options: JsValue) {
     let get = |k: &str| js_sys::Reflect::get(&options, &JsValue::from_str(k)).ok().filter(|v| !v.is_undefined());
@@ -58,7 +58,7 @@ pub fn start(options: JsValue) {
     let theme = text("theme");
 
     engine::init(config);
-    // Le thème d'abord : il pose le template avant que les composants ne lisent les slides
+    // The theme first: it lays the template before the components read the slides
     if flag("template", false) {
         themes::template::install(&text("logo"), &text("backdrop"));
     }
@@ -75,11 +75,11 @@ pub fn start(options: JsValue) {
     jump::install();
     zoom::install();
     fx::install();
-    // Les touches passent d'abord par le dernier inscrit : écran noir, puis aide, puis mosaïque
+    // Keys go through the last registered first: black screen, then help, then mosaic
     overview::install();
     help::install();
     pause::install();
-    // Le dessin lit les touches avant tous les autres : Échap le quitte sans ouvrir la mosaïque
+    // Drawing reads the keys before all the others: Esc leaves it without opening the mosaic
     draw::install();
     remote::install();
     engine::ready();

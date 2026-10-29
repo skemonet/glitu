@@ -1,5 +1,5 @@
-//! Constellation : peu de points qui dérivent, des liens très fins entre voisins proches,
-//! quelques étoiles qui scintillent, sur un bleu nuit.
+//! Constellation: a few drifting points, very thin links between close neighbours, a few
+//! twinkling stars, on night blue.
 
 use web_sys::CanvasRenderingContext2d;
 
@@ -30,7 +30,7 @@ impl Scene for Constellation {
         let _ = g.add_color_stop(1.0, "#101a38");
         ctx.set_fill_style_canvas_gradient(&g);
         ctx.fill_rect(0.0, 0.0, w, h);
-        // Les points dérivent et reviennent par le bord opposé
+        // The points drift and come back through the opposite edge
         let (mw, mh) = (w + 20.0, h + 20.0);
         let pts: Vec<(f64, f64)> = self.stars.iter().map(|s| {
             ((s.x * w + s.vx * t).rem_euclid(mw) - 10.0, (s.y * h + s.vy * t).rem_euclid(mh) - 10.0)

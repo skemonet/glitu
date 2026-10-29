@@ -1,6 +1,6 @@
-//! Défilement automatique, comme reveal.js : `autoSlide` (glitu.json, en ms) pour toute la
-//! présentation, `data-autoslide` sur une slide ou une étape pour son propre délai (0 : on
-//! attend le clic). A suspend et reprend ; l'écran noir et la vue d'ensemble l'arrêtent.
+//! Automatic advance, as in reveal.js: `autoSlide` (glitu.json, in ms) for the whole
+//! presentation, `data-autoslide` on a slide or a step for its own delay (0: wait for the
+//! click). A pauses and resumes; the black screen and the overview stop it.
 
 use std::cell::Cell;
 
@@ -12,7 +12,7 @@ thread_local! {
     static STOPPED: Cell<bool> = const { Cell::new(false) };
 }
 
-/// Délai de l'étape courante : celui de l'étape, sinon de la slide, sinon de la présentation
+/// Delay of the current step: that of the step, otherwise of the slide, otherwise of the presentation
 fn delay() -> f64 {
     let slide = engine::current_slide();
     let step = qsa(&slide, ".fragment.current-fragment[data-autoslide]").into_iter().next();
@@ -33,7 +33,7 @@ fn halted() -> bool {
     STOPPED.with(Cell::get) || has(&root, "paused") || has(&root, "overview")
 }
 
-/// Programme l'étape suivante ; à la fin, on s'arrête (ou on reboucle avec `loop`)
+/// Schedules the next step; at the end, stop (or loop with `loop`)
 fn cue() {
     cancel();
     let ms = delay();

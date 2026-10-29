@@ -1,5 +1,5 @@
-//! ASCII ambre : un champ de caractères dont la densité suit un bruit qui coule, avec des
-//! anneaux qui s'éloignent d'un point, en ambre de vieux terminal.
+//! Amber ASCII: a field of characters whose density follows a flowing noise, with rings moving
+//! away from a point, in the amber of an old terminal.
 
 use web_sys::CanvasRenderingContext2d;
 
@@ -39,7 +39,7 @@ impl Scene for Ascii {
                 let (dx, dy) = (x / w - 0.7, (y / h - 0.5) * 0.56);
                 let ring = 0.5 + 0.5 * (dx.hypot(dy) * 26.0 - t * 2.2).sin();
                 let mut v = clamp01(noise.fbm(x / w * 9.0, y / h * 7.0 - t * 0.25, t * 0.15) * 0.85 + ring * 0.3 - 0.12);
-                // Derrière le texte : les caractères se raréfient vers la gauche
+                // Behind the text: the characters get sparser towards the left
                 v *= lerp(1.0, (0.25 + 0.75 * (x / w - 0.35) / 0.65).clamp(0.2, 1.0), dim);
                 let c = RAMP[((v * RAMP.len() as f64) as usize).min(RAMP.len() - 1)];
                 if c != " " {

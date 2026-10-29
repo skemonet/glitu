@@ -1,7 +1,7 @@
-//! Mises en évidence au clic (`data-fx="halo:3-4 magnify:5"`, écrit par le build depuis
-//! `@3-4:halo`) : `halo`, une lueur qui pulse ; `chase`, une lumière qui tourne autour de
-//! l'élément ; `magnify`, la vue qui s'agrandit autour de lui (comme Alt + clic, voir `zoom`).
-//! Un texte, une fenêtre de code, une formule ou un nœud de schéma skemo, le temps de ses clics.
+//! Highlights on click (`data-fx="halo:3-4 magnify:5"`, written by the build from `@3-4:halo`):
+//! `halo`, a glow that pulses; `chase`, a light that runs around the element; `magnify`, the
+//! view that grows around it (like Alt + click, see `zoom`).
+//! A text, a code window, a formula or a skemo diagram node, for the time of its clicks.
 
 use std::cell::{Cell, RefCell};
 
@@ -11,27 +11,27 @@ use crate::dom::{self, add, data, has, qsa, remove, style, toggle};
 use crate::engine::{self, Ev};
 use crate::zoom;
 
-/// Écart entre l'élément et la lumière du chase, en px de slide
+/// Gap between the element and the light of the chase, in slide px
 const RING_GAP: f64 = 8.0;
-/// Agrandissement maximal de la magnify
+/// Maximum magnification of the magnify
 const MAGNIFY_MAX: f64 = 2.5;
-/// Arrondi du cadre du chase, en px de slide, et longueur de sa lumière : une part du tour
+/// Rounding of the chase's frame, in slide px, and length of its light: a share of the lap
 const RING_RADIUS: f64 = 14.0;
 const LIGHT: f64 = 0.12;
-/// La traîne : des segments qui suivent la lumière, plus longs et plus pâles (glitu.css)
+/// The trail: segments that follow the light, longer and paler (glitu.css)
 const TRAIL: [(&str, f64); 3] = [(".chase-light", 1.0), (".chase-trail-1", 2.0), (".chase-trail-2", 3.5)];
-/// Chase, en secondes : apparition, tour de la lumière, extinction (3 s en tout)
+/// Chase, in seconds: appearance, lap of the light, extinction (3 s in all)
 const RING_IN: f64 = 0.2;
 const RING_TOUR: f64 = 2.5;
 const RING_OUT: f64 = 0.5;
 
 thread_local! {
-    /// L'élément agrandi par `magnify`, s'il y en a un
+    /// The element magnified by `magnify`, if there is one
     static MAGNIFY: RefCell<Option<Element>> = const { RefCell::new(None) };
     static RINGS: Cell<u32> = const { Cell::new(0) };
 }
 
-/// Effets actifs de l'élément au clic `s`
+/// Active effects of the element at click `s`
 fn active(el: &Element, s: u32) -> Vec<String> {
     data(el, "fx")
         .unwrap_or_default()
@@ -46,10 +46,10 @@ fn active(el: &Element, s: u32) -> Vec<String> {
         .collect()
 }
 
-/// Le chase : un cadre posé sur la slide autour de l'élément (un nœud SVG n'a pas de
-/// pseudo-élément), retrouvé par son numéro d'un clic à l'autre pour ne pas relancer sa ronde.
-/// La lumière est un trait du contour qui en fait le tour, une fois, à vitesse uniforme ; le
-/// moteur l'anime image par image (`run`), pareil dans tous les navigateurs
+/// The chase: a frame laid on the slide around the element (an SVG node has no
+/// pseudo-element), found again by its number from one click to the next so as not to restart.
+/// The light is a stroke of the outline that runs around it, once, at uniform speed; the engine
+/// animates it frame by frame (`run`), the same in all browsers
 fn ring(slide: &Element, el: &Element, on: bool) {
     let key = data(el, "fx-ring");
     let existing = key.as_ref().and_then(|k| dom::qs(slide, &format!(".fx-ring[data-for=\"{k}\"]")));
@@ -81,8 +81,8 @@ fn ring(slide: &Element, el: &Element, on: bool) {
     run(r);
 }
 
-/// Le chase dans le temps : le cadre paraît, la lumière fait le tour, le cadre s'éteint.
-/// Sans animation (préférence du système, captures) : le cadre reste allumé 3 s, immobile
+/// The chase over time: the frame appears, the light runs around, the frame goes out.
+/// Without animation (system preference, captures): the frame stays lit 3 s, still
 fn run(r: Element) {
     if crate::motion::reduced() {
         style(&r, "opacity", "1");
@@ -109,8 +109,8 @@ fn frame(r: Element, start: Option<f64>) {
         style(&r, "opacity", &format!("{opacity:.3}"));
         let perimeter: f64 = data(&r, "perimeter").and_then(|p| p.parse().ok()).unwrap_or(0.0);
         let run = ((t - RING_IN) / RING_TOUR).clamp(0.0, 1.0);
-        // la tête de la lumière, sur le contour ; chaque segment finit à la tête et ne
-        // remonte pas avant le départ : rien ne s'allume avant le passage
+        // the head of the light, on the outline; each segment ends at the head and does not go back
+        // before the start: nothing lights up before the light passes
         let light = (perimeter * LIGHT).max(40.0);
         let head = perimeter * run + light;
         for (sel, k) in TRAIL {
@@ -125,7 +125,7 @@ fn frame(r: Element, start: Option<f64>) {
     });
 }
 
-/// Le cadre sur l'élément, en coordonnées de la slide (mise à l'échelle et zoom compris)
+/// The frame on the element, in slide coordinates (scaling and zoom included)
 fn place(slide: &Element, el: &Element, r: &Element) {
     let (sr, er) = (slide.get_bounding_client_rect(), el.get_bounding_client_rect());
     let scale = if sr.width() > 0.0 { sr.width() / engine::config().width } else { 1.0 };
@@ -134,7 +134,7 @@ fn place(slide: &Element, el: &Element, r: &Element) {
     let (w, h) = (er.width() / scale + 2.0 * RING_GAP, er.height() / scale + 2.0 * RING_GAP);
     style(r, "width", &format!("{w}px"));
     style(r, "height", &format!("{h}px"));
-    // le contour, au trait près (1,5 px de marge) ; sa longueur règle la lumière
+    // the outline, to the stroke (1.5 px of margin); its length sets the light
     let (w, h) = (w - 3.0, h - 3.0);
     let perimeter = 2.0 * (w + h) - (8.0 - 2.0 * std::f64::consts::PI) * RING_RADIUS;
     for rect in qsa(r, "rect") {
@@ -142,7 +142,7 @@ fn place(slide: &Element, el: &Element, r: &Element) {
             let _ = rect.set_attribute(k, &v.to_string());
         }
     }
-    // la course de la lumière : un tour (voir `frame`)
+    // the course of the light: one lap (see `frame`)
     let _ = r.set_attribute("data-perimeter", &format!("{perimeter:.2}"));
 }
 
@@ -157,7 +157,7 @@ fn update(slide: &Element) {
             remove(&el, "fx-halo-off");
             add(&el, "fx-halo");
         } else if has(&el, "fx-halo") {
-            // la lueur s'éteint en fondu
+            // the glow fades out
             remove(&el, "fx-halo");
             add(&el, "fx-halo-off");
         }
@@ -180,7 +180,7 @@ fn update(slide: &Element) {
     }
 }
 
-/// La slide quittée perd ses effets
+/// The slide left loses its effects
 fn clear(slide: &Element) {
     for el in qsa(slide, ".fx-on, .fx-halo, .fx-halo-off") {
         for c in ["fx-on", "fx-halo", "fx-halo-off"] {
@@ -194,7 +194,7 @@ fn clear(slide: &Element) {
 }
 
 pub fn install() {
-    // À l'impression et dans la vue défilante, les slides montrent leur état final, sans effet
+    // When printing and in the scroll view, the slides show their final state, without effect
     if engine::printing() {
         return;
     }
@@ -207,7 +207,7 @@ pub fn install() {
             update(&engine::current_slide());
         }
         Ev::FragmentShown(_) | Ev::FragmentHidden(_) => update(&engine::current_slide()),
-        // les cadres suivent la nouvelle échelle ; la magnify, défaite par `zoom`, se refait
+        // the frames follow the new scale; the magnify, undone by `zoom`, is done again
         Ev::Resize => {
             let slide = engine::current_slide();
             if let Some(el) = MAGNIFY.with(|l| l.borrow().clone()) {

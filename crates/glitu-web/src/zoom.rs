@@ -1,6 +1,6 @@
-//! Zoom (Alt + clic, Ctrl + clic sous Linux) sur un élément de la slide, comme le plugin zoom
-//! de reveal.js : la page entière s'agrandit autour de lui ; un second clic, ou un changement
-//! de slide, revient à la normale.
+//! Zoom (Alt + click, Ctrl + click on Linux) on an element of the slide, like reveal.js's zoom
+//! plugin: the whole page grows around it; a second click, or a change of slide, goes back to
+//! normal.
 
 use std::cell::Cell;
 
@@ -10,7 +10,7 @@ use web_sys::{Element, MouseEvent};
 use crate::dom::{self, add, closest, remove, style, unstyle};
 use crate::engine::{self, Ev};
 
-/// Marge laissée autour de l'élément agrandi, en px d'écran
+/// Margin left around the magnified element, in screen px
 const PADDING: f64 = 20.0;
 
 thread_local! {
@@ -25,8 +25,8 @@ pub fn zoom_out() {
     if !ZOOMED.with(|z| z.replace(false)) {
         return;
     }
-    // Retour à l'échelle 1 avec la même origine : la vue revient depuis l'élément agrandi (sans
-    // origine, elle repartirait du centre) ; les styles partent une fois la transition finie
+    // Back to scale 1 with the same origin: the view comes back from the magnified element
+    // (without an origin, it would start from the centre); the styles go once the transition is over
     let b = body();
     style(&b, "transform", "scale(1) translate(0px, 0px)");
     dom::timeout(900.0, move || {
@@ -42,14 +42,14 @@ pub fn zoom_on(el: &Element) {
     zoom_to(el, f64::INFINITY);
 }
 
-/// Comme `zoom_on`, l'agrandissement plafonné à `max` (la magnify d'un mot garde sa phrase)
+/// Like `zoom_on`, the magnification capped at `max` (the magnify of a word keeps its sentence)
 pub fn zoom_to(el: &Element, max: f64) {
     let r = el.get_bounding_client_rect();
     let win = dom::window();
     let (iw, ih) = (win.inner_width().ok().and_then(|v| v.as_f64()).unwrap_or(1.0), win.inner_height().ok().and_then(|v| v.as_f64()).unwrap_or(1.0));
     let (w, h) = (r.width() + PADDING * 2.0, r.height() + PADDING * 2.0);
     let scale = (iw / w).min(ih / h).min(max).max(1.0);
-    // L'élément, marge comprise, au centre de la fenêtre
+    // The element, margin included, in the centre of the window
     let x = (r.left() - PADDING) - (iw / scale - w) / 2.0;
     let y = (r.top() - PADDING) - (ih / scale - h) / 2.0;
     let b = body();
@@ -60,9 +60,9 @@ pub fn zoom_to(el: &Element, max: f64) {
 }
 
 pub fn install() {
-    // Linux : Alt + clic déplace les fenêtres, Ctrl + clic est libre
+    // Linux: Alt + click moves the windows, Ctrl + click is free
     let linux = dom::window().navigator().user_agent().unwrap_or_default().contains("Linux");
-    // Sur tout le document : une fois agrandie, la slide peut déborder de la fenêtre
+    // On the whole document: once magnified, the slide can overflow the window
     dom::on::<MouseEvent>(&dom::document(), "mousedown", move |e| {
         if !(if linux { e.ctrl_key() } else { e.alt_key() }) {
             return;

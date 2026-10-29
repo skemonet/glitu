@@ -1,8 +1,8 @@
-// Relevé de l'écran pour l'export PowerPoint modifiable : chaque élément visible devient un
-// objet (forme, texte, chemin, image) en pixels de la fenêtre, dans l'ordre où il est peint.
-// Injecté par `glitu export` ; `__gx.collect()` relève l'état affiché, `__gx.isolate(ids)`
-// ne laisse peindre que certains éléments (backdrops, images, ce qui ne se convertit pas) pour
-// les capturer, `__gx.clear()` rend la page telle qu'elle était.
+// Survey of the screen for the editable PowerPoint export: each visible element becomes an
+// object (shape, text, path, image) in window pixels, in the order it is painted.
+// Injected by `glitu export`; `__gx.collect()` surveys the state shown, `__gx.isolate(ids)`
+// only lets some elements paint (backdrops, images, what does not convert) to capture them,
+// `__gx.clear()` gives the page back as it was.
 window.__gx = (() => {
   const W = innerWidth, H = innerHeight;
   const DEBUG = !!window.__gxDebug;
@@ -12,7 +12,7 @@ window.__gx = (() => {
   sheet.textContent = '.gx-nop::before,.gx-nop::after{content:none!important}';
   let isoSheet = null;
 
-  // ------------------------------------------------------------ couleurs
+  // ------------------------------------------------------------ colours
   const probe = document.createElement('canvas');
   probe.width = probe.height = 1;
   const pctx = probe.getContext('2d', { willReadFrequently: true });
@@ -38,7 +38,7 @@ window.__gx = (() => {
   }
   const fade = (c, o) => (c ? [c[0], c[1], c[2], c[3] * o] : null);
 
-  // ------------------------------------------------------------ opacité, découpe, échelle
+  // ------------------------------------------------------------ opacity, clipping, scale
   const opacities = new Map();
   function opacity(el) {
     if (!el || el.nodeType !== 1) return 1;
@@ -66,9 +66,9 @@ window.__gx = (() => {
   const inside = (c, x, y) => x >= c.l - 0.5 && x <= c.r + 0.5 && y >= c.t - 0.5 && y <= c.b + 0.5;
   const meets = (c, r) => r.right > c.l && r.left < c.r && r.bottom > c.t && r.top < c.b;
   const within = (c, r) => r.left >= c.l - 1 && r.right <= c.r + 1 && r.top >= c.t - 1 && r.bottom <= c.b + 1;
-  // Partie visible d'un élément coupé par un ancêtre (overflow) : capturée en image
+  // Visible part of an element clipped by an ancestor (overflow): captured as an image
   const cut = (el, c, r) => ({ t: 'pic', iso: mark(el, 'all'), x: Math.max(r.left, c.l), y: Math.max(r.top, c.t), w: Math.min(r.right, c.r) - Math.max(r.left, c.l), h: Math.min(r.bottom, c.b) - Math.max(r.top, c.t) });
-  // Pixels de la fenêtre par pixel CSS de l'élément (transformations de mise à l'échelle)
+  // Window pixels per CSS pixel of the element (scaling transforms)
   const scales = new Map();
   function scale(el) {
     if (!el || el.nodeType !== 1) return 1;
@@ -79,7 +79,7 @@ window.__gx = (() => {
     return k;
   }
 
-  // Ordre de peinture approché : z-index des contextes d'empilement, puis ordre du document
+  // Approximate painting order: z-index of the stacking contexts, then document order
   const zs = new Map();
   function zkey(el) {
     if (!el || el.nodeType !== 1) return [];
@@ -92,9 +92,9 @@ window.__gx = (() => {
     return k;
   }
 
-  // ------------------------------------------------------------ pseudo-éléments
-  // ::before / ::after deviennent de vrais éléments, au même style : le relevé les traite alors
-  // comme les autres (puces carrées, numéros de ligne…)
+  // ------------------------------------------------------------ pseudo-elements
+  // ::before / ::after become real elements, with the same style: the survey then treats them
+  // like the others (square bullets, line numbers…)
   const made = [];
   function content(value, el) {
     let out = '';
@@ -131,8 +131,8 @@ window.__gx = (() => {
     }
   }
 
-  // ------------------------------------------------------------ backdrops et bordures
-  // Découpe aux virgules de premier niveau (couches d'un backdrop, ombres, arrêts d'un dégradé)
+  // ------------------------------------------------------------ backdrops and borders
+  // Split at top-level commas (layers of a backdrop, shadows, stops of a gradient)
   function splitTop(v) {
     const out = [];
     let depth = 0, cur = '';
@@ -175,7 +175,7 @@ window.__gx = (() => {
     }
     return { angle, radial: m[2] === 'radial', stops };
   }
-  // Ombres du `box-shadow` / `drop-shadow()` qui ne sont pas intérieures
+  // Shadows of `box-shadow` / `drop-shadow()` that are not inset
   function shadows(s) {
     if (!s || s === 'none') return [];
     const out = [];
@@ -194,7 +194,7 @@ window.__gx = (() => {
     let fill = bg ? { c: bg } : null;
     const images = s.backgroundImage !== 'none' ? splitTop(s.backgroundImage) : [];
     let raster = false, best = -1;
-    // Plusieurs couches : la plus couvrante (PowerPoint n'en peint qu'une)
+    // Several layers: the most covering one (PowerPoint only paints one)
     for (const img of images) {
       if (/^url/.test(img)) { raster = true; continue }
       const g = gradient(img);
@@ -218,7 +218,7 @@ window.__gx = (() => {
     const uniform = sides.every((d) => d.w === sides[0].w && d.w > 0 && d.c && sides[0].c && d.c.join() === sides[0].c.join());
     const sh = shadow(s.boxShadow);
     if (sh) sh.c = fade(sh.c, o);
-    // Ombres sans flou : des copies de la forme, décalées (pastilles, soulignés)
+    // Shadows without blur: copies of the shape, offset (pills, underlines)
     for (const d of shadows(s.boxShadow).filter((x) => x.blur === 0).reverse()) {
       out.push({ t: 'box', x: r.left + d.dx * k - d.spread * k, y: r.top + d.dy * k - d.spread * k, w: r.width + 2 * d.spread * k, h: r.height + 2 * d.spread * k, fill: { c: fade(d.c, o) }, r: radius });
     }
@@ -237,7 +237,7 @@ window.__gx = (() => {
     }
   }
 
-  // ------------------------------------------------------------ texte
+  // ------------------------------------------------------------ text
   const INLINE = new Set(['inline', 'inline-block', 'contents']);
   const REPLACED = new Set(['IMG', 'SVG', 'svg', 'CANVAS', 'VIDEO', 'IFRAME', 'MATH', 'math', 'OBJECT', 'EMBED', 'BR', 'INPUT', 'TEXTAREA', 'SELECT', 'AUDIO']);
   const isInline = (el) => !REPLACED.has(el.tagName) && !(el instanceof SVGElement) && INLINE.has(cs(el).display);
@@ -248,7 +248,7 @@ window.__gx = (() => {
   function runStyle(el) {
     const s = cs(el);
     const k = scale(el);
-    // -webkit-text-fill-color vaut la couleur du texte, sauf texte évidé (contour, dégradé)
+    // -webkit-text-fill-color is the colour of the text, except hollow text (outline, gradient)
     let c = color(s.webkitTextFillColor), grad = null;
     if (s.backgroundClip === 'text' || s.webkitBackgroundClip === 'text') {
       const g = s.backgroundImage !== 'none' && gradient(splitTop(s.backgroundImage)[0]);
@@ -272,7 +272,7 @@ window.__gx = (() => {
       spc: s.letterSpacing === 'normal' ? 0 : round(parseFloat(s.letterSpacing) * k),
       color: fade(c, opacity(el)),
       grad: grad && { ...grad, stops: grad.stops.map(([p, x]) => [p, fade(x, opacity(el))]) },
-      // Texte en contour (`-webkit-text-stroke`)
+      // Outlined text (`-webkit-text-stroke`)
       stroke: parseFloat(s.webkitTextStrokeWidth) > 0 && color(s.webkitTextStrokeColor)
         ? { w: parseFloat(s.webkitTextStrokeWidth) * k, c: fade(color(s.webkitTextStrokeColor), opacity(el)) } : null,
       hl: hl && hl[3] > 0.15 ? hl : null,
@@ -282,12 +282,12 @@ window.__gx = (() => {
   }
   const preformatted = (s) => /^pre/.test(s.whiteSpace) || s.whiteSpace === 'break-spaces';
 
-  // Mots d'un nœud texte, chacun mesuré à l'écran ; en `pre`, des lignes et leurs sauts
+  // Words of a text node, each measured on screen; in `pre`, lines and their breaks
   function words(node, pre, clip, out) {
     const el = node.parentElement;
     if (cs(el).visibility !== 'visible' || opacity(el) < 0.02) return;
     const st = runStyle(el);
-    // Mots, coupés aussi après un trait d'union : le navigateur peut y passer à la ligne
+    // Words, also cut after a hyphen: the browser may break the line there
     const re = pre ? /\n|[^\n]+/g : /\s+|[^\s-]+-*|-+/g;
     let m;
     while ((m = re.exec(node.data))) {
@@ -305,8 +305,8 @@ window.__gx = (() => {
     }
   }
 
-  // Mots du texte d'un bloc (`out`) et éléments qui se relèvent à part (`escaped`) : blocs,
-  // images, SVG… dans le flux du texte
+  // Words of the text of a block (`out`) and elements surveyed separately (`escaped`): blocks,
+  // images, SVG… in the flow of the text
   function collect(owner, clip, out, escaped) {
     const visit = (node, pre) => {
       for (const n of node.childNodes) {
@@ -320,8 +320,8 @@ window.__gx = (() => {
     visit(owner, preformatted(cs(owner)));
   }
 
-  // Mots → paragraphes (sauts forcés) faits de morceaux de même style ; les lignes, repérées
-  // par la position des mots, gardent les runs à la ligne du navigateur
+  // Words → paragraphs (forced breaks) made of pieces of the same style; the lines, found by the
+  // position of the words, keep the runs at the browser's line breaks
   function paragraphs(toks) {
     const paras = [];
     let para = { runs: [], lines: [] }, space = false, line = null;
@@ -337,9 +337,9 @@ window.__gx = (() => {
         line.top = Math.min(line.top, t.top); line.bottom = Math.max(line.bottom, t.bottom);
         line.left = Math.min(line.left, t.left); line.right = Math.max(line.right, t.right);
       }
-      // Deux éléments en ligne sans espace entre eux mais écartés (marge) : une espace
+      // Two inline elements without a space between them but apart (margin): a space
       const gapped = !newLine && para.runs.length && t.left - line.prevRight > t.st.size * 0.2;
-      // Passage à la ligne du navigateur : gardé tel quel, PowerPoint ne coupe pas au même endroit
+      // Line break of the browser: kept as is, PowerPoint does not break at the same place
       if (newLine && para.lines.length > 1) { para.runs.push({ br: true }); space = false }
       const last = para.runs[para.runs.length - 1];
       const text = ((space || gapped) && last && !last.br ? ' ' : '') + t.text;
@@ -352,8 +352,8 @@ window.__gx = (() => {
     return paras;
   }
 
-  // Cadre horizontal de la zone de texte : la boîte du bloc (le navigateur y a coupé les
-  // lignes), ou juste le texte s'il ne passe pas à la ligne
+  // Horizontal frame of the text box: the box of the block (the browser broke the lines
+  // there), or just the text if it does not wrap
   function textFrame(owner, s, lines, nowrap, algn) {
     const k = scale(owner);
     const r = owner.getBoundingClientRect();
@@ -365,7 +365,7 @@ window.__gx = (() => {
     return { x: box.l, w: box.r - box.l };
   }
 
-  // Puce native (`list-style`) d'un élément de liste
+  // Native bullet (`list-style`) of a list item
   function bulletOf(owner, s, fontSize) {
     if (s.display !== 'list-item' || s.listStyleType === 'none') return null;
     const marker = cs(owner, '::marker');
@@ -402,7 +402,7 @@ window.__gx = (() => {
     let i = 0, cmd = '', x = 0, y = 0, sx = 0, sy = 0, cx = 0, cy = 0, qx = 0, qy = 0, prev = '';
     const num = () => parseFloat(toks[i++]);
     const flag = () => {
-      // drapeaux d'arc collés (« 0 01 ») : un chiffre à la fois
+      // arc flags stuck together ("0 01"): one digit at a time
       const t = toks[i];
       if (t.length > 1 && (t[0] === '0' || t[0] === '1') && !t.includes('.')) { toks[i] = t.slice(1); return +t[0] }
       i++; return +t;
@@ -436,7 +436,7 @@ window.__gx = (() => {
     }
     return out;
   }
-  // Arc elliptique → courbes de Bézier (SVG 1.1, annexe F.6)
+  // Elliptical arc → Bézier curves (SVG 1.1, appendix F.6)
   function arc(x1, y1, rx, ry, phi, fa, fs, x2, y2) {
     if (!rx || !ry || (x1 === x2 && y1 === y2)) return x1 === x2 && y1 === y2 ? [] : [['L', x2, y2]];
     rx = Math.abs(rx); ry = Math.abs(ry);
@@ -540,7 +540,7 @@ window.__gx = (() => {
   const SVG_SKIP = new Set(['defs', 'title', 'desc', 'metadata', 'style', 'marker', 'symbol', 'clipPath', 'mask', 'pattern', 'linearGradient', 'radialGradient', 'filter']);
   const SVG_GROUPS = new Set(['g', 'a', 'svg']);
 
-  // Un SVG (schéma skemo, icône, marque) : un groupe d'objets, ses `<g>` en sous-groupes
+  // An SVG (skemo diagram, icon, mark): a group of objects, its `<g>` as subgroups
   function svgItems(svg, clip, out) {
     const items = [];
     for (const el of svg.children) svgNode(el, svg, clip, items);
@@ -567,7 +567,7 @@ window.__gx = (() => {
     else { const path = svgShape(el, s, svg); if (path) items.push(path) }
   }
 
-  // Une forme SVG → un tracé en pixels de la fenêtre (transformations appliquées)
+  // An SVG shape → a path in window pixels (transforms applied)
   function svgShape(el, s, svg) {
     const m = el.getScreenCTM();
     if (!m) return null;
@@ -583,7 +583,7 @@ window.__gx = (() => {
     const open = el.tagName === 'line' || el.tagName === 'polyline';
     const fill = open && s.fill === 'none' ? null : paint(el, s.fill, o * parseFloat(s.fillOpacity));
     const stroke = paint(el, s.stroke, o * parseFloat(s.strokeOpacity));
-    // Trait d'épaisseur fixe (`vector-effect: non-scaling-stroke`) : déjà en pixels de l'écran
+    // Stroke of fixed width (`vector-effect: non-scaling-stroke`): already in screen pixels
     const sw = parseFloat(s.strokeWidth) * (s.vectorEffect === 'non-scaling-stroke' ? scale(svg) : k);
     const line = stroke && stroke.c && sw > 0 ? { w: sw, c: stroke.c, dash: s.strokeDasharray !== 'none', cap: s.strokeLinecap } : null;
     if (!fill && !line) return null;
@@ -622,9 +622,9 @@ window.__gx = (() => {
     }
   }
 
-  // ------------------------------------------------------------ images et éléments à capturer
+  // ------------------------------------------------------------ images and elements to capture
   let ids = 0;
-  // Marque un élément à capturer par `isolate` : 'own' (son backdrop seul) ou 'all' (avec son contenu)
+  // Marks an element to capture by `isolate`: 'own' (its backdrop alone) or 'all' (with its content)
   function mark(el, how) {
     const id = ++ids;
     el.setAttribute('data-gx-' + how, (el.getAttribute('data-gx-' + how) || '') + ' ' + id);
@@ -641,12 +641,12 @@ window.__gx = (() => {
         c.height = Math.max(1, Math.round(r.height * devicePixelRatio));
         c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
         return out.push({ t: 'pic', src: c.toDataURL('image/png'), x: r.left, y: r.top, w: r.width, h: r.height });
-      } catch (e) { /* image d'une autre origine : capturée */ }
+      } catch (e) { /* image from another origin: captured */ }
     }
     out.push({ t: 'pic', iso: mark(img, 'all'), x: r.left, y: r.top, w: r.width, h: r.height });
   }
 
-  // ------------------------------------------------------------ parcours
+  // ------------------------------------------------------------ walk
   const SKIP = new Set(['SCRIPT', 'STYLE', 'TEMPLATE', 'HEAD', 'LINK', 'META', 'NOSCRIPT', 'ASIDE']);
   let background = [];
   function walk(el, out) {
@@ -663,7 +663,7 @@ window.__gx = (() => {
     const own = s.visibility === 'visible' && meets(clip, r);
     const full = r.width >= W * 0.97 && r.height >= H * 0.97;
     const tag = el.tagName.toUpperCase();
-    // Élément tourné ou incliné : PowerPoint ne le reproduirait pas, il est capturé tel quel
+    // Rotated or skewed element: PowerPoint would not reproduce it, it is captured as is
     const m = /^matrix\(([^)]*)\)/.exec(s.transform);
     const turned = m && m[1].split(',').map(parseFloat).some((v, i) => (i === 1 || i === 2) && Math.abs(v) > 0.01);
     if (turned) {
@@ -687,7 +687,7 @@ window.__gx = (() => {
       }
       const escaped = [];
       textItem(el, s, clip, items, escaped);
-      // Le backdrop et le texte de l'élément sous ceux de ses enfants
+      // The backdrop and the text of the element under those of its children
       emit(el, z, items, out);
       items.length = 0;
       for (const c of escaped) walk(c, out);
@@ -730,7 +730,7 @@ window.__gx = (() => {
     return { items, background, color: page, width: W, height: H };
   }
 
-  // Ne laisse peindre que les éléments marqués `ids` : leur backdrop seul pour 'own', tout pour 'all'
+  // Only lets the elements marked `ids` paint: their backdrop alone for 'own', everything for 'all'
   function isolate(list, transparent) {
     unisolate();
     const sel = list.flatMap((id) => [`[data-gx-own~="${id}"]`, `[data-gx-all~="${id}"]`, `[data-gx-all~="${id}"] *`]).join(',');

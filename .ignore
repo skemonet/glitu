@@ -1,5 +1,5 @@
-# Ignoré par les recherches (ripgrep et les outils qui s'en servent), pas par git : du code
-# tiers ou généré, des copies et des captures, qui coûtent cher à relire et n'apprennent rien
+# Ignored by searches (ripgrep and the tools that use it), not by git: third-party or generated
+# code, copies and captures, which are costly to read and teach nothing
 site/static/
 site/dist/
 crates/glitu/assets/vendor/

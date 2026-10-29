@@ -1,8 +1,8 @@
 /* ==========================================================================
-   Template commun des thèmes glitu (`"template": true` dans glitu.json) — bandeau, panneau de
-   texte à gauche, visuel à droite (photo, schéma, code), pied de progression. Slides en 1280 × 720.
-   Chaque thème n'en change que les variables (palette, polices, voiles) et quelques détails ;
-   les valeurs par défaut sont celles du thème « crystal ».
+   Shared template of the glitu themes (`"template": true` in glitu.json): header, text panel
+   on the left, visual on the right (photo, diagram, code), progress footer. Slides of 1280 × 720.
+   Each theme only changes its variables (palette, fonts, veils) and a few details; the default
+   values are those of the "crystal" theme.
    ========================================================================== */
 :root {
   --base: #0b0f19;
@@ -13,7 +13,7 @@
   --accent-2: #22d3ee;
   --gradient: linear-gradient(90deg, var(--accent), var(--accent-2));
   --panel-w: 37%;
-  --text-scale: 1;   /* multiplie toutes les tailles de texte (une présentation la règle dans son style.css) */
+  --text-scale: 1;   /* multiplies all text sizes (a presentation sets it in its style.css) */
   --header-h: 52px;
   --footer-h: 34px;
   --text: #e8edf5;
@@ -22,16 +22,16 @@
   --stage: #eef2f8;
   --font: "Lato", "Segoe UI", "Noto Color Emoji", "Apple Color Emoji", "Segoe UI Emoji", system-ui, sans-serif;
   --mono: "JetBrains Mono", "DejaVu Sans Mono", ui-monospace, monospace;
-  /* Titres */
+  /* Titles */
   --title-font: var(--font);
   --title-weight: 900;
   --heading: #fff;
-  /* Bandeau et pied */
+  /* Header and footer */
   --bar-bg: rgba(11,15,25,.82);
   --progress-bg: rgba(11,15,25,.78);
   --bar-sep: rgba(255,255,255,.25);
   --seg-bg: rgba(255,255,255,.1);
-  /* Panneau de texte : léger dégradé, filet incliné le long du bord droit */
+  /* Text panel: slight gradient, slanted rule along the right edge */
   --panel-bg:
     radial-gradient(circle at 0 0, rgba(59,130,246,.16), transparent 55%),
     linear-gradient(180deg, var(--surface-1), var(--surface-2));
@@ -39,11 +39,11 @@
   --code-inline: #7dd3fc;
   --code-inline-bg: rgba(125,211,252,.1);
   --link-line: rgba(34,211,238,.4);
-  /* Séparation des deux colonnes, inclinée dans le sens horaire ; --slant : décalage
-     horizontal de son pied par rapport à son sommet, sur toute la hauteur sous le bandeau */
+  /* Separation of the two columns, slanted clockwise; --slant: horizontal offset of its foot
+     from its top, over the whole height under the header */
   --tilt: 2deg;
   --slant: calc(tan(var(--tilt)) * (720px - var(--header-h)));
-  /* Backdrop animé et voiles posés dessus côté texte */
+  /* Animated backdrop and veils laid on it on the text side */
   --backdrop-base: #030308;
   --cover-veil: linear-gradient(90deg, rgba(3,3,8,.75), rgba(3,3,8,.2) 75%);
   --chapter-bg:
@@ -52,7 +52,7 @@
     var(--base);
   --chapter-veil: linear-gradient(90deg, rgba(3,3,8,.7), rgba(3,3,8,.15) 70%);
   --body-veil: linear-gradient(90deg, rgba(3,3,8,.72), rgba(3,3,8,.35));
-  /* Couverture et intercalaires */
+  /* Cover and interludes */
   --cover-title: linear-gradient(180deg, #fff 30%, #b9c6dc);
   --chapter-num: transparent;
   --chapter-num-stroke: 2px rgba(34,211,238,.55);
@@ -61,12 +61,12 @@
   --cover-pad: 0 112px;
   --cover-size: 128px;
   --chapter-num-size: 180px;
-  /* Étiquettes (rubrique du bandeau, surtitre, pied) */
+  /* Labels (section of the header, overline, footer) */
   --label-font: var(--font);
   --eyebrow-pad: .45em 1em;
   --eyebrow-bg: color-mix(in srgb, var(--accent-2) 10%, transparent);
   --eyebrow-line: color-mix(in srgb, var(--accent-2) 30%, transparent);
-  /* Fenêtre de code, sombre dans tous les thèmes */
+  /* Code window, dark in all themes */
   --win-bg: rgba(13,17,23,.94);
   --win-border: rgba(255,255,255,.1);
 }
@@ -87,7 +87,7 @@ html, body, .reveal-viewport { background: var(--base); }
 }
 .reveal p { margin: 0; }
 
-/* ----- Bandeau ------------------------------------------------------------ */
+/* ----- Header ------------------------------------------------------------- */
 .tpl-header {
   position: absolute; z-index: 20; inset: 0 0 auto 0; height: var(--header-h);
   display: flex; align-items: baseline; gap: .55em; padding: 0 28px;
@@ -102,15 +102,15 @@ html, body, .reveal-viewport { background: var(--base); }
 }
 .tpl-header .tpl-sep { font-size: calc(20px * var(--text-scale, 1)); color: var(--bar-sep); }
 .tpl-header .tpl-topic { font-family: var(--title-font); font-size: calc(21px * var(--text-scale, 1)); font-weight: 700; color: var(--text); }
-/* Chapitre, séparateur et sujet sur une même ligne de base, quelles que soient leurs polices
-   (une étiquette en mono et un titre en grotesque n'ont pas le même centre) ; chacun haut comme
-   le bandeau, pour que la ligne reste au milieu */
+/* Chapter, separator and topic on one baseline, whatever their fonts (a mono label and a
+   grotesque title do not have the same centre); each one as high as the header, so that the
+   line stays in the middle */
 .tpl-header :is(.tpl-kicker, .tpl-sep, .tpl-topic) { line-height: var(--header-h); }
 .tpl-header .tpl-logo { margin-left: auto; height: 26px; opacity: .85; align-self: center; }
 
-/* ----- Panneau gauche ----------------------------------------------------- */
-/* Son bord droit penche de --tilt : il dépasse --panel-w de --slant / 2 en haut et s'arrête
-   --slant / 2 avant en bas ; le texte garde la largeur d'un panneau droit */
+/* ----- Left panel --------------------------------------------------------- */
+/* Its right edge leans by --tilt: it passes --panel-w by --slant / 2 at the top and stops
+   --slant / 2 before at the bottom; the text keeps the width of a straight panel */
 .reveal .panel {
   position: absolute; z-index: 10; left: 0; top: var(--header-h); bottom: 0;
   width: calc(var(--panel-w) + var(--slant) / 2);
@@ -119,7 +119,7 @@ html, body, .reveal-viewport { background: var(--base); }
   clip-path: polygon(0 0, 100% 0, calc(100% - var(--slant)) 100%, 0 100%);
   box-sizing: border-box;
 }
-.reveal .panel::after {                       /* filet dégradé le long du bord droit, incliné */
+.reveal .panel::after {                       /* gradient rule along the right edge, slanted */
   content: ""; position: absolute; top: 0; bottom: 0; right: calc(var(--slant) / 2); width: 3px;
   background: var(--panel-rule);
   transform: skewX(calc(-1 * var(--tilt)));
@@ -148,11 +148,11 @@ html, body, .reveal-viewport { background: var(--base); }
   font-family: var(--mono); font-size: .82em; color: var(--code-inline);
   background: var(--code-inline-bg); padding: .08em .35em; border-radius: 4px;
 }
-/* Panneau dont le contenu change à chaque étape : les blocs se superposent */
+/* Panel whose content changes at each step: the blocks are stacked */
 .reveal .panel .panel-steps { display: grid; }
 .reveal .panel .panel-steps > * { grid-area: 1 / 1; }
 
-/* ----- Scène (droite) ----------------------------------------------------- */
+/* ----- Stage (right) ------------------------------------------------------ */
 .reveal .stage {
   position: absolute; inset: var(--header-h) 0 0 0; z-index: 1;
   display: flex; align-items: center; justify-content: center;
@@ -161,7 +161,7 @@ html, body, .reveal-viewport { background: var(--base); }
   background: var(--stage) center / cover no-repeat;
 }
 .reveal .stage.full { padding: 24px 64px calc(var(--footer-h) + 20px); }
-.reveal .stage.photo::before {               /* voile sombre : la photo reste une ambiance */
+.reveal .stage.photo::before {               /* dark veil: the photo stays a mood */
   content: ""; position: absolute; inset: 0; pointer-events: none;
   background: linear-gradient(90deg, rgba(11,15,25,.75), rgba(11,15,25,.35) 60%, rgba(11,15,25,.55));
 }
@@ -171,7 +171,7 @@ html, body, .reveal-viewport { background: var(--base); }
   background: var(--bg) center / cover; filter: blur(8px) brightness(.45) saturate(1.2);
 }
 
-/* Carte blanche posée sur la photo */
+/* White card laid on the photo */
 .reveal div.card {
   position: relative; background: #fff; color: var(--ink);
   border-radius: 18px; padding: 18px 20px;
@@ -181,7 +181,7 @@ html, body, .reveal-viewport { background: var(--base); }
 .reveal div.card svg, .reveal .stage > svg { display: block; width: 100%; height: auto; }
 .reveal .stage.full div.card svg { height: 100%; }
 
-/* Emojis en grand (bloc ```emoji) : un par étape, superposés au centre de la scène */
+/* Big emojis (```emoji block): one per step, stacked in the centre of the stage */
 .reveal .stage .glyphs { display: grid; place-items: center; width: 100%; height: 100%; }
 .reveal .stage .glyphs > * {
   grid-area: 1 / 1; font-size: calc(220px * var(--text-scale, 1)); line-height: 1;
@@ -189,13 +189,13 @@ html, body, .reveal-viewport { background: var(--base); }
   filter: drop-shadow(0 24px 40px rgba(0,0,0,.55));
 }
 
-/* Image (`![](img/x.png)`) : entière dans la scène, comme une capture posée dessus */
+/* Image (`![](img/x.png)`): whole in the stage, like a screenshot laid on it */
 .reveal .stage > img.visual {
   display: block; min-width: 0; min-height: 0; max-width: 100%; max-height: 100%; object-fit: contain;
   margin: 0; border-radius: 12px; box-shadow: 0 30px 60px -20px rgba(0,0,0,.7), 0 0 0 1px rgba(255,255,255,.08);
 }
 
-/* Bande qui défile horizontalement (frise) */
+/* Strip that scrolls horizontally (frieze) */
 .reveal .pan-viewport { position: absolute; inset: 0 0 var(--footer-h); overflow: hidden; }
 .reveal .pan-track {
   position: absolute; left: 0; top: 50%; translate: 0 -50%;
@@ -204,7 +204,7 @@ html, body, .reveal-viewport { background: var(--base); }
 .reveal .pan-track svg { display: block; height: auto; }
 .reveal .pan-step { display: none; }
 
-/* ----- Fenêtre de code ---------------------------------------------------- */
+/* ----- Code window -------------------------------------------------------- */
 .reveal .window {
   width: 100%; height: 100%; display: flex; flex-direction: column; overflow: hidden;
   background: var(--win-bg); color: #e6edf3;
@@ -217,17 +217,17 @@ html, body, .reveal-viewport { background: var(--base); }
   padding: 10px 14px; font: 400 calc(13px * var(--text-scale, 1)) var(--mono); color: var(--text-dim);
   background: rgba(255,255,255,.03); border-bottom: 1px solid rgba(255,255,255,.07);
 }
-.reveal .window-title::before {               /* pastilles de fenêtre */
+.reveal .window-title::before {               /* window dots */
   content: ""; position: absolute; left: 14px; top: 50%; translate: 0 -50%;
   width: 11px; height: 11px; border-radius: 50%; background: #ff5f57;
   box-shadow: 18px 0 #febc2e, 36px 0 #28c840;
 }
 .reveal .window pre {
   position: relative; flex: 1; margin: 0; width: 100%; box-shadow: none;
-  font-size: calc(13px * var(--text-scale, 1)); line-height: 1.55;   /* comme le titre de la fenêtre et l'explorateur */
+  font-size: calc(13px * var(--text-scale, 1)); line-height: 1.55;   /* like the window title and the explorer */
 }
-/* Le plugin highlight empile une copie du bloc par étape de surlignage.
-   Backdrop transparent oblige : on superpose toutes les copies et seule la dernière visible s'affiche. */
+/* The highlight plugin stacks one copy of the block per highlight step.
+   Transparent backdrop required: all the copies are stacked and only the last visible one shows. */
 .reveal .window pre code {
   position: absolute; inset: 0; width: 100%;
   max-height: none; padding: 16px 0; box-sizing: border-box; overflow: hidden;
@@ -235,14 +235,14 @@ html, body, .reveal-viewport { background: var(--base); }
   font-variant-ligatures: none;
   white-space: pre;
 }
-.reveal .window pre code:not(.has-highlights) { padding: 16px 1.2em; }   /* sans numéros de ligne */
+.reveal .window pre code:not(.has-highlights) { padding: 16px 1.2em; }   /* without line numbers */
 .reveal .window pre:has(> code.fragment.visible) > code:not(.fragment),
 .reveal .window pre > code.fragment.visible:has(~ code.fragment.visible) { visibility: hidden; }
 .reveal .window .hljs-ln-numbers {
   color: #4b5563; text-align: right; padding: 0 1.1em 0 1em !important; user-select: none;
 }
-/* le code s'écarte du trait néon des lignes surlignées, comme le nom du fichier courant dans
-   l'explorateur (.5em) ; toutes les lignes, pour rester alignées */
+/* the code keeps away from the neon stroke of the highlighted lines, like the name of the
+   current file in the explorer (.5em); all the lines, to stay aligned */
 .reveal .window .hljs-ln-code { padding-left: .6em !important; padding-right: 1em !important; }
 .reveal .window .hljs-attr, .reveal .window .hljs-bullet { color: #79c0ff; }
 .reveal .window .hljs-string { color: #a5d6ff; }
@@ -251,24 +251,24 @@ html, body, .reveal-viewport { background: var(--base); }
 .reveal .window .hljs-comment { color: #8b949e; }
 .reveal .window .hljs.has-highlights tr:not(.highlight-line) { opacity: .3; }
 .reveal .window .hljs.has-highlights tr.highlight-line td { color: #fff; }
-/* Ligne surlignée : un backdrop uni presque opaque et le trait néon, dessinés par un calque qui
-   déborde d'1 px sur les lignes voisines. À une position fractionnaire (défilement,
-   agrandissement), deux backdrops bord à bord laissent sinon une jointure visible */
-.reveal .window .hljs-ln { width: 100%; }   /* la bande va jusqu'au bord de la fenêtre */
-/* la colonne des numéros garde sa largeur naturelle : la place en plus va au code */
+/* Highlighted line: an almost opaque solid backdrop and the neon stroke, drawn by a layer that
+   overflows by 1 px on the neighbouring lines. At a fractional position (scrolling,
+   magnification), two backdrops edge to edge would otherwise leave a visible seam */
+.reveal .window .hljs-ln { width: 100%; }   /* the band goes to the edge of the window */
+/* the column of numbers keeps its natural width: the extra room goes to the code */
 .reveal .window .hljs-ln-numbers { width: 1px; white-space: nowrap; }
 .reveal .window .hljs.has-highlights .hljs-ln-code { position: relative; z-index: 0; }
 .reveal .window .hljs.has-highlights tr.highlight-line .hljs-ln-code::before {
   content: ""; position: absolute; inset: -1px 0; z-index: -1;
   background: color-mix(in srgb, var(--accent-2) 11%, var(--win-bg));
-  border-left: 2px solid var(--accent-2);   /* le même trait que le fichier courant de l'explorateur */
+  border-left: 2px solid var(--accent-2);   /* the same stroke as the current file of the explorer */
 }
-/* le néon se termine en crochet, discret, en haut et en bas d'un bloc de lignes surlignées */
+/* the neon ends in a discreet bracket, at the top and bottom of a block of highlighted lines */
 .reveal .window .hljs.has-highlights :is(tr.highlight-line:first-child, tr:not(.highlight-line) + tr.highlight-line) .hljs-ln-code::before { border-top-left-radius: 3px; }
 .reveal .window .hljs.has-highlights :is(tr.highlight-line:last-child, tr.highlight-line:has(+ tr:not(.highlight-line))) .hljs-ln-code::before { border-bottom-left-radius: 3px; }
 .reveal .stage .window.fragment { max-height: 100%; }
 
-/* Explorateur de fichiers (fenêtre `file=`) : les fichiers du projet vus jusqu'ici */
+/* File explorer (`file=` window): the project files seen so far */
 .reveal .window-body { flex: 1; display: flex; min-height: 0; }
 .reveal .explorer {
   flex: 0 0 auto; min-width: 150px; max-width: 34%; overflow: hidden; padding: 14px 18px 14px 12px;
@@ -276,8 +276,8 @@ html, body, .reveal-viewport { background: var(--base); }
   font: 400 calc(13px * var(--text-scale, 1))/1.9 var(--mono); color: var(--text-dim); white-space: nowrap;
 }
 .reveal .explorer ul { list-style: none; margin: 0; padding: 0; }
-/* Arborescence : chaque entrée se rattache à la ligne de son dossier (├ ─), la dernière la
-   termine (└ ─) ; la moitié d'une ligne de l'explorateur : .95em (line-height 1.9) */
+/* Tree: each entry hooks onto the line of its folder (├ ─), the last one ends it (└ ─); half
+   a line of the explorer: .95em (line-height 1.9) */
 .reveal .explorer ul ul { padding-left: 1.25em; margin-left: .25em; }
 .reveal .explorer ul ul > li { position: relative; }
 .reveal .explorer ul ul > li::before,
@@ -290,38 +290,38 @@ html, body, .reveal-viewport { background: var(--base); }
 .reveal .explorer li.dir > span::after { content: "/"; opacity: .5; }
 .reveal .explorer li.current > span { color: #fff; background: rgba(34,211,238,.14); box-shadow: inset 2px 0 var(--accent-2); }
 
-/* ----- Schémas skemo pas à pas (plugin skemo) ----------------------------- */
+/* ----- skemo diagrams step by step (skemo plugin) ------------------------- */
 .reveal svg.skemo [data-step], .reveal svg.skemo [data-until] { transition: opacity .45s ease, transform .45s ease; }
-.reveal svg.skemo .sk-morph .sk-diff { fill: var(--accent-2); filter: drop-shadow(0 0 4px var(--accent-2)); }   /* ce qui a changé, jusqu'au clic suivant */
-.reveal svg.skemo .sk-off { opacity: 0 !important; }   /* caché reste caché, même sous une mise en évidence (sk-focus) */
+.reveal svg.skemo .sk-morph .sk-diff { fill: var(--accent-2); filter: drop-shadow(0 0 4px var(--accent-2)); }   /* what changed, until the next click */
+.reveal svg.skemo .sk-off { opacity: 0 !important; }   /* hidden stays hidden, even under a highlight (sk-focus) */
 .reveal svg.skemo .sk-off[data-fx="up"]   { transform: translateY(12px); }
 .reveal svg.skemo .sk-off[data-fx="zoom"] { transform: scale(.92); transform-box: fill-box; transform-origin: center; }
 .reveal svg.skemo.sk-focus :is(.card, .edge):not(.sk-focus-on) { opacity: .28; transition: opacity .45s ease; }
 .reveal svg.skemo.sk-focus .sk-focus-on :is(.card, .edge) { opacity: 1; }
 .reveal svg.skemo .sk-focus-on { filter: drop-shadow(0 0 6px rgba(34,211,238,.9)); transition: filter .45s ease; }
 .reveal .pan-track svg.skemo { height: 540px; width: auto; }
-/* Schéma posé directement sur le backdrop (thème sombre de skemo, backdrop transparent) */
+/* Diagram laid directly on the backdrop (skemo's dark theme, transparent backdrop) */
 .reveal .diagram { width: 100%; height: 100%; }
 .reveal .diagram svg { display: block; width: 100%; height: 100%; }
 .reveal .diagram { min-height: 0; }
 
-/* Légende d'une scène pleine largeur : titre, puis la phrase de l'étape courante */
+/* Caption of a full-width stage: title, then the sentence of the current step */
 .reveal .stage.full:has(> .caption) { flex-direction: column; align-items: stretch; gap: 14px; padding-top: 18px; }
 .reveal .caption { display: flex; align-items: baseline; gap: 22px; flex: none; }
 .reveal .caption h2 { font-family: var(--title-font); font-size: calc(30px * var(--text-scale, 1)); font-weight: var(--title-weight); color: var(--heading); }
 .reveal .caption-steps { display: grid; flex: 1; }
 .reveal .caption-steps > * { grid-area: 1 / 1; font-size: calc(24px * var(--text-scale, 1)); color: var(--accent-2); }
 
-/* ----- Terminal rejoué (plugin asciinema) ------------------------------- */
-.reveal .stage .window:has(.cast-stage) { height: auto; }  /* la fenêtre épouse le terminal */
+/* ----- Replayed terminal (asciinema plugin) ------------------------------- */
+.reveal .stage .window:has(.cast-stage) { height: auto; }  /* the window fits the terminal */
 .reveal .window .cast-stage { position: relative; padding: 14px 18px 18px; }
 .reveal .cast-stage .ap-wrapper { justify-content: flex-start; background: none; }
 .reveal .cast-stage .ap-player { border-radius: 0; box-shadow: none; }
-/* le terminal prend le backdrop de sa fenêtre (translucide, propre au thème) ; --term-color-background
-   ne sert plus qu'à l'inversion vidéo */
+/* the terminal takes the backdrop of its window (translucent, specific to the theme);
+   --term-color-background is only used for reverse video */
 .reveal .cast-stage .ap-player { background-color: transparent; }
 .reveal .cast-stage .ap-term { border: 0; }
-.reveal .cast-stage .ap-overlay-start { display: none; }      /* les clics pilotent, pas de bouton lecture */
+.reveal .cast-stage .ap-overlay-start { display: none; }      /* clicks drive it, no play button */
 .reveal .cast-step { position: absolute; width: 0; height: 0; overflow: hidden; }
 .reveal .cast-hl {
   position: absolute; pointer-events: none; z-index: 5; box-sizing: content-box;
@@ -333,7 +333,7 @@ html, body, .reveal-viewport { background: var(--base); }
   font: 700 calc(15px * var(--text-scale, 1))/1.2 var(--font); color: var(--base); background: var(--accent-2);
   padding: 4px 8px; border-radius: 4px; white-space: nowrap;
 }
-.reveal .cast-grid {                         /* touche G : repérage des cellules */
+.reveal .cast-grid {                         /* G key: grid of the cells */
   position: absolute; pointer-events: none; z-index: 6;
   background-image:
     linear-gradient(to right, rgba(34,211,238,.2) 1px, transparent 1px),
@@ -344,7 +344,7 @@ html, body, .reveal-viewport { background: var(--base); }
 .reveal .cast-grid span { position: absolute; font: calc(11px * var(--text-scale, 1))/1 var(--mono); color: var(--accent-2); }
 .reveal .cast-grid-row { left: -22px; width: 18px; text-align: right; }
 .reveal .cast-grid-col { top: -13px; }
-.reveal .cast-stage .ap-player {               /* couleurs de la fenêtre de code */
+.reveal .cast-stage .ap-player {               /* colours of the code window */
   --term-color-foreground: #e6edf3;
   --term-color-background: #0d1117;
   --term-color-0: #484f58;  --term-color-8: #6e7681;
@@ -357,15 +357,15 @@ html, body, .reveal-viewport { background: var(--base); }
   --term-color-7: #c9d1d9;  --term-color-15: #ffffff;
 }
 
-/* Étapes listées à gauche : l'étape en cours ressort, les précédentes s'estompent */
+/* Steps listed on the left: the current step stands out, the previous ones fade */
 .reveal .panel li.fragment.visible:not(.current-fragment) { opacity: .45; }
 
-/* ----- Couverture (plein écran) ------------------------------------------ */
+/* ----- Cover (full screen) ----------------------------------------------- */
 .reveal .cover {
   position: absolute; inset: 0;
   display: flex; flex-direction: column; justify-content: var(--cover-place); padding: var(--cover-pad);
 }
-.reveal .cover::before {                     /* voile sombre côté texte */
+.reveal .cover::before {                     /* dark veil on the text side */
   content: ""; position: absolute; inset: 0; pointer-events: none;
   background: var(--cover-veil);
 }
@@ -388,14 +388,14 @@ html, body, .reveal-viewport { background: var(--base); }
 }
 .reveal .cover .tpl-logo { position: absolute; right: 48px; bottom: calc(var(--footer-h) + 24px); height: 34px; opacity: .8; }
 
-/* ----- Intercalaire de chapitre ------------------------------------------- */
+/* ----- Chapter interlude --------------------------------------------------- */
 .reveal .chapter {
   position: absolute; inset: 0;
   display: flex; flex-direction: column; justify-content: var(--cover-place); padding: var(--cover-pad);
   color: var(--heading);
   background: var(--chapter-bg);
 }
-.reveal .chapter::before {                   /* trame discrète, estompée vers la gauche */
+.reveal .chapter::before {                   /* discreet pattern, fading towards the left */
   content: ""; position: absolute; inset: 0; pointer-events: none;
   background-image:
     linear-gradient(rgba(255,255,255,.05) 1px, transparent 1px),
@@ -415,22 +415,22 @@ html, body, .reveal-viewport { background: var(--base); }
 .reveal .chapter p { font-size: calc(30px * var(--text-scale, 1)); color: var(--text-dim); margin-top: .6em; }
 .reveal .chapter .tpl-logo { position: absolute; right: 48px; bottom: calc(var(--footer-h) + 24px); height: 34px; opacity: .8; }
 
-/* ----- Backdrop animé ------------------------------------------------------------- */
-/* Un seul backdrop pour toute la présentation, sous les slides (.tpl-backdrop), celui du thème
-   (glitu.json, "backdrop") : data-backdrop="animated" l'anime, "still" le fige ; les slides le laissent voir */
+/* ----- Animated backdrop ---------------------------------------------------------- */
+/* One backdrop for the whole presentation, under the slides (.tpl-backdrop), the theme's
+   (glitu.json, "backdrop"): data-backdrop="animated" animates it, "still" stops it; the slides let it show */
 .tpl-backdrop { position: absolute; inset: 0; z-index: 0; isolation: isolate; background: var(--backdrop-base); pointer-events: none; }
 .reveal .backdrop-canvas { position: absolute; inset: 0; z-index: -1; width: 100%; height: 100%; pointer-events: none; }
 .reveal [data-backdrop] { background: transparent; }
-/* Vue d'ensemble et impression : le backdrop ne peut pas suivre chaque slide, chacune a le sien */
+/* Overview and printing: the backdrop cannot follow each slide, each one has its own */
 .reveal.overview .tpl-backdrop { display: none; }
 .print-pdf .tpl-backdrop { visibility: hidden; inset: 0 auto auto 0; }
 .reveal.overview .slides section:not(.stack) { background: var(--backdrop-base); }
 .print-pdf .reveal .slides .pdf-page { background: var(--backdrop-base) var(--tpl-backdrop-image) center / cover no-repeat; }
-.reveal .chapter[data-backdrop="animated"]::before {     /* voile côté texte à la place de la trame */
+.reveal .chapter[data-backdrop="animated"]::before {     /* veil on the text side instead of the pattern */
   mask-image: none; background: var(--chapter-veil);
 }
 
-/* ----- Pied de progression ------------------------------------------------- */
+/* ----- Progress footer ---------------------------------------------------- */
 .tpl-progress {
   position: absolute; z-index: 30; inset: auto 0 0 0; height: var(--footer-h);
   display: flex; align-items: center; gap: 22px; padding: 0 28px;
@@ -455,10 +455,10 @@ html, body, .reveal-viewport { background: var(--base); }
 .tpl-progress .tpl-count span { color: var(--text-dim); }
 .reveal.overview .tpl-progress, html.print-pdf .tpl-progress { display: none; }
 
-/* ----- Transitions entre mises en page ------------------------------------ */
-/* Le moteur pose sur la slide qui arrive la mise en page de la précédente (data-from-layout).
-   Plein écran → panneau : le plein écran s'efface, puis le panneau glisse depuis la gauche.
-   Panneau → plein écran : l'un s'efface, puis l'autre apparaît (pas de fondu croisé). */
+/* ----- Transitions between layouts ---------------------------------------- */
+/* The engine sets on the incoming slide the layout of the previous one (data-from-layout).
+   Full screen → panel: the full screen fades out, then the panel slides in from the left.
+   Panel → full screen: one fades out, then the other appears (no cross-fade). */
 .reveal .slides section.present[data-from-layout="full"][data-layout="panel"],
 .reveal .slides section.present[data-from-layout="panel"][data-layout="full"] { transition-delay: .4s; }
 .reveal .slides section.present[data-from-layout="full"][data-layout="panel"] .panel {
@@ -466,7 +466,7 @@ html, body, .reveal-viewport { background: var(--base); }
 }
 @keyframes tpl-panel-in { from { transform: translateX(-100%); } }
 
-/* ----- Schémas : apparition des éléments SVG --------------------------------- */
+/* ----- Diagrams: appearance of the SVG elements ----------------------------- */
 .reveal svg .fragment { transition: opacity .45s ease; }
 
 @media print {
@@ -478,7 +478,7 @@ html, body, .reveal-viewport { background: var(--base); }
   .reveal .slides section.present[data-from-layout] .panel { animation: none; }
 }
 
-/* ----- Mises en page par slide : {.cols} {.quote} {.fact} {.statement} {.center} {.toc}, {.full},
+/* ----- Layouts by slide: {.cols} {.quote} {.fact} {.statement} {.center} {.toc}, {.full},
    {.cover} {.intro} {.section} {.end}, {.image-left} {.image-right} {.iframe…} ----- */
 .reveal .layout-body, .reveal .cols {
   position: absolute; left: 0; right: 0; top: var(--header-h); bottom: var(--footer-h);
@@ -529,7 +529,7 @@ html, body, .reveal-viewport { background: var(--base); }
   object-fit: cover; border: 0; background: #fff;
 }
 .reveal .layout-beside img.layout-media { background: none; }
-/* Image à côté du texte : même séparation inclinée que le panneau */
+/* Image next to the text: same slanted separation as the panel */
 .reveal .media-right .layout-media {
   right: 0; width: calc(50% + var(--slant) / 2);
   clip-path: polygon(var(--slant) 0, 100% 0, 100% 100%, 0 100%);

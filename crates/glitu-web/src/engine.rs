@@ -1,11 +1,11 @@
-//! Le moteur de présentation : slides (horizontales et verticales), étapes, mise à l'échelle,
-//! adresse, clavier.
+//! The presentation engine: slides (horizontal and vertical), steps, scaling, address,
+//! keyboard.
 //!
-//! Même modèle que reveal.js : une slide `present`, les précédentes `past` (étapes toutes
-//! visibles), les suivantes `future` (étapes masquées) ; une pile de slides verticales est une
-//! `section.stack`. Les `.fragment` d'une slide sont groupés par `data-fragment-index`, puis
-//! numérotés à partir de 0 ; l'index écrit par l'auteur reste lisible dans `data-sk-index` :
-//! c'est le « clic » que les schémas suivent.
+//! Same model as reveal.js: one slide `present`, the previous ones `past` (all their steps
+//! visible), the next ones `future` (steps hidden); a stack of vertical slides is a
+//! `section.stack`. The `.fragment`s of a slide are grouped by `data-fragment-index`, then
+//! numbered from 0; the index written by the author stays readable in `data-sk-index`: it is the
+//! "click" that diagrams follow.
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -15,7 +15,7 @@ use web_sys::{Element, KeyboardEvent};
 
 use crate::dom::{self, add, data, has, qsa, remove, style, toggle};
 
-/// Réglages du thème (glitu.json), transmis par la page
+/// Settings of the theme (glitu.json), passed by the page
 #[derive(Clone)]
 pub struct Config {
     pub width: f64,
@@ -26,14 +26,14 @@ pub struct Config {
     pub progress: bool,
     pub slide_number: bool,
     pub transition: String,
-    /// Après la dernière slide, on revient à la première
+    /// After the last slide, go back to the first one
     pub looped: bool,
-    /// La molette de la souris fait avancer et reculer
+    /// The mouse wheel moves forward and back
     pub mouse_wheel: bool,
-    /// Défilement automatique : délai entre deux étapes, en ms (0 : aucun)
+    /// Automatic advance: delay between two steps, in ms (0: none)
     pub auto_slide: f64,
-    /// Bornes de la mise à l'échelle dans la fenêtre (comme reveal.js : 0,2 et 2) ; un thème
-    /// vectoriel peut monter plus haut, pour remplir un grand écran
+    /// Bounds of the scaling in the window (as reveal.js: 0.2 and 2); a vector theme can go higher,
+    /// to fill a large screen
     pub min_scale: f64,
     pub max_scale: f64,
 }
@@ -58,9 +58,9 @@ impl Default for Config {
     }
 }
 
-/// Slides voisines gardées affichées de part et d'autre de la slide courante
+/// Neighbouring slides kept displayed on each side of the current slide
 pub const VIEW_DISTANCE: usize = 3;
-/// Largeur de fenêtre (px) sous laquelle la présentation se lit en défilant, comme reveal.js
+/// Window width (px) under which the presentation is read by scrolling, as in reveal.js
 const SCROLL_BELOW: f64 = 435.0;
 
 pub enum Ev<'a> {
@@ -73,40 +73,40 @@ pub enum Ev<'a> {
 
 type Listener = Rc<dyn Fn(&Ev)>;
 type KeyHandler = Rc<dyn Fn()>;
-/// Lit une touche avant le moteur ; `true` : la touche est prise (vue d'ensemble, pause…)
+/// Reads a key before the engine; `true`: the key is taken (overview, pause…)
 type Interceptor = Rc<dyn Fn(&KeyboardEvent) -> bool>;
 
 struct State {
     config: Config,
-    /// Slides horizontales (une pile verticale est une seule entrée)
+    /// Horizontal slides (a vertical stack is a single entry)
     slides: Vec<Element>,
-    /// Par slide horizontale : ses slides verticales (elle-même si ce n'est pas une pile)
+    /// For each horizontal slide: its vertical slides (itself if it is not a stack)
     leaves: Vec<Vec<Element>>,
-    /// Par slide (h, v) : groupes de fragments dans l'ordre des clics
+    /// For each slide (h, v): groups of fragments in click order
     groups: Vec<Vec<Vec<Vec<Element>>>>,
     h: usize,
     v: usize,
-    /// Groupe courant de la slide courante (-1 : aucun)
+    /// Current group of the current slide (-1: none)
     f: i32,
     navigated_h: bool,
     navigated_v: bool,
     listeners: Vec<Listener>,
     keys: Vec<(String, KeyHandler)>,
     interceptors: Vec<Interceptor>,
-    /// Transformation ajoutée à la mise à l'échelle des slides (vue d'ensemble)
+    /// Transform added to the scaling of the slides (overview)
     extra_transform: String,
-    /// `?print-pdf` : toutes les slides l'une sous l'autre, pour l'impression
-    /// Les slides en pages, toutes étapes montrées : impression, ou vue défilante
+    /// `?print-pdf`: all the slides one under the other, for printing
+    /// The slides as pages, all steps shown: printing, or scroll view
     printing: bool,
-    /// … pour être lues en défilant (voir `print`)
+    /// … to be read by scrolling (see `print`)
     scrolling: bool,
-    /// Vue choisie d'après la largeur de la fenêtre (ni `?view=scroll`, ni impression, ni
-    /// télécommande) : elle change quand la fenêtre franchit `SCROLL_BELOW`
+    /// View chosen from the width of the window (neither `?view=scroll`, nor printing, nor
+    /// remote): it changes when the window crosses `SCROLL_BELOW`
     by_width: bool,
-    /// `?receiver` : aperçu dans la vue de l'orateur, piloté par messages, sans clavier
+    /// `?receiver`: preview in the speaker view, driven by messages, without keyboard
     receiver: bool,
     view_distance: usize,
-    /// Vue d'ensemble : toutes les slides affichées, chacune complète (étapes comprises)
+    /// Overview: all the slides displayed, each one complete (steps included)
     overview: bool,
 }
 
@@ -115,7 +115,7 @@ thread_local! {
 }
 
 fn with<R>(f: impl FnOnce(&mut State) -> R) -> R {
-    STATE.with(|s| f(s.borrow_mut().as_mut().expect("moteur non démarré")))
+    STATE.with(|s| f(s.borrow_mut().as_mut().expect("engine not started")))
 }
 
 pub fn root() -> Element {
@@ -130,20 +130,20 @@ pub fn config() -> Config {
     with(|s| s.config.clone())
 }
 
-/// Prépare les slides ; les plugins s'abonnent ensuite, puis `ready()`.
+/// Prepares the slides; the plugins subscribe next, then `ready()`.
 pub fn init(config: Config) {
-    // Attributs écrits en commentaire d'abord : ils peuvent masquer une slide
+    // Attributes written in comments first: they can hide a slide
     for leaf in qsa(&slides_element(), ":scope > section").iter().flat_map(leaves_of) {
         crate::attributes::apply(&leaf);
     }
-    // Slides masquées (`data-visibility="hidden"`) : retirées, comme reveal.js
+    // Hidden slides (`data-visibility="hidden"`): removed, as in reveal.js
     for hidden in qsa(&slides_element(), "section[data-visibility=\"hidden\"]") {
         hidden.remove();
     }
     let search = dom::window().location().search().unwrap_or_default();
     let receiver = search.contains("receiver");
-    // Vue défilante : demandée (`?view=scroll`), ou d'office sur un écran de téléphone, sauf
-    // pour la télécommande
+    // Scroll view: asked for (`?view=scroll`), or by default on a phone screen, except for the
+    // remote
     let by_width = !search.contains("view=scroll") && !receiver && !search.contains("remote") && !search.contains("print-pdf");
     let scrolling = search.contains("view=scroll") || (by_width && narrow());
     let printing = search.contains("print-pdf") || scrolling;
@@ -191,19 +191,19 @@ pub fn init(config: Config) {
     });
 }
 
-/// Fenêtre de téléphone (en portrait) : la vue défilante convient mieux
+/// Phone window (in portrait): the scroll view suits it better
 fn narrow() -> bool {
     dom::window().inner_width().ok().and_then(|w| w.as_f64()).is_some_and(|w| w < SCROLL_BELOW)
 }
 
-/// Slides d'une slide horizontale : ses slides verticales, ou elle-même
+/// Slides of a horizontal slide: its vertical slides, or itself
 fn leaves_of(s: &Element) -> Vec<Element> {
     let inner = qsa(s, ":scope > section");
     if inner.is_empty() { vec![s.clone()] } else { inner }
 }
 
-/// Groupes de fragments d'une slide, comme reveal.js : par index écrit, puis ceux sans index
-/// dans l'ordre du document ; on renumérote ensuite à partir de 0.
+/// Groups of fragments of a slide, as in reveal.js: by written index, then those without an
+/// index in document order; then renumbered from 0.
 fn sort_fragments(slide: &Element) -> Vec<Vec<Element>> {
     let mut ordered: Vec<(u32, Vec<Element>)> = Vec::new();
     let mut unordered: Vec<Vec<Element>> = Vec::new();
@@ -233,17 +233,17 @@ pub fn on(f: impl Fn(&Ev) + 'static) {
     with(|s| s.listeners.push(Rc::new(f)));
 }
 
-/// Raccourci clavier d'un plugin (touche telle que `KeyboardEvent.key`, insensible à la casse)
+/// Keyboard shortcut of a plugin (key as in `KeyboardEvent.key`, case-insensitive)
 pub fn on_key(key: &str, f: impl Fn() + 'static) {
     with(|s| s.keys.push((key.to_lowercase(), Rc::new(f))));
 }
 
-/// Un plugin lit les touches avant le moteur, le dernier inscrit d'abord
+/// A plugin reads the keys before the engine, the last registered first
 pub fn intercept(f: impl Fn(&KeyboardEvent) -> bool + 'static) {
     with(|s| s.interceptors.push(Rc::new(f)));
 }
 
-/// Mode impression (`?print-pdf`)
+/// Print mode (`?print-pdf`)
 pub fn scrolling() -> bool {
     with(|s| s.scrolling)
 }
@@ -252,26 +252,26 @@ pub fn printing() -> bool {
     with(|s| s.printing)
 }
 
-/// Aperçu de la vue de l'orateur (`?receiver`)
+/// Preview of the speaker view (`?receiver`)
 pub fn receiver() -> bool {
     with(|s| s.receiver)
 }
 
-/// L'aperçu « Ensuite » de la vue de l'orateur (`?receiver&upcoming`) : il montre l'état d'arrivée
-/// de l'étape suivante, sans ses animations
+/// The "Next" preview of the speaker view (`?receiver&upcoming`): it shows the final state of
+/// the next step, without its animations
 pub fn upcoming() -> bool {
     receiver() && dom::window().location().search().unwrap_or_default().contains("upcoming")
 }
 
-/// Transformation ajoutée à la mise à l'échelle des slides ; vide : aucune
+/// Transform added to the scaling of the slides; empty: none
 pub fn set_extra_transform(t: &str) {
     with(|s| s.extra_transform = t.to_string());
     layout();
 }
 
-/// Vue d'ensemble : toutes les slides affichées, quelle que soit leur distance (un chapitre
-/// voisin peut être long), chacune dans son état final comme à l'impression ; en sortant, la
-/// slide courante retrouve ses étapes
+/// Overview: all the slides displayed, whatever their distance (a neighbouring chapter can be
+/// long), each one in its final state as when printing; on leaving, the current slide gets its
+/// steps back
 pub fn set_overview(on: bool) {
     with(|s| {
         s.overview = on;
@@ -279,19 +279,19 @@ pub fn set_overview(on: bool) {
     });
     let (h, v, f) = position();
     show(h, v, Some(f), false);
-    // En sortant, la slide choisie est annoncée comme si on y arrivait : schémas, terminal et
-    // effets reprennent ses étapes (en vue d'ensemble, ils la montraient complète)
+    // On leaving, the chosen slide is announced as if arriving at it: diagrams, terminal and
+    // effects take back its steps (in the overview, they showed it complete)
     if !on {
         emit(Ev::SlideChanged { previous: None });
     }
 }
 
-/// Rang de la slide courante dans l'ordre de lecture (slides verticales comprises)
+/// Rank of the current slide in reading order (vertical slides included)
 pub fn leaf_index() -> usize {
     with(|s| s.leaves[..s.h].iter().map(Vec::len).sum::<usize>() + s.v)
 }
 
-/// Slides (h, v) dans l'ordre de lecture
+/// Slides (h, v) in reading order
 pub fn all_leaves() -> Vec<(usize, usize, Element)> {
     with(|s| {
         s.leaves.iter().enumerate().flat_map(|(h, l)| l.iter().enumerate().map(move |(v, e)| (h, v, e.clone()))).collect()
@@ -306,12 +306,12 @@ fn emit(ev: Ev) {
     }
 }
 
-/// Slides horizontales
+/// Horizontal slides
 pub fn slides() -> Vec<Element> {
     with(|s| s.slides.clone())
 }
 
-/// Slides verticales de chaque slide horizontale
+/// Vertical slides of each horizontal slide
 pub fn leaves() -> Vec<Vec<Element>> {
     with(|s| s.leaves.clone())
 }
@@ -325,12 +325,12 @@ pub fn current_slide() -> Element {
     with(|s| s.leaves[s.h][s.v].clone())
 }
 
-/// L'auteur a-t-il déjà navigué horizontalement, verticalement ?
+/// Has the author already navigated horizontally, vertically?
 pub fn navigated() -> (bool, bool) {
     with(|s| (s.navigated_h, s.navigated_v))
 }
 
-/// Clic courant de la slide, tel qu'écrit par l'auteur (0 : aucun)
+/// Current click of the slide, as written by the author (0: none)
 pub fn current_step(slide: &Element) -> u32 {
     qsa(slide, ".fragment.visible[data-sk-index]")
         .iter()
@@ -339,7 +339,7 @@ pub fn current_step(slide: &Element) -> u32 {
         .unwrap_or(0)
 }
 
-/// Lance la présentation : position lue dans l'adresse, puis événement `Ready`.
+/// Starts the presentation: position read from the address, then the `Ready` event.
 pub fn ready() {
     layout();
     let (h, v, f) = read_hash();
@@ -374,8 +374,8 @@ fn write_hash() {
         "#/".into()
     };
     let _ = dom::window().history().and_then(|hist| hist.replace_state_with_url(&wasm_bindgen::JsValue::NULL, "", Some(&hash)));
-    // Pour la page : `glitu serve` synchronise ainsi les fenêtres ouvertes ; pas pendant la vue
-    // d'ensemble, les autres fenêtres ne suivent que la slide choisie, en sortant
+    // For the page: `glitu serve` keeps the open windows in sync this way; not during the
+    // overview, the other windows only follow the chosen slide, on leaving
     if with(|s| s.overview) {
         return;
     }
@@ -401,12 +401,12 @@ fn state_of(i: usize, current: usize) -> &'static str {
     }
 }
 
-/// Distance d'une slide (x, y) à la slide courante, comme reveal.js
+/// Distance from a slide (x, y) to the current slide, as in reveal.js
 pub fn distance(x: usize, y: usize, h: usize, v: usize) -> usize {
     x.abs_diff(h) + if x == h { y.abs_diff(v) } else { y }
 }
 
-/// Affiche la slide (h, v), ses étapes jusqu'au groupe `f` (None : selon le sens d'arrivée)
+/// Shows the slide (h, v), its steps up to group `f` (None: depending on the direction of arrival)
 pub fn show(h: usize, v: usize, f: Option<i32>, events: bool) {
     let (previous, slides, leaves, prev, prev_f) = with(|s| (s.leaves[s.h][s.v].clone(), s.slides.clone(), s.leaves.clone(), (s.h, s.v), s.f));
     let view = with(|s| s.view_distance);
@@ -424,7 +424,7 @@ pub fn show(h: usize, v: usize, f: Option<i32>, events: bool) {
                 }
                 style(leaf, "display", if distance(x, y, h, v) < view { "block" } else { "none" });
             }
-            // Étapes : toutes visibles avant la slide courante, masquées après
+            // Steps: all visible before the current slide, hidden after
             if (x, y) < (h, v) {
                 set_fragments(x, y, i32::MAX);
             } else if (x, y) > (h, v) {
@@ -454,8 +454,8 @@ pub fn show(h: usize, v: usize, f: Option<i32>, events: bool) {
     if events && (h, v) != prev {
         emit(Ev::SlideChanged { previous: Some(&previous) });
     } else if events && f != prev_f {
-        // même slide, autre étape (fenêtre synchronisée, adresse) : comme autant de clics, un
-        // groupe à la fois (terminal, code animé, schémas)
+        // same slide, another step (synchronised window, address): as so many clicks, one group at a
+        // time (terminal, animated code, diagrams)
         let groups = with(|s| s.groups[h][v].clone());
         if f > prev_f {
             ((prev_f + 1)..=f).for_each(|i| emit(Ev::FragmentShown(&groups[i as usize])));
@@ -465,7 +465,7 @@ pub fn show(h: usize, v: usize, f: Option<i32>, events: bool) {
     }
 }
 
-/// `data-state="a b"` de la slide courante : classes de la page, comme reveal.js
+/// `data-state="a b"` of the current slide: classes of the page, as in reveal.js
 fn apply_state(previous: &Element, current: &Element) {
     let html = dom::document().document_element().unwrap();
     for c in data(previous, "state").unwrap_or_default().split_whitespace() {
@@ -476,8 +476,8 @@ fn apply_state(previous: &Element, current: &Element) {
     }
 }
 
-/// La slide qui arrive garde la mise en page de celle qu'elle remplace (`data-layout` posé par
-/// le compilateur) : le thème choisit sa transition selon le couple, en CSS
+/// The incoming slide keeps the layout of the one it replaces (`data-layout` set by the
+/// compiler): the theme chooses its transition from the pair, in CSS
 fn mark_entry(leaves: &[Vec<Element>], previous: &Element, current: &Element) {
     for leaf in leaves.iter().flatten() {
         let _ = leaf.remove_attribute("data-from-layout");
@@ -487,9 +487,9 @@ fn mark_entry(leaves: &[Vec<Element>], previous: &Element, current: &Element) {
     }
 }
 
-/// Étapes visibles d'une slide : groupes 0..=f ; le groupe f est le « courant »
+/// Visible steps of a slide: groups 0..=f; group f is the "current" one
 fn set_fragments(h: usize, v: usize, f: i32) {
-    // À l'impression et en vue d'ensemble, chaque slide se montre complète
+    // When printing and in the overview, each slide shows itself complete
     let f = if printing() || with(|s| s.overview) { i32::MAX } else { f };
     let groups = with(|s| s.groups[h][v].clone());
     for (i, g) in groups.iter().enumerate() {
@@ -500,18 +500,18 @@ fn set_fragments(h: usize, v: usize, f: i32) {
     }
 }
 
-/// Fragment suivant de la slide courante ; false s'il n'y en a plus
+/// Next fragment of the current slide; false if there is none left
 fn fragment_next() -> bool {
     step_fragments(1)
 }
 
-/// Fragment précédent ; false si la slide en est à son début
+/// Previous fragment; false if the slide is at its beginning
 fn fragment_prev() -> bool {
     step_fragments(-1)
 }
 
-/// Avance (`by` = 1) ou recule (-1) d'un groupe de fragments dans la slide courante, et
-/// annonce le groupe montré ou masqué ; false au bout
+/// Moves forward (`by` = 1) or back (-1) by one group of fragments in the current slide, and
+/// announces the group shown or hidden; false at the end
 fn step_fragments(by: i32) -> bool {
     let (h, v, f) = position();
     let count = with(|s| s.groups[h][v].len() as i32);
@@ -519,7 +519,7 @@ fn step_fragments(by: i32) -> bool {
     if target < -1 || target >= count {
         return false;
     }
-    // Le groupe qui change : celui qui paraît en avançant, celui qui part en reculant
+    // The group that changes: the one that appears going forward, the one that leaves going back
     let changed = with(|s| s.groups[h][v][f.max(target) as usize].clone());
     with(|s| s.f = target);
     set_fragments(h, v, target);
@@ -528,12 +528,12 @@ fn step_fragments(by: i32) -> bool {
     true
 }
 
-/// Routes disponibles : gauche, droite, haut, bas
+/// Available routes: left, right, up, down
 pub fn routes() -> (bool, bool, bool, bool) {
     with(|s| (s.h > 0, s.h + 1 < s.slides.len(), s.v > 0, s.v + 1 < s.leaves[s.h].len()))
 }
 
-/// Étapes restantes de part et d'autre dans la slide courante : précédente, suivante
+/// Steps left on each side in the current slide: previous, next
 pub fn fragment_routes() -> (bool, bool) {
     with(|s| (s.f >= 0, s.f + 1 < s.groups[s.h][s.v].len() as i32))
 }
@@ -573,7 +573,7 @@ pub fn up() {
     }
 }
 
-/// Haut de la colonne suivante (le chapitre suivant en navigation 2D), sans ses étapes
+/// Top of the next column (the next chapter in 2D navigation), without its steps
 pub fn next_column() {
     with(|s| s.navigated_h = true);
     if routes().1 {
@@ -581,7 +581,7 @@ pub fn next_column() {
     }
 }
 
-/// Haut de la colonne précédente (le chapitre précédent en navigation 2D)
+/// Top of the previous column (the previous chapter in 2D navigation)
 pub fn previous_column() {
     with(|s| s.navigated_h = true);
     if routes().0 {
@@ -589,7 +589,7 @@ pub fn previous_column() {
     }
 }
 
-/// Étape suivante, slides verticales comprises
+/// Next step, vertical slides included
 pub fn next() {
     if fragment_next() {
         return;
@@ -597,7 +597,7 @@ pub fn next() {
     if routes().3 { down() } else { right() }
 }
 
-/// Étape précédente ; en revenant sur une pile, on arrive en bas de la pile
+/// Previous step; coming back to a stack, arrive at the bottom of the stack
 pub fn prev() {
     if fragment_prev() {
         return;
@@ -617,13 +617,13 @@ pub fn goto(h: usize) {
     show(h, 0, None, true);
 }
 
-/// Dernière étape de la dernière slide ?
+/// Last step of the last slide?
 pub fn at_end() -> bool {
     let (_, right, _, down) = routes();
     !right && !down && !fragment_routes().1
 }
 
-/// Mise à l'échelle dans la fenêtre, centrée (marge comprise)
+/// Scaling in the window, centred (margin included)
 pub fn layout() {
     let c = config();
     let reveal = dom::html(&root());
@@ -659,7 +659,7 @@ pub fn layout() {
     layout_centers();
 }
 
-/// Slides centrées verticalement (les piles, elles, restent en haut)
+/// Slides centred vertically (stacks stay at the top)
 fn layout_centers() {
     let c = config();
     for s in qsa(&slides_element(), "section") {
@@ -681,7 +681,7 @@ fn bind() {
         return;
     }
     bind_keys();
-    // La vue défilante se lit en faisant défiler la page : le doigt et la molette lui restent
+    // The scroll view is read by scrolling the page: the finger and the wheel stay with it
     if scrolling() {
         return;
     }
@@ -691,12 +691,12 @@ fn bind() {
     bind_touch();
 }
 
-/// Taille de la fenêtre, polices chargées, adresse changée à la main
+/// Window size, fonts loaded, address changed by hand
 fn bind_window() {
     let win = dom::window();
     dom::on::<web_sys::Event>(&win, "resize", |_| {
-        // Un téléphone qu'on tourne passe d'une vue à l'autre ; la vue défilante range les
-        // slides en pages : on recharge, la position est dans l'adresse
+        // A phone that is turned goes from one view to the other; the scroll view lays the slides
+        // out as pages: reload, the position is in the address
         if with(|s| s.by_width && s.scrolling != narrow()) {
             let _ = dom::window().location().reload();
             return;
@@ -704,7 +704,7 @@ fn bind_window() {
         layout();
         emit(Ev::Resize);
     });
-    // Les polices changent la hauteur des slides : on recentre une fois tout chargé
+    // Fonts change the height of the slides: centre again once everything is loaded
     dom::on::<web_sys::Event>(&win, "load", |_| layout());
     if let Ok(ready) = dom::document().fonts().ready() {
         let cb = wasm_bindgen::closure::Closure::<dyn FnMut(wasm_bindgen::JsValue)>::new(|_| layout());
@@ -719,7 +719,7 @@ fn bind_window() {
     });
 }
 
-/// Clavier : plugins d'abord (interceptions, raccourcis), puis la navigation
+/// Keyboard: plugins first (interceptions, shortcuts), then navigation
 fn bind_keys() {
     dom::on::<KeyboardEvent>(&dom::document(), "keydown", |e| {
         if e.alt_key() || e.ctrl_key() || e.meta_key() {
@@ -736,13 +736,13 @@ fn bind_keys() {
             return;
         }
         let key = e.key();
-        // Vue défilante : les flèches, Espace et les pages font défiler la page
+        // Scroll view: the arrows, Space and the page keys scroll the page
         if scrolling() && matches!(key.as_str(), " " | "PageDown" | "PageUp" | "ArrowRight" | "ArrowLeft" | "ArrowDown" | "ArrowUp" | "Home" | "End") {
             return;
         }
         match key.as_str() {
-            // les flèches suivent l'ordre de lecture ; Page↓ Page↑ sautent d'une colonne à l'autre
-            // (un chapitre en navigation 2D) ; H J K L : gauche, bas, haut, droite
+            // the arrows follow reading order; Page↓ Page↑ jump from one column to another
+            // (a chapter in 2D navigation); H J K L: left, down, up, right
             " " if e.shift_key() => prev(),
             "ArrowRight" | " " | "n" | "N" => next(),
             "ArrowLeft" | "p" | "P" => prev(),
@@ -770,13 +770,13 @@ fn bind_keys() {
     });
 }
 
-/// La molette avance et recule (`"mouseWheel": true`)
+/// The wheel moves forward and back (`"mouseWheel": true`)
 fn bind_wheel() {
     let last = Rc::new(RefCell::new(0.0));
     dom::on::<web_sys::WheelEvent>(&dom::document(), "wheel", move |e| {
-        // Une molette envoie une rafale d'événements : un pas toutes les 600 ms au plus
+        // A wheel sends a burst of events: one step every 600 ms at most
         let now = dom::now();
-        // La vue d'ensemble a sa propre lecture de la molette
+        // The overview reads the wheel in its own way
         if has(&root(), "overview") || now - *last.borrow() < 600.0 || e.delta_y() == 0.0 {
             return;
         }
@@ -785,24 +785,24 @@ fn bind_wheel() {
     });
 }
 
-/// Glisser d'un doigt : gauche / droite, haut / bas. À deux doigts, le geste reste au
-/// navigateur (`touch-action: pinch-zoom` sur `.reveal`) : zoomer, puis déplacer la vue
+/// Swipe with one finger: left / right, up / down. With two fingers, the gesture stays with the
+/// browser (`touch-action: pinch-zoom` on `.reveal`): zoom, then move the view
 fn bind_touch() {
     let start = Rc::new(RefCell::new(None::<(i32, i32)>));
     let s2 = Rc::clone(&start);
     dom::on::<web_sys::TouchEvent>(&dom::document(), "touchstart", move |e| {
-        // En mode dessin, le doigt dessine (voir `draw`)
+        // In drawing mode, the finger draws (see `draw`)
         if has(&root(), "drawing") {
             return;
         }
-        // Un deuxième doigt annule le glissement en cours, jusqu'au prochain geste
+        // A second finger cancels the swipe in progress, until the next gesture
         *s2.borrow_mut() = match (e.touches().length(), e.touches().get(0)) {
             (1, Some(t)) => Some((t.client_x(), t.client_y())),
             _ => None,
         };
     });
-    // Un seul doigt ne déplace pas la vue : touch-action (glitu.css) ne suffit pas partout
-    // (Firefox sur Android, au-dessus des schémas)
+    // One finger does not move the view: touch-action (glitu.css) is not enough everywhere
+    // (Firefox on Android, over diagrams)
     dom::on_active::<web_sys::TouchEvent>(&dom::document(), "touchmove", |e| {
         if e.touches().length() == 1 && !has(&root(), "drawing") {
             e.prevent_default();
@@ -820,8 +820,8 @@ fn bind_touch() {
     });
 }
 
-/// Aperçu de la vue de l'orateur : il va où on lui dit (`{glitu: "show", h, v, f, ahead}`,
-/// `ahead` : une étape plus loin), et annonce qu'il est prêt à sa fenêtre
+/// Preview of the speaker view: it goes where it is told (`{glitu: "show", h, v, f, ahead}`,
+/// `ahead`: one step further), and tells its window that it is ready
 fn receive() {
     let win = dom::window();
     dom::on::<web_sys::MessageEvent>(&win, "message", |e| {
@@ -852,7 +852,7 @@ fn fullscreen() {
     }
 }
 
-/// Nombre de groupes d'étapes d'une slide, et combien sont affichés
+/// Number of groups of steps of a slide, and how many are shown
 pub fn fragment_counts(slide: &Element) -> (usize, usize) {
     let groups = with(|s| {
         s.leaves

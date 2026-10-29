@@ -1,9 +1,9 @@
-//! Backdrop « crystal » : facettes presque noires, touches de bleu et de violet, lumière qui tourne,
-//! quelques arêtes qui pulsent et, en option, un chase qui file le long des arêtes.
+//! "crystal" backdrop: almost black facets, touches of blue and purple, a turning light, a few
+//! edges that pulse and, as an option, a chase running along the edges.
 //!
-//! Le maillage est calculé dans les coordonnées de la slide (1280 × 720). Les fonctions
-//! mathématiques et le hasard passent par JavaScript (`Math`) : même image qu'avec la
-//! version JavaScript d'origine, à graine égale.
+//! The mesh is computed in slide coordinates (1280 × 720). Mathematical functions and random
+//! numbers go through JavaScript (`Math`): same image as the original JavaScript version, for
+//! the same seed.
 
 use std::cell::RefCell;
 use std::collections::HashSet;
@@ -61,11 +61,11 @@ struct Backdrop {
     w: f64, h: f64, scale: f64,
     pts: Vec<Pt>, tris: Vec<Tri>, vadj: Vec<Vec<usize>>,
     t: f64, last: f64, raf: i32, chase: Option<Chase>, wait: f64,
-    /// Vitesse de l'animation (0 : figée, 1 : normale), qui tend vers `target`
+    /// Speed of the animation (0: still, 1: normal), which tends towards `target`
     rate: f64, target: f64,
 }
 
-/// Générateur mulberry32, identique à la version JavaScript (Math.imul, >>>)
+/// mulberry32 generator, identical to the JavaScript version (Math.imul, >>>)
 pub fn rng(seed: i32) -> impl FnMut() -> f64 {
     let mut s = seed;
     move || {
@@ -78,7 +78,7 @@ pub fn rng(seed: i32) -> impl FnMut() -> f64 {
 
 #[wasm_bindgen]
 extern "C" {
-    /// Math.hypot à trois arguments
+    /// Math.hypot with three arguments
     #[wasm_bindgen(js_namespace = Math, js_name = hypot)]
     fn hypot3(a: f64, b: f64, c: f64) -> f64;
 }
@@ -129,7 +129,7 @@ impl Backdrop {
                 }
             }
         }
-        // Voisinage des sommets, pour le chase
+        // Neighbours of the vertices, for the chase
         let mut edges = HashSet::new();
         self.vadj = vec![Vec::new(); self.pts.len()];
         for t in &self.tris {
@@ -143,7 +143,7 @@ impl Backdrop {
         self.chase = None;
     }
 
-    // Chemin d'environ chase_length arêtes, dans une direction à peu près constante
+    // Path of about chase_length edges, in a roughly constant direction
     fn start_chase(&mut self) {
         let (w, h) = (self.w, self.h);
         let visible: Vec<usize> = self.pts.iter().enumerate()
@@ -231,7 +231,7 @@ impl Backdrop {
             let (l, s) = if tr.accent {
                 (6.0 + shade * 18.0 + near * 10.0 + spec * 14.0, 60.0 + near * 20.0)
             } else {
-                (1.5 + shade * 4.0 + near * 2.5 + spec * 5.0, 25.0) // noir, à peine teinté
+                (1.5 + shade * 4.0 + near * 2.5 + spec * 5.0, 25.0) // black, barely tinted
             };
             self.tri(tr);
             ctx.set_fill_style_str(&format!("hsl({},{}%,{}%)", fixed(hue, 1), fixed(s, 0), fixed(l, 1)));
@@ -252,7 +252,7 @@ impl Backdrop {
             self.tri(tr);
             ctx.stroke();
         }
-        // Chase : un point blanc suivi d'une courte traîne
+        // Chase: a white point followed by a short trail
         if let Some(chase) = &self.chase {
             let trail = self.o.cell * 1.4;
             let s = (chase.time / self.o.chase_duration) * (chase.total + trail);
@@ -266,7 +266,7 @@ impl Backdrop {
             while dd < head_d + 4.0 {
                 let dq = dd.min(head_d);
                 let q = self.chase_at(dq);
-                let fa = (dq - (s - trail)) / trail; // 0 en queue, 1 en tête
+                let fa = (dq - (s - trail)) / trail; // 0 at the tail, 1 at the head
                 ctx.set_stroke_style_str(&format!("rgba(255,255,255,{})", fixed(0.85 * fa * fa, 3)));
                 ctx.begin_path();
                 ctx.move_to(prev.0, prev.1);
@@ -308,7 +308,7 @@ impl Backdrop {
         }
     }
 
-    // Maillage en px de slide, image à la résolution réelle de l'écran (slide mise à l'échelle)
+    // Mesh in slide px, image at the real resolution of the screen (slide scaled)
     fn resize(&mut self) -> bool {
         let host = dom::html(&self.host);
         let (w, h) = (host.offset_width() as f64, host.offset_height() as f64);
@@ -328,12 +328,12 @@ impl Backdrop {
     }
 }
 
-/// Math.round de JavaScript (demi vers +∞)
+/// JavaScript's Math.round (half towards +∞)
 fn js_round(x: f64) -> f64 {
     (x + 0.5).floor()
 }
 
-/// Number.prototype.toFixed de JavaScript
+/// JavaScript's Number.prototype.toFixed
 fn fixed(x: f64, digits: u8) -> String {
     JsValue::from_f64(x)
         .unchecked_into::<js_sys::Number>()
@@ -359,7 +359,7 @@ impl Crystal {
         })))
     }
 
-    /// Redessine le backdrop à la taille de son hôte : première image, redimensionnement
+    /// Redraws the backdrop at the size of its host: first image, resize
     pub fn redraw(&self) {
         let mut f = self.0.borrow_mut();
         if f.resize() {
@@ -367,13 +367,13 @@ impl Crystal {
         }
     }
 
-    /// L'image actuelle du backdrop (PNG en data:), pour l'impression
+    /// The current image of the backdrop (PNG as data:), for printing
     pub fn snapshot(&self) -> Option<String> {
         self.0.borrow().canvas.to_data_url().ok()
     }
 
-    /// Change d'allure sans changer d'image : l'animation ralentit jusqu'à se figer, ou repart
-    /// en douceur ; le chase s'arrête aussitôt
+    /// Changes pace without changing image: the animation slows down until it stands still, or
+    /// resumes gently; the chase stops at once
     pub fn set_motion(&self, motion: Motion) {
         let mut f = self.0.borrow_mut();
         let animated = matches!(motion, Motion::Animated { .. }) && !f.reduce;
@@ -412,12 +412,12 @@ impl Crystal {
     }
 }
 
-/// Allure du backdrop
+/// Pace of the backdrop
 #[derive(Clone, Copy, PartialEq)]
 pub enum Motion {
     Still,
     Animated { chase: bool },
 }
 
-/// Rapidité du ralenti et de la reprise (par seconde) : environ une seconde pour se figer
+/// Speed of slowing down and resuming (per second): about one second to stand still
 const EASING: f64 = 3.0;

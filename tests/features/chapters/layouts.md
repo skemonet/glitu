@@ -101,4 +101,4 @@ A header across the full width, then two columns
 
 - On the right
 
-## Web page {.iframe url="https://glitu.net"}
+## Web page {.iframe url="page.html"}

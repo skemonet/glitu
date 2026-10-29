@@ -1,6 +1,6 @@
-/* Formules (MathML, écrites au build depuis le LaTeX des slides) : police Latin Modern Math
-   (GUST Font License, voir LICENSE-latin-modern-math.txt), chargée seulement par les
-   présentations qui ont des formules */
+/* Formulas (MathML, written at build from the LaTeX of the slides): Latin Modern Math font
+   (GUST Font License, see LICENSE-latin-modern-math.txt), loaded only by the presentations
+   that have formulas */
 @font-face {
   font-family: 'Latin Modern Math';
   font-style: normal;

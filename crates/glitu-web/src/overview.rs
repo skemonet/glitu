@@ -1,6 +1,6 @@
-//! Vue d'ensemble (Échap, O) : toutes les slides en mosaïque, la courante au centre ; les
-//! flèches passent d'une slide à l'autre, Entrée ou un clic y va. Même DOM que reveal.js
-//! (`.reveal.overview`, transformations des sections) : reveal.css l'habille.
+//! Overview (Esc, O): all the slides as a mosaic, the current one in the centre; the arrows go
+//! from one slide to another, Enter or a click goes there. Same DOM as reveal.js
+//! (`.reveal.overview`, transforms of the sections): reveal.css dresses it.
 
 use std::cell::Cell;
 
@@ -9,7 +9,7 @@ use web_sys::{Element, KeyboardEvent};
 use crate::dom::{self, add, closest, data, qs, qsa, remove, style, unstyle};
 use crate::engine::{self, Ev};
 
-/// Écart entre deux slides de la mosaïque, en px de slide
+/// Gap between two slides of the mosaic, in slide px
 const MARGIN: f64 = 70.0;
 
 thread_local! {
@@ -20,13 +20,13 @@ fn active() -> bool {
     ACTIVE.with(Cell::get)
 }
 
-/// Pas de la mosaïque : une slide et sa marge
+/// Step of the mosaic: a slide and its margin
 fn cell() -> (f64, f64) {
     let c = engine::config();
     (c.width + MARGIN, c.height + MARGIN)
 }
 
-/// Chaque slide (et son backdrop) à sa place dans la mosaïque : colonnes horizontales, piles verticales
+/// Each slide (and its backdrop) in its place in the mosaic: horizontal columns, vertical stacks
 fn place(elements: &[Element], nested: impl Fn(&Element) -> Vec<Element>) {
     let (w, h) = cell();
     for (x, el) in elements.iter().enumerate() {
@@ -44,7 +44,7 @@ fn backgrounds() -> Option<Element> {
     qs(&engine::root(), ".backgrounds")
 }
 
-/// Centre la mosaïque sur la slide courante, à une échelle lisible
+/// Centres the mosaic on the current slide, at a readable scale
 fn update() {
     let win = dom::window();
     let (iw, ih) = (win.inner_width().ok().and_then(|v| v.as_f64()).unwrap_or(1.0), win.inner_height().ok().and_then(|v| v.as_f64()).unwrap_or(1.0));
@@ -71,7 +71,7 @@ fn deactivate() {
     ACTIVE.with(|a| a.set(false));
     let root = engine::root();
     remove(&root, "overview");
-    // reveal.js : une classe le temps d'une image, pour couper les transitions au retour
+    // reveal.js: a class for one frame, to cut the transitions when coming back
     add(&root, "overview-deactivating");
     let r2 = root.clone();
     dom::timeout(1.0, move || remove(&r2, "overview-deactivating"));
@@ -92,8 +92,8 @@ fn toggle_overview() {
     if active() { deactivate() } else { activate() }
 }
 
-/// En vue d'ensemble, les flèches vont de slide en slide, sans les étapes ; la slide choisie
-/// s'ouvre à son début, d'où qu'on vienne
+/// In the overview, the arrows go from slide to slide, without the steps; the chosen slide
+/// opens at its beginning, wherever we come from
 fn navigate(e: &KeyboardEvent) -> bool {
     let (h, v, _) = engine::position();
     let leaves = engine::leaves();
@@ -113,10 +113,10 @@ fn navigate(e: &KeyboardEvent) -> bool {
     true
 }
 
-/// Molette ou pavé tactile : un pas dans la mosaïque par geste
+/// Wheel or touchpad: one step in the mosaic per gesture
 fn wheel(e: &web_sys::WheelEvent, travel: &Cell<(f64, f64)>) {
     e.prevent_default();
-    // Maj + molette : la plupart des souris n'ont que l'axe vertical
+    // Shift + wheel: most mice only have the vertical axis
     let (dx, dy) = if e.shift_key() { (e.delta_y(), 0.0) } else { (e.delta_x(), e.delta_y()) };
     let (x, y) = travel.get();
     let (x, y) = (x + dx, y + dy);
@@ -125,7 +125,7 @@ fn wheel(e: &web_sys::WheelEvent, travel: &Cell<(f64, f64)>) {
     let target = if x.abs() >= WHEEL_STEP {
         if x > 0.0 { (h + 1 < leaves.len()).then_some((h + 1, 0)) } else { h.checked_sub(1).map(|h| (h, 0)) }
     } else if y.abs() >= WHEEL_STEP {
-        // En bas d'une colonne, on passe en haut de la suivante (et inversement)
+        // At the bottom of a column, go to the top of the next one (and conversely)
         if y > 0.0 {
             if v + 1 < leaves[h].len() { Some((h, v + 1)) } else { (h + 1 < leaves.len()).then_some((h + 1, 0)) }
         } else if v > 0 {
@@ -143,7 +143,7 @@ fn wheel(e: &web_sys::WheelEvent, travel: &Cell<(f64, f64)>) {
     }
 }
 
-/// Déplacement de molette qui vaut un pas (un cran de souris, un geste de pavé tactile)
+/// Wheel movement worth one step (a notch of a mouse, a touchpad gesture)
 const WHEEL_STEP: f64 = 60.0;
 
 pub fn install() {
@@ -160,7 +160,7 @@ pub fn install() {
         }
         _ => active() && navigate(e),
     });
-    // Un clic sur une slide de la mosaïque y mène
+    // A click on a slide of the mosaic leads there
     dom::on::<web_sys::MouseEvent>(&engine::slides_element(), "click", |e| {
         if !active() {
             return;

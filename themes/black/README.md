@@ -1,7 +1,7 @@
-# Thème « black »
+# "black" theme
 
-Le thème par défaut de reveal-md : `black.css` et ses polices (reveal.js 5.1.0, MIT), `reset.css`
-(reveal.js) et la coloration `zenburn.css` (highlight.js, BSD-3). Réglages de reveal-md dans
-`glitu.json` : 960 × 700, marge 4 %, slides centrées, flèches, progression, numéro, transition
-3D par défaut. Choisi d'office pour un markdown écrit aux règles de reveal-md (slides séparées
-par `---`) ; `theme: <nom>` dans l'en-tête en choisit un autre.
+The default theme of reveal-md: `black.css` and its fonts (reveal.js 5.1.0, MIT), `reset.css`
+(reveal.js) and the `zenburn.css` highlighting (highlight.js, BSD-3). reveal-md's settings in
+`glitu.json`: 960 × 700, 4 % margin, centred slides, arrows, progress, number, 3D transition by
+default. Chosen by default for a markdown written with reveal-md's rules (slides separated by
+`---`); `theme: <name>` in the front matter chooses another one.

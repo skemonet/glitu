@@ -1,6 +1,6 @@
-//! Code surligné par étapes : à chaque étape, le bloc défile pour centrer les lignes
-//! surlignées (comme le plugin highlight de reveal.js). Le build produit une copie du bloc
-//! par étape (`code.fragment`), toutes superposées dans le même `<pre>`.
+//! Code highlighted by steps: at each step, the block scrolls to centre the highlighted lines
+//! (like reveal.js's highlight plugin). The build produces a copy of the block per step
+//! (`code.fragment`), all stacked in the same `<pre>`.
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -17,7 +17,7 @@ struct ScrollState {
 }
 
 thread_local! {
-    /// Un état de défilement par `<pre>`
+    /// One scroll state per `<pre>`
     static STATES: RefCell<Vec<(Element, Rc<RefCell<ScrollState>>)>> = const { RefCell::new(Vec::new()) };
 }
 
@@ -96,7 +96,7 @@ fn animate(block: Element, st: Rc<RefCell<ScrollState>>, start: f64, target: f64
     }
 }
 
-/// À la première arrivée sur la slide, le premier surlignage est centré sans animation
+/// On the first arrival on the slide, the first highlight is centred without animation
 fn first_blocks(slide: &Element) {
     for pre in qsa(slide, "pre.code-wrapper") {
         let Some(first) = dom::qs(&pre, "code.has-highlights") else { continue };

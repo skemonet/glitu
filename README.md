@@ -4,8 +4,7 @@
 > **This code is 100% AI-generated.** It is provided "as is", without warranty of any kind; the
 > repository owner accepts no responsibility for its use. Read it and test it before relying on it.
 >
-> **Status:** work in progress — the English translation of the documentation and of part of the
-> code is not finished (see [TODO.md](TODO.md)).
+> **Status:** work in progress (see [TODO.md](TODO.md)).
 
 ## ▶ Demo: glitu, presented with glitu
 
@@ -26,236 +25,233 @@ Cargo.
 
 **License:** dual-licensed under [MIT](LICENSE-MIT) or [Apache-2.0](LICENSE-APACHE), at your option.
 
----
+## Overview
 
-# glitu — des présentations écrites en markdown, rendues par un moteur Rust
+The whole presentation fits in **`slides.md`**: the text, the diagrams (skemo code), the code
+shown on screen. Only the terminal recordings (`casts/*.cast`) and the images, if any, are
+separate files. The rendering comes from a **theme** (`themes/crystal/`): a header, a text panel
+on the left, a visual on the right, the "crystal" backdrop, progress by chapter. Six other themes
+share this template with another animated backdrop: `constellation`, `paper` (cut paper),
+`aurora`, `ascii` (amber ASCII), `blueprint` (technical drawing), `iso` (isometric).
 
-Toute la présentation tient dans **`slides.md`** : le texte, les schémas (code [skemo](https://github.com/skemonet/skemo)),
-le code montré à l'écran. Seuls les enregistrements de terminal (`casts/*.cast`) et les images
-éventuelles sont des fichiers à part. Le rendu vient d'un **thème** (`themes/crystal/`) :
-bandeau, panneau de texte à gauche, visuel à droite, backdrop « crystal », progression par chapitre.
-Six autres thèmes partagent ce template avec un autre backdrop animé : `constellation`, `paper`
-(paper découpé), `aurora`, `ascii` (ASCII ambre), `plan` (plan technique), `iso` (isométrique).
-
-L'outil `glitu` (Rust) compile le markdown en une page statique ; le moteur de présentation,
-écrit en Rust lui aussi et compilé en WebAssembly, remplace reveal.js dans le navigateur.
-Aucune dépendance npm. Les règles d'écriture de reveal.js / reveal-md sont aussi acceptées.
-Le moteur et les thèmes sont publiés par le mainteneur sur **static.glitu.net**, chacun à sa
-version (`glitu/0.1.0/`, `themes/crystal/0.1.0/`).
+The `glitu` tool (Rust) compiles the markdown into a static page; the presentation engine, also
+written in Rust and compiled to WebAssembly, replaces reveal.js in the browser. No npm
+dependency. The writing rules of reveal.js / reveal-md are accepted too. The engine and the
+themes are published by the maintainer on **static.glitu.net**, each at its version
+(`glitu/0.1.0/`, `themes/crystal/0.1.0/`).
 
 ```sh
-rustup target add wasm32-unknown-unknown     # une fois ; skemo est récupéré par Cargo (dépendance git)
-cargo build --release                         # produit target/release/glitu (moteurs wasm et skemo embarqués)
+rustup target add wasm32-unknown-unknown     # once; skemo is fetched by Cargo (git dependency)
+cargo build --release                         # builds target/release/glitu (wasm and skemo engines inside)
 
-target/release/glitu serve                     # http://localhost:8000, recharge à chaque modification
-target/release/glitu serve --allow 192.168.0.0/16   # aussi pour ces adresses (CIDR, répétable) : téléphone, tablette
-target/release/glitu build -o dist             # site statique, à servir par n'importe quel serveur
-target/release/glitu build --standalone -o prez.html   # une seule page, tout compris, sans réseau
-target/release/glitu build --web https://static.glitu.net -o prez.html   # page légère (voir plus bas)
-target/release/glitu export -o prez.pptx       # PowerPoint modifiable, notes comprises (voir « Exporter »)
-target/release/glitu export -o prez.pdf        # PDF vectoriel (texte sélectionnable)
-target/release/glitu export -o captures/       # une image PNG par slide
-target/release/glitu unpack prez.html -o prez/ # ressort le markdown d'une page construite (voir « Rouvrir »)
+target/release/glitu serve                     # http://localhost:8000, reloads at every change
+target/release/glitu serve --allow 192.168.0.0/16   # also for these addresses (CIDR, repeatable): phone, tablet
+target/release/glitu build -o dist             # static site, to serve with any web server
+target/release/glitu build --standalone -o talk.html   # one page, everything inside, no network
+target/release/glitu build --web https://static.glitu.net -o talk.html   # light page (see below)
+target/release/glitu export -o talk.pptx       # editable PowerPoint, notes included (see "Export")
+target/release/glitu export -o talk.pdf        # vector PDF (selectable text)
+target/release/glitu export -o captures/       # one PNG image per slide
+target/release/glitu unpack talk.html -o talk/ # gets the markdown back from a built page (see "Reopen")
 ```
 
-Pendant la présentation (`?` affiche cette liste à l'écran) :
+While presenting (`?` shows this list on screen):
 
-| Touche | Action |
+| Key | Action |
 |---|---|
-| `→` Espace `N` | étape ou slide suivante, dans l'ordre de lecture |
-| `←` Maj+Espace `P` | étape ou slide précédente |
-| `Page↓` / `Page↑` | chapitre suivant / précédent en navigation 2D (sinon slide suivante / précédente) |
-| `↓` / `↑` | dans le chapitre (`H` `J` `K` `L` : gauche, bas, haut, droite) |
-| Début / Fin | première / dernière slide |
-| `G` | aller à une slide : son numéro, `5.2`, ou son identifiant |
-| Échap / `O` | vue d'ensemble : flèches pour choisir, Entrée ou clic pour y aller |
-| `F` | plein écran |
-| `S` | vue de l'orateur (voir « Présenter ») |
-| `D` | dessiner sur la slide : 1 à 5 la couleur, `Z` annule, `X` efface, `D` ou Échap en sort |
-| `B` `V` `.` | écran noir, puis reprise |
-| `A` | suspendre ou reprendre le défilement automatique |
-| Alt + clic (Ctrl + clic sous Linux) | zoomer sur un élément, puis revenir |
+| `→` Space `N` | next step or slide, in reading order |
+| `←` Shift+Space `P` | previous step or slide |
+| `Page↓` / `Page↑` | next / previous chapter in 2D navigation (otherwise next / previous slide) |
+| `↓` / `↑` | within the chapter (`H` `J` `K` `L`: left, down, up, right) |
+| Home / End | first / last slide |
+| `G` | go to a slide: its number, `5.2`, or its identifier |
+| Esc / `O` | overview: arrows to choose, Enter or click to go there |
+| `F` | full screen |
+| `S` | speaker view (see "Present") |
+| `D` | draw on the slide: 1 to 5 the colour, `Z` undoes, `X` clears, `D` or Esc leaves |
+| `B` `V` `.` | black screen, then resume |
+| `A` | pause or resume the automatic advance |
+| Alt + click (Ctrl + click on Linux) | zoom on an element, then back |
 
-Sur un écran tactile, glisser d'un doigt change de slide ; à deux doigts, on zoome et on déplace
-la vue. La molette avec `"mouseWheel": true` dans `glitu.json`.
-Ajouter `?print-pdf` à l'adresse met une slide par page, toutes étapes affichées : imprimer
-alors en PDF depuis le navigateur (ou `glitu export -o x.pdf`). Comme reveal.js : `data-autoplay` lance une vidéo ou un son à
-l'arrivée sur la slide, `data-src` charge un média quand la slide approche, `data-autoslide`
-(ou `"autoSlide"` en ms dans `glitu.json`) fait défiler seul, `"loop": true` reboucle,
-`data-visibility="hidden"` masque une slide, `data-state="x"` pose la classe `x` sur la page.
+On a touch screen, swiping with one finger changes slide; with two fingers, you zoom and move
+the view. The mouse wheel with `"mouseWheel": true` in `glitu.json`.
+Adding `?print-pdf` to the address puts one slide per page, all steps shown: then print to PDF
+from the browser (or `glitu export -o x.pdf`). As in reveal.js: `data-autoplay` starts a video
+or a sound on arriving on the slide, `data-src` loads a medium when the slide gets close,
+`data-autoslide` (or `"autoSlide"` in ms in `glitu.json`) advances on its own, `"loop": true`
+loops, `data-visibility="hidden"` hides a slide, `data-state="x"` sets the class `x` on the page.
 
-## Écrire les slides
+## Writing the slides
 
 ~~~markdown
 ---
-title: Kubernetes                       ← la couverture
-subtitle: Déployer et exposer une application
+title: Kubernetes                       ← the cover
+subtitle: Deploy and expose an application
 author: Ada Lovelace
-date: Octobre 2026
-theme: crystal                        ← ou crystal:0.1.0 ; sans version : celui du disque
+date: October 2026
+theme: crystal                        ← or crystal:0.1.0; without a version: the one on disk
 ---
 
-# Ressources                            ← chapitre numéroté (01, 02…) ; `# Fin {-}` : sans numéro
+# Resources                             ← numbered chapter (01, 02…); `# End {-}`: without a number
 
-Déployer, puis exposer                  ← sous-titre du chapitre
+Deploy, then expose                     ← subtitle of the chapter
 
-## Déploiement d'un applicatif          ← une slide : bandeau « RESSOURCES / Déploiement… »
+## Deploying an application            ← a slide: header "RESOURCES / Deploying…"
 
-### Deployment                          ← titre du panneau de gauche
+### Deployment                          ← title of the left panel
 
-- Nombre de réplicas @1                 ← apparaît au 1er clic
-- ReplicaSet crée et supprime les pods @+1   ← un clic après le précédent (@2)
-- Visible des clics 2 à 3 @2-3:up       ← puis disparaît ; arrive par le bas
+- Number of replicas @1                 ← appears at the 1st click
+- ReplicaSet creates and deletes the pods @+1   ← one click after the previous one (@2)
+- Visible from click 2 to 3 @2-3:up     ← then disappears; comes in from below
 
-```yaml title="deployment.yml" lines="8|9-11" @1     ← fenêtre de code, lignes surlignées au clic
+```yaml title="deployment.yml" lines="8|9-11" @1     ← code window, lines highlighted on click
 …
 ```
 
-Une énergie $E = mc^2$, un mot [clé]{.circle @3} entouré au clic 3.
+An energy $E = mc^2$, a [key]{.circle @3} word circled at click 3.
 
-Note: ce que l'orateur doit dire (touche S). [click] Au premier clic, ceci est surligné.
+Note: what the speaker should say (S key). [click] At the first click, this is highlighted.
 ~~~
 
-| Pour… | Écrire |
+| For… | Write |
 |---|---|
-| un schéma | un bloc ` ```skemo ` ; ses marqueurs `@n` avancent avec les clics de la slide |
-| une frise qui défile | un bloc skemo `diagram(layout="frise" …)` : la bande se centre sur la carte de chaque étape |
-| un terminal | `![titre de la fenêtre](casts/demo.cast)` : une commande par clic |
-| une image | `![](img/photo.jpg)` |
-| des blocs qui se remplacent | plusieurs `### Titre @n` dans la slide |
-| un schéma en pleine largeur | `## Sujet {.large}` : les puces passent en légende au-dessus |
-| sans texte | une slide sans `###` ni puce : le visuel occupe toute la largeur |
-| un autre bandeau | `## Sujet {kicker="Template"}` ; `{.compact}` resserre les puces |
-| des emojis en grand | un bloc ` ```emoji `, un par ligne : ils se remplacent au clic (`😱 @1`) |
-| le fichier montré | ` ```yaml file="roles/x/tasks/main.yml" ` : un explorateur liste les fichiers vus jusque-là |
-| une navigation en 2D | `navigation: 2d` dans l'en-tête : un chapitre par colonne (← → et Espace suivent l'ordre de lecture, Page↓ Page↑ d'un chapitre à l'autre, ↑ ↓ dans le chapitre) |
-| une formule | `$\frac{a}{b}$` dans le texte, `$$…$$` en bloc, un bloc ` ```math ` comme visuel (LaTeX, rendu en MathML au build) |
-| un mot qui apparaît | `[texte]{@2}` ; `[texte]{.classe}` pose une classe |
-| un mot marqué à la main | `[texte]{.circle @2}` : `.underline` `.circle` `.box` `.highlight` `.strike`, couleur `.red` `.green` `.blue` `.cyan` `.yellow` `.purple` ; tracé au clic, ou d'emblée sans `@n` |
-| une icône | `:mdi:github:` : toute icône [Iconify](https://icon-sets.iconify.design) (`collection:nom`), téléchargée au build |
-| une autre police | `font: Inter`, `font-title: Poppins`, `font-mono: Fira Code` dans l'en-tête (Google Fonts, téléchargées au build) |
-| deux colonnes | `## Sujet {.cols}` ; une ligne `::right::` sépare la colonne de gauche de celle de droite (textes, code, schéma, image) |
-| une citation | `## Sujet {.quote}` : le premier paragraphe en grand, le suivant pour l'auteur |
-| un chiffre clé | `## Sujet {.fact}` : le titre `###` en très grand, le texte en légende |
-| une affirmation | `## Sujet {.statement}` : le texte en grand, centré ; `{.center}` : simplement centré |
-| un sommaire | `## Sommaire {.toc}` : les chapitres, en liens, générés |
-| une transition, un backdrop | `## Sujet {transition="zoom" background="#123"}` (couleur, ou image : `background="img/x.jpg"`), `class="x"`, `zoom="0.8"` |
-| des notes au fil des clics | dans `Note:`, `[click]` passe au clic suivant, `[click:3]` au clic 3 : la vue de l'orateur surligne le passage en cours |
-| du code animé | un bloc ` ````md magic-move ` (quatre accents graves) contenant plusieurs blocs ` ``` ` : une version par clic, les mots gardés glissent à leur nouvelle place, les autres s'effacent ou apparaissent |
-| du code annoté | en fin de ligne, en commentaire : `// [!code ++]` (ajoutée), `[!code --]` (retirée), `[!code focus]` (le reste s'estompe), `[!code highlight]`, `[!code error]`, `[!code warning]` ; l'annotation disparaît du code affiché |
-| du code pris dans un fichier | une ligne `<<< src/main.rs` (chemin relatif au fichier markdown), `#nom` pour une région (`// #region nom` … `// #endregion`), `#L3-L8` pour des lignes ; puis, au besoin, le langage et les attributs du bloc (`title="…"`, `@2`) ; entre deux versions d'un code animé, une telle ligne en importe une |
-| des slides animées | `{.animate}` sur deux slides qui se suivent : les éléments communs (même texte, même image, même titre de fenêtre, ou même `[texte]{#nom}`) glissent de l'une à l'autre, les nouveaux apparaissent en fondu |
-| une slide titre | `## Titre {.cover}` ou `{.intro}` : le titre en grand, le 1er paragraphe en sous-titre, les suivants en signature |
-| un intercalaire | `## Partie {.section}` (sans numéro ni changement de chapitre) ; `## Merci {.end}` pour finir |
-| une image à côté du texte | `{.image-right}` ou `{.image-left}` : la première image de la slide (ou `image="img/x.jpg"`) couvre une moitié |
-| une page web | `## Démo {.iframe url="https://…"}` : en pleine slide, ou à côté du texte (`{.iframe-left}`, `{.iframe-right}`) |
-| sans marges | `## Sujet {.full}` : le visuel occupe toute la slide sous le bandeau |
-| deux colonnes et un en-tête | dans `{.cols}`, ce qui précède une ligne `::left::` s'étend sur les deux colonnes |
-| le logo du bandeau | `logo: img/logo.png` dans l'en-tête remplace celui du thème (une image de `img/` ou `public/`) ; `logo: none` le retire |
-| un logo, une mention sur chaque slide | `global-top: "© ACME"` (devant le contenu, en bas à droite) ou `global-bottom:` (derrière, en bas à gauche) dans l'en-tête, en markdown : `![](img/logo.svg)` |
-| plusieurs fichiers | une ligne `<!-- include: chapitres/deploiement.md -->` insère ce fichier (chemin relatif au fichier qui inclut ; son en-tête est ignoré, ses images restent relatives au fichier principal) |
+| a diagram | a ` ```skemo ` block; its `@n` markers move forward with the clicks of the slide |
+| a frieze that scrolls | a skemo block `diagram(layout="frieze" …)`: the strip centres on the card of each step |
+| a terminal | `![window title](casts/demo.cast)`: one command per click |
+| an image | `![](img/photo.jpg)` |
+| blocks that replace each other | several `### Title @n` in the slide |
+| a full-width diagram | `## Topic {.large}`: the bullets become a caption above it |
+| without text | a slide without `###` nor bullets: the visual takes the full width |
+| another header | `## Topic {kicker="Template"}`; `{.compact}` tightens the bullets |
+| big emojis | an ` ```emoji ` block, one per line: they replace each other on click (`😱 @1`) |
+| the file shown | ` ```yaml file="roles/x/tasks/main.yml" `: an explorer lists the files seen so far |
+| 2D navigation | `navigation: 2d` in the front matter: one chapter per column (← → and Space follow reading order, Page↓ Page↑ go from one chapter to another, ↑ ↓ within the chapter) |
+| a formula | `$\frac{a}{b}$` in the text, `$$…$$` as a block, a ` ```math ` block as a visual (LaTeX, rendered as MathML at build) |
+| a word that appears | `[text]{@2}`; `[text]{.class}` sets a class |
+| a hand-drawn mark on a word | `[text]{.circle @2}`: `.underline` `.circle` `.box` `.highlight` `.strike`, colour `.red` `.green` `.blue` `.cyan` `.yellow` `.purple`; drawn on click, or at once without `@n` |
+| an icon | `:mdi:github:`: any [Iconify](https://icon-sets.iconify.design) icon (`collection:name`), downloaded at build |
+| another font | `font: Inter`, `font-title: Poppins`, `font-mono: Fira Code` in the front matter (Google Fonts, downloaded at build) |
+| two columns | `## Topic {.cols}`; a `::right::` line separates the left column from the right one (texts, code, diagram, image) |
+| a quote | `## Topic {.quote}`: the first paragraph in large, the next one for the author |
+| a key figure | `## Topic {.fact}`: the `###` title very large, the text as a caption |
+| a statement | `## Topic {.statement}`: the text in large, centred; `{.center}`: just centred |
+| a table of contents | `## Contents {.toc}`: the chapters, as links, generated |
+| a transition, a backdrop | `## Topic {transition="zoom" background="#123"}` (colour, or image: `background="img/x.jpg"`), `class="x"`, `zoom="0.8"` |
+| notes along the clicks | in `Note:`, `[click]` moves to the next click, `[click:3]` to click 3: the speaker view highlights the current passage |
+| animated code | a ` ````md magic-move ` block (four backticks) holding several ` ``` ` blocks: one version per click, the words kept slide to their new place, the others fade out or appear |
+| annotated code | at the end of the line, in a comment: `// [!code ++]` (added), `[!code --]` (removed), `[!code focus]` (the rest fades), `[!code highlight]`, `[!code error]`, `[!code warning]`; the annotation disappears from the code shown |
+| code taken from a file | a line `<<< src/main.rs` (path relative to the markdown file), `#name` for a region (`// #region name` … `// #endregion`), `#L3-L8` for lines; then, if needed, the language and the attributes of the block (`title="…"`, `@2`); between two versions of an animated code, such a line imports one |
+| animated slides | `{.animate}` on two slides that follow each other: the shared elements (same text, same image, same window title, or same `[text]{#name}`) slide from one to the other, the new ones fade in |
+| a title slide | `## Title {.cover}` or `{.intro}`: the title in large, the 1st paragraph as subtitle, the next ones as byline |
+| an interlude | `## Part {.section}` (without a number nor a change of chapter); `## Thank you {.end}` to finish |
+| an image next to the text | `{.image-right}` or `{.image-left}`: the first image of the slide (or `image="img/x.jpg"`) covers one half |
+| a web page | `## Demo {.iframe url="https://…"}`: full slide, or next to the text (`{.iframe-left}`, `{.iframe-right}`) |
+| no margins | `## Topic {.full}`: the visual takes the whole slide under the header |
+| two columns and a header | in `{.cols}`, what comes before a `::left::` line spans both columns |
+| the logo of the header | `logo: img/logo.png` in the front matter replaces the theme's (an image of `img/` or `public/`); `logo: none` removes it |
+| a logo, a mention on every slide | `global-top: "© ACME"` (in front of the content, bottom right) or `global-bottom:` (behind, bottom left) in the front matter, in markdown: `![](img/logo.svg)` |
+| several files | a line `<!-- include: chapters/deployment.md -->` inserts this file (path relative to the including file; its front matter is ignored, its images stay relative to the main file) |
 
-Les étapes sont des entiers ; `@n` sur une puce, un titre `###`, un paragraphe, une fenêtre de
-code, une formule ou dans un schéma skemo désigne le même clic. `@+n` compte depuis le clic
-précédent de la slide, `@2-4` borne la présence (visible des clics 2 à 4), `@2:effet` choisit
-l'apparition : `up` `down` `left` `right` `grow` `shrink` `zoom` `red` `green` `blue` `dim`,
-ou toute classe de fragment de reveal.js. Une **mise en évidence** s'ajoute à l'apparition, le
-temps de ses clics : `@3-4:halo` (une lueur, une fois), `@3-4:chase` (une lumière qui fait
-le tour), tous deux éteints au bout de 3 s au plus, et `@3-4:magnify` (la vue s'agrandit autour de
-l'élément, puis revient) ; sur une puce
-(`- Point @1 @3:halo`), un paragraphe, un mot (`[clé]{@2-3:magnify}`), une fenêtre de code
-(` ```yaml @1 @4:chase `) ou un nœud de schéma skemo (`card#pg Base @1:up @3-4:halo`).
-Couleur : `--fx-color`, sinon l'accent du thème. Les espaces avant `: ; ! ? »` deviennent insécables.
-Une ligne faite d'un seul `=` (ou `-`) souligne le texte du dessus en titre, règle du markdown :
-dans une formule sur plusieurs lignes, garder le `=` sur la même ligne qu'un terme.
+Steps are integers; `@n` on a bullet, a `###` title, a paragraph, a code window, a formula or in
+a skemo diagram means the same click. `@+n` counts from the previous click of the slide, `@2-4`
+bounds the presence (visible from click 2 to 4), `@2:effect` chooses the appearance: `up` `down`
+`left` `right` `grow` `shrink` `zoom` `red` `green` `blue` `dim`, or any fragment class of
+reveal.js. A **highlight** adds to the appearance, for the time of its clicks: `@3-4:halo` (a
+glow, once), `@3-4:chase` (a light running around), both out after 3 s at most, and
+`@3-4:magnify` (the view grows around the element, then comes back); on a bullet
+(`- Point @1 @3:halo`), a paragraph, a word (`[key]{@2-3:magnify}`), a code window
+(` ```yaml @1 @4:chase `) or a skemo diagram node (`card#pg Base @1:up @3-4:halo`).
+Colour: `--fx-color`, otherwise the theme's accent. The spaces before `: ; ! ? »` become
+non-breaking (French typography). A line made of a single `=` (or `-`) underlines the text above
+as a title, a markdown rule: in a formula over several lines, keep the `=` on the same line as a
+term.
 
-Le code est coloré au build : YAML, HTML/XML, et les langages à la C (Rust, Python, Bash, Go,
-Java, JavaScript, TypeScript, PHP…) ; les autres restent en texte brut.
+Code is highlighted at build: YAML, HTML/XML, and the C-like languages (Rust, Python, Bash, Go,
+Java, JavaScript, TypeScript, PHP…); the others stay plain text.
 
-## Présenter
+## Present
 
-`S` ouvre la **vue de l'orateur**, une fenêtre à part : la slide telle que le public la voit,
-l'étape qui vient, les notes (le passage du clic en cours surligné, voir `[click]`), l'heure et
-un chronomètre (un clic le met en pause ; « Remettre à zéro »). Les touches de la présentation
-y fonctionnent : on peut piloter depuis cette fenêtre.
+`S` opens the **speaker view**, a separate window: the slide as the audience sees it, the next
+step, the notes (the passage of the current click highlighted, see `[click]`), the time and a
+timer (a click pauses it; "Reset"). The keys of the presentation work there: you can drive from
+this window.
 
-Sous `glitu serve`, **les fenêtres ouvertes restent ensemble** : changer de slide sur l'une
-déplace les autres (projecteur, portable, tablette). Avec `--allow 192.168.0.0/16`, ouvrir sur
-un téléphone l'adresse affichée suivie de `?remote` donne une **télécommande** : la slide, deux
-grands boutons et les notes ; elle rejoint la présentation où elle en est (`?follow` fait de
-même sans les boutons).
+Under `glitu serve`, **the open windows stay together**: changing slide on one moves the others
+(projector, laptop, tablet). With `--allow 192.168.0.0/16`, opening on a phone the address shown
+followed by `?remote` gives a **remote**: the slide, two big buttons and the notes; it joins the
+presentation where it is (`?follow` does the same without the buttons).
 
-`D` permet de **dessiner** sur la slide (souris, doigt, stylet). Les traits restent avec leur
-slide et sont gardés par le navigateur d'une séance à l'autre.
+`D` lets you **draw** on the slide (mouse, finger, stylus). The strokes stay with their slide
+and are kept by the browser from one session to the next.
 
-`?view=scroll` à la fin de l'adresse donne la **vue défilante** : les slides les unes sous les
-autres, à la largeur de la fenêtre, toutes étapes affichées, à lire comme une page web. Un
-téléphone (fenêtre de moins de 435 px) l'a d'office, sauf en télécommande ; tourné en paysage, il
-repasse en présentation (la page se recharge, à la même slide). Le doigt, la molette et les
-flèches y font défiler la page.
+`?view=scroll` at the end of the address gives the **scroll view**: the slides one under the
+other, at the width of the window, all steps shown, to read like a web page. A phone (window
+narrower than 435 px) gets it by default, except as a remote; turned to landscape, it goes back
+to the presentation (the page reloads, at the same slide). The finger, the wheel and the arrows
+scroll the page.
 
-## Exporter
+## Export
 
 ```sh
-glitu export [slides.md] [-o presentation.pptx | x.pdf | dossier/] [--format pptx|pdf|png]
+glitu export [slides.md] [-o presentation.pptx | x.pdf | folder/] [--format pptx|pdf|png]
              [--range 1-3,5] [--clicks] [--images]
 ```
 
-Chromium (headless ; variable `CHROMIUM` pour un autre) rejoue la présentation. Chaque slide
-est prise une fois toutes ses étapes passées, ou à chaque clic avec `--clicks` ; `--range`
-garde certaines slides (numéros dans l'ordre de lecture).
+Chromium (headless; the `CHROMIUM` variable for another one) replays the presentation. Each slide
+is taken once all its steps have passed, or at each click with `--clicks`; `--range` keeps some
+slides (numbers in reading order).
 
-- **PowerPoint** : chaque élément devient un objet PowerPoint **modifiable** — zones de texte
-  (polices, couleurs, gras, liens, puces, retours à la ligne d'origine), formes (backdrops, dégradés,
-  bordures, coins arrondis, ombres), schémas skemo en groupes de formes et de tracés, images.
-  Seuls le backdrop animé du thème et ce qui ne se traduit pas (canvas, vidéo, formules, élément
-  tourné ou coupé par un cadre) restent des images. Les notes vont dans la page de notes.
-  Les polices du thème (Lato, Inter, JetBrains Mono pour « crystal ») doivent être installées
-  là où l'on ouvre le fichier. `--images` revient à une capture par slide (fidèle, non modifiable).
-- **PDF** : la page imprimée par Chromium, en vectoriel (texte sélectionnable) ; avec
-  `--clicks`, une page par clic (captures) et un sommaire des titres de slides.
-- **PNG** : `NN.png` par slide (`NN-c.png` par clic avec `--clicks`) dans le dossier donné.
+- **PowerPoint**: each element becomes an **editable** PowerPoint object — text boxes (fonts,
+  colours, bold, links, bullets, original line breaks), shapes (backdrops, gradients, borders,
+  rounded corners, shadows), skemo diagrams as groups of shapes and paths, images. Only the
+  animated backdrop of the theme and what does not translate (canvas, video, formulas, element
+  rotated or clipped by a frame) stay images. The notes go to the notes page. The theme's fonts
+  (Lato, Inter, JetBrains Mono for "crystal") must be installed where the file is opened.
+  `--images` falls back to one capture per slide (faithful, not editable).
+- **PDF**: the page printed by Chromium, as vectors (selectable text); with `--clicks`, one page
+  per click (captures) and an outline of the slide titles.
+- **PNG**: `NN.png` per slide (`NN-c.png` per click with `--clicks`) in the given folder.
 
-## Rouvrir une présentation
+## Reopen a presentation
 
-Chaque page construite garde une copie de son markdown, fichier par fichier (inclusions et
-code importé compris), dans un `<script type="application/json" id="glitu-source">` que le
-navigateur n'exécute pas. `glitu unpack page.html -o dossier/` (ou une adresse `https://…`) les
-ressort, pour modifier la présentation et la reconstruire ; `--force` remplace des fichiers
-existants. Les images et les terminaux ne sont pas dans la copie : les remettre à côté.
-`source: false` dans l'en-tête construit la page sans copie.
+Each built page keeps a copy of its markdown, file by file (includes and imported code included),
+in a `<script type="application/json" id="glitu-source">` that the browser does not run.
+`glitu unpack page.html -o folder/` (or an `https://…` address) gets them back, to change the
+presentation and build it again; `--force` replaces existing files. The images and the terminals
+are not in the copy: put them back next to it. `source: false` in the front matter builds the
+page without a copy.
 
-## Une seule page
+## One page
 
-`--standalone` écrit tout dans la page : moteur, thème, polices, images. Elle s'ouvre par
-double-clic et ne demande aucun réseau (environ 2 Mo) : c'est celle à emporter pour présenter.
+`--standalone` writes everything into the page: engine, theme, fonts, images. It opens with a
+double click and needs no network (about 2 MB): it is the one to carry around to present.
 
-`--web <url>` ne garde dans la page que la présentation (texte, schémas, terminaux, images) ; le
-moteur et le thème viennent de `<url>` : static.glitu.net, ou toute adresse où l'on a publié ce
-que produit `glitu-site static` (GitHub Pages convient : il autorise les pages locales à les charger).
-La page vise des versions exactes, `glitu/<version du binaire>/` et `themes/<nom>/<version du
-thème>/`, et vérifie chaque fichier par son empreinte SHA-384 : un fichier republié différemment
-fait refuser la page plutôt que la casser en silence. Un thème tiers (`theme: ./chemin`), qui
-n'est pas publié, reste écrit dans la page. Il faut le réseau pour présenter.
+`--web <url>` only keeps the presentation in the page (text, diagrams, terminals, images); the
+engine and the theme come from `<url>`: static.glitu.net, or any address where what
+`glitu-site static` produces was published (GitHub Pages works: it lets local pages load them).
+The page aims at exact versions, `glitu/<version of the binary>/` and `themes/<name>/<version of
+the theme>/`, and checks each file by its SHA-384 hash: a file republished differently makes the
+page be refused rather than broken silently. A third-party theme (`theme: ./path`), which is not
+published, stays written into the page. Presenting needs the network.
 
 ## Versions
 
-Le front matter peut fixer les versions attendues ; sans version, c'est la dernière disponible,
-c'est-à-dire celle du binaire et du dossier `themes/` utilisés :
+The front matter can set the expected versions; without a version, it is the latest available,
+that is the one of the binary and of the `themes/` folder used:
 
 ```yaml
-glitu: 0.1.0               # version du moteur ; une autre est refusée à la construction
-theme: crystal:0.1.0     # thème officiel à cette version (glitu.json, "version") ; « crystal » seul : le dernier
-theme: ./themes-maison/x   # thème tiers, chemin relatif à la présentation
+glitu: 0.1.0               # version of the engine; another one is refused at build
+theme: crystal:0.1.0       # official theme at this version (glitu.json, "version"); "crystal" alone: the latest
+theme: ./my-themes/x       # third-party theme, path relative to the presentation
 ```
 
-## Publier static.glitu.net (mainteneur)
+## Publishing static.glitu.net (maintainer)
 
-`cargo run --release -p glitu-site -- static [-o site/static]` écrit `site/static/glitu/<version>/`
-(le moteur, à la version du dépôt) et `site/static/themes/<nom>/<version>/` (la `"version"` du
-`glitu.json` de chaque thème, obligatoire), à publier tel quel sur static.glitu.net (rsync, scp…).
-Les versions déjà présentes dans `site/static/` restent : on publie par ajout. Seul le mainteneur
-publie.
+`glitu-site static [-o site/static]` (a maintainer tool, not in this repository) writes
+`site/static/glitu/<version>/` (the engine, at the version of the repository) and
+`site/static/themes/<name>/<version>/` (the `"version"` of each theme's `glitu.json`, required),
+to publish as is on static.glitu.net (rsync, scp…). The versions already in `site/static/` stay:
+publishing only adds. Only the maintainer publishes.
 
 ## Website (GitHub Pages)
 
@@ -265,129 +261,121 @@ The `Website` workflow (`.github/workflows/pages.yml`) builds it on every push a
 GitHub Pages from `main` (Settings → Pages → Source: GitHub Actions), under the custom domain
 `glitu.net` (Settings → Pages → Custom domain; `www.glitu.net` redirects to it).
 
-## Site glitu.net (mainteneur)
+## Diagrams
 
-Le site est un sous-projet à part, `site/` (crate `glitu-site`, ni distribué ni publié) : ses
-pages (`site/pages/`) et l'outil qui l'assemble. `cargo run --release -p glitu-site` écrit dans
-`site/dist/` la page d'accueil, la documentation (les sections de ce README destinées aux
-utilisateurs : une seule source) et la démonstration (`tests/features`). À servir tel quel.
+skemo blocks are rendered on the fly, at every build, by the skemo engine itself: `glitu` is
+linked to the `skemo-engine` library of [skemo](https://github.com/skemonet/skemo) (git
+dependency, pinned to a revision), with the theme's `skemo.css` sheet, completed by the
+presentation's: a `skemo.css` next to the markdown adds its own types
+(`.pod { --c: #2563eb; --label: "POD"; }`), kept with the markdown in the built page. No external
+binary nor cache: changing a diagram in `slides.md` redraws it at once (`glitu serve` reloads the
+page). A skemo warning fails the build, with the faulty line in the block.
 
-## Schémas
-
-Les blocs skemo sont rendus à la volée, à chaque construction, par le moteur skemo lui-même :
-`glitu` est lié à la bibliothèque `skemo-engine` de [skemo](https://github.com/skemonet/skemo)
-(dépendance git, épinglée sur une révision), avec la feuille `skemo.css` du thème, complétée par celle de la présentation : un
-`skemo.css` à côté du markdown y ajoute ses propres types (`.pod { --c: #2563eb; --label: "POD"; }`),
-gardé avec le markdown dans la page construite. Pas de binaire externe ni de cache : modifier un
-schéma dans `slides.md` le redessine aussitôt (`glitu serve` recharge la page). Un avertissement
-de skemo fait échouer la construction, avec la ligne fautive dans le bloc.
-
-La taille des textes pour la projection vient du thème : `"skemo": { "fontScale": 1.35 }` dans
-`glitu.json` (option `--font-scale` de skemo, qui en tient compte dans sa mise en page). Un bloc
-peut la changer : ` ```skemo font-scale="2" `. `skemo.css` ne règle que les couleurs et les
-étiquettes des types. Viser au moins 16 px à l'écran : un schéma en pleine largeur tient dans
-~1150 × 590 px. `diagram(fit="2:1")` fait échouer le build si les proportions s'écartent de plus
-de 15 % de la cible (`skemo fit` propose des réglages ; vérifier qu'ils n'y perdent pas en taille).
+The text size for projection comes from the theme: `"skemo": { "fontScale": 1.35 }` in
+`glitu.json` (skemo's `--font-scale` option, which its layout takes into account). A block can
+change it: ` ```skemo font-scale="2" `. `skemo.css` only sets the colours and the labels of the
+types. Aim at 16 px at least on screen: a full-width diagram fits in ~1150 × 590 px.
+`diagram(fit="2:1")` fails the build if the proportions are more than 15 % away from the target
+(`skemo fit` suggests settings; check that they do not lose size).
 
 ```pug
-card#api.system Kubernetes API   @2:up        //- apparaît au clic 2, en montant
-  to(k1 k2).dashed ordres         @4           //- flèches tracées au clic 4
-card#note.note Ports fermés       @1-2         //- visible aux clics 1 et 2, puis s'efface
-card#p1.pod front                 @3:focus     //- mis en valeur au clic 3
-card#p2.pod(tag=":8080 @1") back               //- la pastille apparaît au clic 1
+card#api.system Kubernetes API   @2:up        //- appears at click 2, coming up
+  to(k1 k2).dashed orders         @4           //- arrows drawn at click 4
+card#note.note Closed ports       @1-2         //- visible at clicks 1 and 2, then fades
+card#p1.pod front                 @3:focus     //- emphasised at click 3
+card#p2.pod(tag=":8080 @1") back               //- the tag appears at click 1
 ```
 
 ## Terminal
 
-Un enregistrement asciicast (v2 ou v3) se rejoue segment par segment : le lecteur tape les
-commandes, s'arrête sur chaque marker et attend le clic suivant ; un clic pendant la frappe
-termine le segment en cours. L'émulation du terminal est faite par `avt`, celui d'asciinema.
-Pour un vrai enregistrement : `asciinema rec` avec `rec.add_marker_key`, ou ajouter des lignes
-`[temps, "m", "label"]` au fichier. `tools/build_cast.py` fabrique celui de la démo.
+An asciicast recording (v2 or v3) is replayed segment by segment: the player types the commands,
+stops on each marker and waits for the next click; a click during the typing ends the current
+segment. The terminal emulation is done by `avt`, asciinema's. For a real recording:
+`asciinema rec` with `rec.add_marker_key`, or add `[time, "m", "label"]` lines to the file.
+`tools/build_cast.py` writes the one of the demo, with `tools/asciicast.py`.
 
-## Thème
+## Theme
 
-Un thème est un dossier `themes/<nom>/` : ses feuilles et polices, `glitu.json` (feuilles à charger,
-taille des slides, marge, agrandissement maximal `maxScale` — 2 par défaut, 8 pour les thèmes du
-template, qui remplissent ainsi un grand écran —, centrage, flèches, progression, numéro, transition), et selon le thème
-`logo.svg`, `skemo.css`. `glitu.json` porte aussi sa `"version"` et, pour un thème tiers, le
-`"name"` que le moteur reconnaît. Il est cherché à côté du markdown, puis dans les dossiers parents.
+A theme is a folder `themes/<name>/`: its sheets and fonts, `glitu.json` (sheets to load, size of
+the slides, margin, maximum magnification `maxScale` — 2 by default, 8 for the template themes,
+which fill a large screen this way —, centring, arrows, progress, number, transition), and
+depending on the theme `logo.svg`, `skemo.css`. `glitu.json` also carries its `"version"` and, for
+a third-party theme, the `"name"` the engine recognises. It is looked for next to the markdown,
+then in the parent folders.
 
-Les thèmes de ce dépôt, sauf « black », reposent sur un **template commun** (`"template": true`) :
-sa feuille, `glitu/template.css`, publiée avec le moteur, porte toute la mise en page (bandeau,
-panneau, scène, couverture, chapitres, progression, mises en page) et ne se règle que par des
-variables CSS (palette, polices, voiles, `--tilt` : inclinaison de la séparation panneau/scène,
-2° dans le sens horaire) ; le `theme.css` d'un thème se limite à ces variables. Sa partie
-dynamique (bandeau, progression, backdrop) est `crates/glitu-web/src/themes/template.rs`, et le backdrop
-se choisit par `"backdrop"` : `crystal`, ou une scène de `crates/glitu-web/src/themes/backdrops/`
-(`constellation`, `paper`, `aurora`, `ascii`, `plan`, `iso`). Il habille le balisage que
-produit le compilateur :
+The themes of this repository, except "black", rest on a **shared template**
+(`"template": true`): its sheet, `glitu/template.css`, published with the engine, holds the whole
+layout (header, panel, stage, cover, chapters, progress, layouts) and is only tuned through CSS
+variables (palette, fonts, veils, `--tilt`: slant of the panel/stage separation, 2° clockwise);
+the `theme.css` of a theme is limited to these variables. Its dynamic part (header, progress,
+backdrop) is `crates/glitu-web/src/themes/template.rs`, and the backdrop is chosen by
+`"backdrop"`: `crystal`, or a scene of `crates/glitu-web/src/themes/backdrops/` (`constellation`,
+`paper`, `aurora`, `ascii`, `blueprint`, `iso`). It dresses the markup that the compiler
+produces:
 
-| Layout | Balisage |
+| Layout | Markup |
 |---|---|
-| Couverture | `.cover` : `.eyebrow`, `h1`, `.subtitle`, `.byline` |
-| Chapitre | `.chapter` : `.num`, `h2`, `p` |
-| Slide | `section[data-header="Rubrique\|Sujet"]` |
-| Texte | `.panel` : `h2`, `ul` ; `.panel-steps` pour des blocs qui se remplacent |
-| Visuel | `.stage` (`.full` sans texte) : `.diagram`, `.window` (code ou `.cast-stage`), `.pan-track` |
-| Légende | `.stage.full > .caption` : `h2` + `.caption-steps` |
-| Mises en page | `section.layout-cols > .cols > .col` ; `section.layout-quote` (`fact`, `statement`, `center`, `toc`) `> .layout-body` |
-| Formule | `.formula` (bloc ` ```math `), `math` (MathML) |
+| Cover | `.cover`: `.eyebrow`, `h1`, `.subtitle`, `.byline` |
+| Chapter | `.chapter`: `.num`, `h2`, `p` |
+| Slide | `section[data-header="Section\|Topic"]` |
+| Text | `.panel`: `h2`, `ul`; `.panel-steps` for blocks that replace each other |
+| Visual | `.stage` (`.full` without text): `.diagram`, `.window` (code or `.cast-stage`), `.pan-track` |
+| Caption | `.stage.full > .caption`: `h2` + `.caption-steps` |
+| Layouts | `section.layout-cols > .cols > .col`; `section.layout-quote` (`fact`, `statement`, `center`, `toc`) `> .layout-body` |
+| Formula | `.formula` (` ```math ` block), `math` (MathML) |
 
-Les règles communes à tous les thèmes (étapes `.until`, marques `.mark`, dessin `svg.drawing`,
-télécommande `.remote-pad`, formules `glitu/math.css`) sont dans la feuille du moteur ; un thème
-peut les surcharger.
+The rules shared by all themes (`.until` steps, `.mark` marks, `svg.drawing` drawing,
+`.remote-pad` remote, `glitu/math.css` formulas) are in the engine's sheet; a theme can override
+them.
 
-Le backdrop est unique pour toute la présentation (`.tpl-backdrop`, sous les slides) : une slide
-demande seulement qu'il tourne (`data-backdrop="animated"`, couverture et chapitres) ou qu'il se fige
-(`data-backdrop="still"`) ; il ralentit ou repart sans changer d'image. Les nouveaux backdrops s'estompent
-en plus côté texte, progressivement : entiers sous la couverture et les chapitres, à moitié à
-côté d'un panneau, effacés sous une slide de texte pleine largeur. Le compilateur marque
-chaque slide `data-layout="full"` ou `"panel"`, et le moteur pose sur la slide qui arrive la mise
-en page de la précédente (`data-from-layout`) : plein écran → panneau, le contenu s'efface puis
-le panneau glisse depuis la gauche ; panneau → plein écran, l'un s'efface puis l'autre apparaît.
+The backdrop is unique for the whole presentation (`.tpl-backdrop`, under the slides): a slide
+only asks it to run (`data-backdrop="animated"`, cover and chapters) or to stand still
+(`data-backdrop="still"`); it slows down or starts again without changing image. The new
+backdrops also fade on the text side, progressively: whole under the cover and the chapters, half
+next to a panel, erased under a full-width text slide. The compiler marks each slide
+`data-layout="full"` or `"panel"`, and the engine sets on the incoming slide the layout of the
+previous one (`data-from-layout`): full screen → panel, the content fades out then the panel
+slides in from the left; panel → full screen, one fades out then the other appears.
 
-## Règles d'écriture de reveal.js / reveal-md
+## Writing rules of reveal.js / reveal-md
 
-Un markdown écrit pour reveal-md (slides séparées par `---`, verticales par `----`, `Note:`,
-`<!-- .slide: … -->`, `<!-- .element: … -->`, code ` ```php [1|3-5] `) est reconnu d'office et rendu
-avec le thème « black » de reveal-md. Le moteur produit le même DOM que reveal.js : slides
-verticales, backdrops (`data-background…`), flèches, barre de progression, numéro de slide, transitions,
-centrage. `tests/reveal-md/` vérifie ce rendu contre celui de reveal-md lui-même.
+A markdown written for reveal-md (slides separated by `---`, vertical ones by `----`, `Note:`,
+`<!-- .slide: … -->`, `<!-- .element: … -->`, code ` ```php [1|3-5] `) is recognised by default
+and rendered with reveal-md's "black" theme. The engine produces the same DOM as reveal.js:
+vertical slides, backdrops (`data-background…`), arrows, progress bar, slide number,
+transitions, centring. `tests/reveal-md/` checks this rendering against that of reveal-md itself.
 
 ## Oracle
 
-`tests/oracle/` garde une capture de chaque état (slide × clic) du rendu de référence, celui
-de reveal.js écrit à la main. Le moteur Rust le reproduit au pixel près :
+`tests/oracle/` keeps a capture of each state (slide × click) of the demo, `tests/features`: the
+reference of the engine, which must stay identical to the pixel:
 
 ```sh
-target/release/glitu serve -p 8123 &
+target/release/glitu serve tests/features/slides.md -p 8123 &
 target/release/glitu oracle check http://localhost:8123/ tests/oracle
 ```
 
-Voir `tests/oracle/README.md`.
+See `tests/oracle/README.md`.
 
-## Arborescence
+## Tree
 
 ```text
-themes/crystal/          le thème de ce projet : palette, polices, logo, skemo.css
-themes/constellation/ …    les autres thèmes à template (paper, aurora, ascii, plan, iso)
-themes/black/              le thème par défaut de reveal-md (reveal.js, MIT)
-crates/glitu/               l'outil : construction du site, page unique, serveur, export
-                           (PowerPoint, PDF, PNG), inclusions, icônes et polices, oracle
-crates/glitu-core/          le compilateur : markdown → HTML, coloration, formules, schémas skemo
-site/                      le site glitu.net et static.glitu.net (mainteneur) : pages, assemblage,
-                           moteur et thèmes publiés (site/dist/, site/static/, non versionnés)
-crates/glitu-web/           le moteur dans le navigateur (wasm) : navigation, étapes, thème,
-                           schémas, terminal, défilement du code, code animé, slides
-                           animées, vue défilante, vue de l'orateur, télécommande, dessin
-tests/oracle/              captures de référence de tests/features (thème formation)
-tests/reveal-md/           exemples markdown de reveal.js et reveal-md, rendu de référence
-tests/features/           démonstration des fonctions : formules, inclusions, mises en page,
-                           marques, icônes, polices, notes au clic, code animé, annoté et
-                           importé, slides animées (aussi la démo du site)
-crates/glitu/assets/       styles du moteur (glitu.css ; reveal.css minifié dans vendor/), relevé
-                           de l'écran pour l'export PowerPoint (export.js), police des formules
-tools/                     asciicast.py, pour écrire des enregistrements de terminal
-docs/reference/            version Pandoc précédente, prototype terminal
+themes/crystal/            the default theme: palette, fonts, logo, skemo.css
+themes/constellation/ …    the other template themes (paper, aurora, ascii, blueprint, iso)
+themes/black/              reveal-md's default theme (reveal.js, MIT)
+crates/glitu/              the tool: site build, single page, server, export (PowerPoint, PDF,
+                           PNG), includes, icons and fonts, oracle
+crates/glitu-core/         the compiler: markdown → HTML, highlighting, formulas, skemo diagrams
+crates/glitu-web/          the engine in the browser (wasm): navigation, steps, theme, diagrams,
+                           terminal, code scrolling, animated code, animated slides, scroll view,
+                           speaker view, remote, drawing
+crates/glitu/assets/       styles of the engine (glitu.css, template.css; reveal.css minified in
+                           vendor/), survey of the screen for the PowerPoint export (export.js),
+                           formula font
+site/                      the website glitu.net: home page and its images (built by tools/site.sh)
+tests/features/            the demo: glitu presented with glitu, then every syntax
+tests/oracle/              reference captures of tests/features (crystal theme)
+tests/reveal-md/           markdown examples of reveal.js and reveal-md, reference rendering
+tools/                     asciicast.py and build_cast.py (terminal recordings), site.sh
+docs/architecture/         the architecture diagram (skemo source and its image)
 ```

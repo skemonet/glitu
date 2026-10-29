@@ -14,11 +14,11 @@ Work started on 2026-10-29 and interrupted; this is what remains.
 ## Translation to English (code, comments, messages, docs)
 - [x] `crates/glitu-core` (translated and refactored, 41 tests)
 - [x] `crates/glitu` Rust sources (translated and refactored, `cli.rs` added, 34 tests)
-- [ ] `crates/glitu/assets/export.js` comments
-- [ ] `crates/glitu-web` (all modules: comments, UI strings of the help and speaker view)
-- [ ] CSS comments: `assets/glitu.css`, `assets/template.css`, `themes/*`
+- [x] `crates/glitu/assets/export.js` comments
+- [x] `crates/glitu-web` (all modules: comments, UI strings of the help and speaker view)
+- [x] CSS comments: `assets/glitu.css`, `assets/template.css`, `themes/*`
 - [x] `tests/oracle/README.md`, Cargo descriptions and comments
-- [ ] `README.md` (still in French), `tests/reveal-md/README.md`,
+- [x] `README.md`, `tests/reveal-md/README.md`,
       `themes/black/README.md`, `docs/architecture/`
 - [x] `tools/asciicast.py`
 
@@ -32,7 +32,7 @@ Work started on 2026-10-29 and interrupted; this is what remains.
       each click.
 - [x] Include it in the website (`site/`, `tools/site.sh`, GitHub Pages); linked from the README.
 - [x] Re-capture `tests/oracle` afterwards.
-- [ ] Theme logo placeholder still reads "VOTRE MARQUE" (`themes/*/logo.svg`).
+- [x] Theme logo placeholder reads "YOUR BRAND" (`themes/crystal/logo.svg`).
 
 ## Quality
 - [ ] Apply `cargo fmt` (decide on `rustfmt.toml`: default or `max_width = 120`).

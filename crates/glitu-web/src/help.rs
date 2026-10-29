@@ -1,25 +1,25 @@
-//! Aide (?) : la liste des raccourcis, dans le calque de reveal.js (`.overlay.overlay-help`).
-//! Échap, ? ou un clic sur la croix la referment.
+//! Help (?): the list of shortcuts, in reveal.js's overlay (`.overlay.overlay-help`).
+//! Esc, ? or a click on the cross close it.
 
 use crate::dom::{self, add, qs, remove};
 use crate::engine;
 
 const SHORTCUTS: &[(&str, &str)] = &[
-    ("→ Espace N", "Étape ou slide suivante"),
-    ("← Maj+Espace P", "Étape ou slide précédente"),
-    ("Page↓ / Page↑", "Chapitre suivant / précédent (en navigation 2D ; sinon slide suivante / précédente)"),
-    ("↓ ↑", "Dans le chapitre : étape ou slide suivante / précédente"),
-    ("H J K L", "Gauche, bas, haut, droite (slides verticales comprises)"),
-    ("Début / Fin", "Première / dernière slide"),
-    ("G", "Aller à une slide : numéro, 5.2 ou identifiant"),
-    ("Échap / O", "Vue d'ensemble"),
-    ("F", "Plein écran"),
-    ("S", "Vue de l'orateur : slide, étape suivante, notes, chronomètre"),
-    ("D", "Dessiner sur la slide (1 à 5 : couleur, Z : annuler, X : effacer, D : sortir)"),
-    ("B / V / .", "Écran noir, puis reprise"),
-    ("A", "Suspendre ou reprendre le défilement automatique"),
-    ("Alt + clic (Ctrl + clic sous Linux)", "Zoomer sur un élément, puis revenir"),
-    ("?", "Cette aide"),
+    ("→ Space N", "Next step or slide"),
+    ("← Shift+Space P", "Previous step or slide"),
+    ("Page↓ / Page↑", "Next / previous chapter (in 2D navigation; otherwise next / previous slide)"),
+    ("↓ ↑", "Within the chapter: next / previous step or slide"),
+    ("H J K L", "Left, down, up, right (vertical slides included)"),
+    ("Home / End", "First / last slide"),
+    ("G", "Go to a slide: number, 5.2 or identifier"),
+    ("Esc / O", "Overview"),
+    ("F", "Full screen"),
+    ("S", "Speaker view: slide, next step, notes, timer"),
+    ("D", "Draw on the slide (1 to 5: colour, Z: undo, X: clear, D: leave)"),
+    ("B / V / .", "Black screen, then resume"),
+    ("A", "Pause or resume the automatic advance"),
+    ("Alt + click (Ctrl + click on Linux)", "Zoom on an element, then back"),
+    ("?", "This help"),
 ];
 
 fn overlay() -> Option<web_sys::Element> {
@@ -42,8 +42,8 @@ fn open() {
     el.set_class_name("overlay overlay-help");
     el.set_inner_html(&format!(
         "<header><a class=\"close\" href=\"#\"><span class=\"icon\"></span></a></header>\
-         <div class=\"viewport\"><div class=\"viewport-inner\"><h1>Raccourcis clavier</h1>\
-         <table><tr><th>Touche</th><th>Action</th></tr>{rows}</table></div></div>"
+         <div class=\"viewport\"><div class=\"viewport-inner\"><h1>Keyboard shortcuts</h1>\
+         <table><tr><th>Key</th><th>Action</th></tr>{rows}</table></div></div>"
     ));
     if let Some(x) = qs(&el, ".close") {
         dom::on::<web_sys::Event>(&x, "click", |e| {
@@ -54,7 +54,7 @@ fn open() {
     let root = engine::root();
     let _ = root.append_child(&el);
     add(&root, "has-overlay");
-    // reveal.js : la classe `visible` une image plus tard, pour la transition d'ouverture
+    // reveal.js: the `visible` class one frame later, for the opening transition
     dom::timeout(1.0, move || add(&el, "visible"));
 }
 
