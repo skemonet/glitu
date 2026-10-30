@@ -8,7 +8,8 @@ Everything is written in English (code, comments, messages, docs). No npm, no No
 - `crates/glitu-core` — pure compiler (no I/O): `markdown.rs`, `render/` (sections, layouts,
   steps, visuals), `html.rs`, `highlight.rs`, `math.rs`, `reveal_md.rs`, `skemo.rs`.
 - `crates/glitu` — the tool: `cli.rs`, `build.rs`, `source.rs`, `online.rs`, `standalone.rs`,
-  `serve.rs`, `export.rs` + `assets/export.js` + `pptx/` + `pdf.rs`, `browser.rs`, `oracle.rs`.
+  `serve.rs`, `export.rs` + `assets/export.js` + `pptx/` + `pdf.rs`, `browser.rs` (driving) +
+  `chromium.rs` (finding or downloading the browser), `oracle.rs`.
 - `crates/glitu-web` — wasm engine (navigation, steps, speaker view, themes' backdrops).
 - `themes/` — `crystal` (default), `constellation`, `paper`, `aurora`, `ascii`, `blueprint`, `iso`
   share `assets/template.css`; `black` is the reveal-md theme.

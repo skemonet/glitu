@@ -442,6 +442,7 @@ dependencies = [
  "base64",
  "clap",
  "glitu-core",
+ "miniz_oxide 0.8.9",
  "png",
  "serde_json",
  "sha2",
