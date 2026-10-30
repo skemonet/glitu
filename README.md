@@ -35,14 +35,15 @@ Or take a binary from the [releases](https://github.com/skemonet/glitu/releases)
 above. `glitu export` also needs Chromium.
 
 ```bash
-glitu init talk                 # a sample presentation: talk/slides.md and talk/skemo.css
+glitu init talk                 # a sample presentation: talk/slides.md
+glitu init talk --css           # and its talk/style.css: the theme's variables, to adjust it
 glitu serve talk/slides.md      # preview at http://localhost:8000, reloads at every save
 glitu --help                    # the commands; glitu <command> --help: their options
 ```
 
 ## Releases
 
-The version is the workspace's, in `Cargo.toml` (`0.1.1-rc.1`: a hyphen gives a pre-release). A push
+The version is the workspace's, in `Cargo.toml` (`0.1.1-rc.2`: a hyphen gives a pre-release). A push
 on `main` whose version has no release yet runs the pipeline (`tools/ci.sh`: lints, tests, smoke
 test of the binary, the same locally and in the CI); when it passes,
 `.github/workflows/release.yml` builds the binary for each platform and publishes the GitHub
@@ -70,7 +71,7 @@ themes are published by the maintainer on **static.glitu.net**, each at its vers
 rustup target add wasm32-unknown-unknown     # once; skemo is fetched by Cargo (git dependency)
 cargo build --release                         # builds target/release/glitu (wasm and skemo engines inside)
 
-target/release/glitu init talk                 # a sample presentation in talk/ (overwrites nothing)
+target/release/glitu init talk [--css]         # a sample presentation in talk/, [and its style.css] (overwrites nothing)
 target/release/glitu serve                     # http://localhost:8000, reloads at every change
 target/release/glitu serve --allow 192.168.0.0/16   # also for these addresses (CIDR, repeatable): phone, tablet
 target/release/glitu build -o dist             # static site, to serve with any web server
@@ -156,7 +157,8 @@ Note: what the speaker should say (S key). [click] At the first click, this is h
 | 2D navigation | `navigation: 2d` in the front matter: one chapter per column (← → and Space follow reading order, Page↓ Page↑ go from one chapter to another, ↑ ↓ within the chapter) |
 | a formula | `$\frac{a}{b}$` in the text, `$$…$$` as a block, a ` ```math ` block as a visual (LaTeX, rendered as MathML at build) |
 | a word that appears | `[text]{@2}`; `[text]{.class}` sets a class |
-| a hand-drawn mark on a word | `[text]{.circle @2}`: `.underline` `.circle` `.box` `.highlight` `.strike`, colour `.red` `.green` `.blue` `.cyan` `.yellow` `.purple`; drawn on click, or at once without `@n` |
+| a hand-drawn mark on a word | `[text]{.circle @2}`: `.underline` `.circle` `.box` `.highlight` `.strike`, colour `.red` `.green` `.blue` `.cyan` `.yellow` `.purple`, otherwise the theme's (`--mark`); drawn on click, or at once without `@n` |
+| to adjust the theme | a `style.css` next to the markdown, loaded after the theme: `glitu init --css` writes one with every variable of the theme (colours, fonts, sizes), commented out |
 | an icon | `:mdi:github:`: any [Iconify](https://icon-sets.iconify.design) icon (`collection:name`), downloaded at build |
 | another font | `font: Inter`, `font-title: Poppins`, `font-mono: Fira Code` in the front matter (Google Fonts, downloaded at build) |
 | two columns | `## Topic {.cols}`; a `::right::` line separates the left column from the right one (texts, code, diagram, image) |
@@ -176,7 +178,7 @@ Note: what the speaker should say (S key). [click] At the first click, this is h
 | a web page | `## Demo {.iframe url="https://…"}`: full slide, or next to the text (`{.iframe-left}`, `{.iframe-right}`) |
 | no margins | `## Topic {.full}`: the visual takes the whole slide under the header |
 | two columns and a header | in `{.cols}`, what comes before a `::left::` line spans both columns |
-| the logo of the header | `logo: img/logo.png` in the front matter replaces the theme's (an image of `img/` or `public/`); `logo: none` removes it |
+| a logo | `logo: img/logo.png` in the front matter: an image of `img/` or `public/`, or an `https://` address; in the header of the template themes, in a corner for black and white; no `logo:`, no logo |
 | a logo, a mention on every slide | `global-top: "© ACME"` (in front of the content, bottom right) or `global-bottom:` (behind, bottom left) in the front matter, in markdown: `![](img/logo.svg)` |
 | several files | a line `<!-- include: chapters/deployment.md -->` inserts this file (path relative to the including file; its front matter is ignored, its images stay relative to the main file) |
 
@@ -327,12 +329,12 @@ segment. The terminal emulation is done by `avt`, asciinema's. For a real record
 A theme is a folder `themes/<name>/`: its sheets and fonts, `glitu.json` (sheets to load, size of
 the slides, margin, maximum magnification `maxScale` — 2 by default, 8 for the template themes,
 which fill a large screen this way —, centring, arrows, progress, number, transition), and
-depending on the theme `logo.svg`, `skemo.css`. `glitu.json` also carries its `"version"` and, for
+depending on the theme `skemo.css` (the types of the diagrams). `glitu.json` also carries its `"version"` and, for
 a third-party theme, the `"name"` the engine recognises. It is looked for next to the markdown,
 then in the parent folders; the official themes are also embedded in the binary (`glitu themes`),
 which uses them when no folder has the theme (written once into `~/.cache/glitu/themes-<hash>/`).
 
-The themes of this repository, except "black", rest on a **shared template**
+The themes of this repository, except "black" and "white" (reveal.js's), rest on a **shared template**
 (`"template": true`): its sheet, `glitu/template.css`, published with the engine, holds the whole
 layout (header, panel, stage, cover, chapters, progress, layouts) and is only tuned through CSS
 variables (palette, fonts, veils, `--tilt`: slant of the panel/stage separation, 2° clockwise);
@@ -391,9 +393,9 @@ See `tests/oracle/README.md`.
 ## Tree
 
 ```text
-themes/crystal/            the default theme: palette, fonts, logo, skemo.css
+themes/crystal/            the default theme: palette, fonts, skemo.css
 themes/constellation/ …    the other template themes (paper, aurora, ascii, blueprint, iso)
-themes/black/              reveal-md's default theme (reveal.js, MIT)
+themes/black/, white/      reveal-md's default theme and its light counterpart (reveal.js, MIT)
 crates/glitu/              the tool: site build, single page, server, export (PowerPoint, PDF,
                            PNG), includes, icons and fonts, oracle
 crates/glitu-core/         the compiler: markdown → HTML, highlighting, formulas, skemo diagrams

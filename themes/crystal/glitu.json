@@ -1,12 +1,11 @@
 {
-  "version": "0.1.0",
+  "version": "0.1.1",
   "styles": [
     "fonts.css",
     "theme.css"
   ],
   "template": true,
   "backdrop": "crystal",
-  "logo": "logo.svg",
   "width": 1280,
   "height": 720,
   "margin": 0,

@@ -26,14 +26,19 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 pub enum Cmd {
-    /// Create a sample presentation: `slides.md` and its `skemo.css` (overwrites nothing)
+    /// Create a sample presentation, `slides.md`; with --css, its `style.css` too (overwrites
+    /// nothing)
     Init {
         /// Destination folder (created if needed)
         #[arg(default_value = ".")]
         dir: PathBuf,
-        /// Theme of the presentation (see `glitu themes`)
+        /// Theme of a new presentation (see `glitu themes`)
         #[arg(long, default_value = "crystal")]
         theme: String,
+        /// Also write `style.css`: every variable of the presentation's theme, commented out, to
+        /// adjust it (only this file if `slides.md` exists)
+        #[arg(long)]
+        css: bool,
     },
     /// Preview: serves the presentation, reloads it at every save, keeps the open windows together
     Serve {
@@ -164,7 +169,7 @@ pub enum Build {
 
 #[derive(Debug, PartialEq)]
 pub enum Command {
-    Init { dir: PathBuf, theme: String },
+    Init { dir: PathBuf, theme: String, css: bool },
     Build { slides: PathBuf, mode: Build, out: Option<PathBuf> },
     Serve { slides: PathBuf, port: u16, allow: Vec<Range>, rehearse: bool },
     Export { slides: PathBuf, out: PathBuf, options: export::Options },
@@ -187,7 +192,7 @@ pub fn parse<I: IntoIterator<Item = String>>(args: I) -> Result<(Command, bool),
 
 fn command(cmd: Cmd) -> Result<Command, clap::Error> {
     Ok(match cmd {
-        Cmd::Init { dir, theme } => Command::Init { dir, theme },
+        Cmd::Init { dir, theme, css } => Command::Init { dir, theme, css },
         Cmd::Serve { file, port, allow, rehearse } => Command::Serve { slides: file, port, allow, rehearse },
         Cmd::Build(b) => {
             let mode = match b.web {
@@ -239,8 +244,12 @@ mod tests {
 
     #[test]
     fn init_defaults() {
-        assert_eq!(cmd("init").unwrap(), Command::Init { dir: ".".into(), theme: "crystal".into() });
-        assert_eq!(cmd("init talk --theme paper").unwrap(), Command::Init { dir: "talk".into(), theme: "paper".into() });
+        assert_eq!(cmd("init").unwrap(), Command::Init { dir: ".".into(), theme: "crystal".into(), css: false });
+        assert_eq!(cmd("init talk --theme paper --css").unwrap(), Command::Init {
+            dir: "talk".into(),
+            theme: "paper".into(),
+            css: true
+        });
     }
 
     #[test]

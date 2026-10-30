@@ -253,8 +253,8 @@ fn theme_config(theme_dir: &Path) -> Result<serde_json::Value, String> {
     }
 }
 
-/// The engine options: the theme's settings, its name and its logo; `logo`: the presentation's,
-/// already as a site path (see `deck_logo`), which replaces the theme's
+/// The engine options: the theme's settings, its name and the presentation's logo (see
+/// `deck_logo`: a site path or an address); no `logo:` in the front matter, no logo
 fn engine_options(config: &serde_json::Value, theme: &str, logo: Option<&str>) -> serde_json::Value {
     let mut options = config.clone();
     if let Some(o) = options.as_object_mut() {
@@ -262,7 +262,6 @@ fn engine_options(config: &serde_json::Value, theme: &str, logo: Option<&str>) -
             o.remove(k);
         }
         o.insert("theme".into(), theme.into());
-        let logo = logo.map(str::to_string).or_else(|| config["logo"].as_str().map(|l| format!("theme/{l}")));
         if let Some(logo) = logo.filter(|l| !l.is_empty()) {
             o.insert("logo".into(), logo.into());
         }
@@ -271,11 +270,15 @@ fn engine_options(config: &serde_json::Value, theme: &str, logo: Option<&str>) -
 }
 
 /// `logo:` in the front matter: an image of the presentation, in img/ or public/ (the folders
-/// copied into the site), at its path in the site; `logo: none`: no logo (empty string)
+/// copied into the site), at its path in the site, or an http(s) address; `logo: none` or no
+/// `logo:`, no logo
 fn deck_logo(project: &Project, meta: &BTreeMap<String, String>) -> Result<Option<String>, String> {
     let Some(logo) = meta.get("logo").map(|l| l.trim().trim_matches(['"', '\''])) else { return Ok(None) };
-    if logo == "none" {
-        return Ok(Some(String::new()));
+    if logo == "none" || logo.is_empty() {
+        return Ok(None);
+    }
+    if logo.starts_with("https://") || logo.starts_with("http://") {
+        return Ok(Some(logo.to_string()));
     }
     if !project.root.join(logo).is_file() {
         return Err(format!("logo: {} not found", project.root.join(logo).display()));
@@ -465,6 +468,51 @@ pub fn write(out: &[Output], dest: &Path) -> Result<(), String> {
     Ok(())
 }
 
+/// The CSS variables of a theme, as its pages get them: the template's (a template theme), then
+/// its own stylesheets', each name once with its last value, in order of first appearance
+pub fn theme_variables(theme: &LocalTheme) -> Result<Vec<(String, String)>, String> {
+    let mut css = String::new();
+    if theme.config["template"].as_bool() == Some(true) {
+        css += TEMPLATE_CSS;
+    }
+    for style in theme.config["styles"].as_array().into_iter().flatten().filter_map(|s| s.as_str()) {
+        let path = theme.dir.join(style);
+        css += &fs::read_to_string(&path).map_err(|e| format!("{}: {e}", path.display()))?;
+    }
+    let mut vars: Vec<(String, String)> = Vec::new();
+    for (name, value) in root_variables(&css) {
+        match vars.iter_mut().find(|(n, _)| *n == name) {
+            Some(v) => v.1 = value,
+            None => vars.push((name, value)),
+        }
+    }
+    Ok(vars)
+}
+
+/// `--name: value` declarations of the `:root` blocks, comments removed, values on one line
+fn root_variables(css: &str) -> Vec<(String, String)> {
+    let mut plain = String::with_capacity(css.len());
+    let mut rest = css;
+    while let Some(start) = rest.find("/*") {
+        plain += &rest[..start];
+        rest = rest[start..].find("*/").map_or("", |end| &rest[start + end + 2..]);
+    }
+    plain += rest;
+    let mut out = Vec::new();
+    let mut blocks = plain.as_str();
+    while let Some(at) = blocks.find(":root") {
+        let after = &blocks[at..];
+        let (Some(open), Some(close)) = (after.find('{'), after.find('}')) else { break };
+        for decl in after[open + 1..close].split(';') {
+            if let Some((name, value)) = decl.trim().split_once(':').filter(|(n, _)| n.trim().starts_with("--")) {
+                out.push((name.trim().to_string(), value.split_whitespace().collect::<Vec<_>>().join(" ")));
+            }
+        }
+        blocks = &after[close..];
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -493,11 +541,17 @@ mod tests {
     }
 
     #[test]
-    fn the_presentation_logo_replaces_the_theme_one() {
+    fn variables_of_the_root_blocks() {
+        let css = ":root {\n  --a: 1px; /* note */\n  --b:\n    linear-gradient(red,\n blue);\n}\n.x { --c: 2; }\n:root { --a: 3px; color: red }";
+        let vars = root_variables(css);
+        assert_eq!(vars, [("--a", "1px"), ("--b", "linear-gradient(red, blue)"), ("--a", "3px")].map(|(n, v)| (n.to_string(), v.to_string())));
+    }
+
+    #[test]
+    fn the_logo_comes_from_the_presentation_only() {
         let config = serde_json::json!({ "logo": "logo.svg", "version": "1.0.0" });
-        assert_eq!(engine_options(&config, "t", None)["logo"], "theme/logo.svg");
+        assert!(engine_options(&config, "t", None).get("logo").is_none());
         assert_eq!(engine_options(&config, "t", Some("img/max.png"))["logo"], "img/max.png");
-        assert!(engine_options(&config, "t", Some("")).get("logo").is_none());
 
         let dir = TempDir::new("logo");
         dir.write("img/max.png", "x").write("max.png", "x").write("public/p.png", "x");
@@ -505,7 +559,8 @@ mod tests {
         let meta = |v: &str| [("logo".to_string(), v.to_string())].into_iter().collect();
         assert_eq!(deck_logo(&project, &meta("img/max.png")).unwrap().as_deref(), Some("img/max.png"));
         assert_eq!(deck_logo(&project, &meta("public/p.png")).unwrap().as_deref(), Some("p.png"));
-        assert_eq!(deck_logo(&project, &meta("none")).unwrap().as_deref(), Some(""));
+        assert_eq!(deck_logo(&project, &meta("none")).unwrap(), None);
+        assert_eq!(deck_logo(&project, &meta("https://x.net/l.svg")).unwrap().as_deref(), Some("https://x.net/l.svg"));
         assert!(deck_logo(&project, &meta("max.png")).unwrap_err().contains("img/ or public/"));
         assert!(deck_logo(&project, &meta("img/absent.png")).unwrap_err().contains("not found"));
         assert_eq!(deck_logo(&project, &Default::default()).unwrap(), None);
@@ -542,10 +597,9 @@ mod tests {
     #[test]
     fn a_site_holds_the_page_the_engine_the_theme_and_the_resources() {
         let dir = TempDir::new("site");
-        dir.write("slides.md", "---\ntitle: Demo\nlang: fr\n---\n\n## One\n\n- a @1\n\n$x$\n")
-            .write("themes/crystal/glitu.json", r#"{ "version": "1.0.0", "styles": ["theme.css"], "template": true, "logo": "logo.svg" }"#)
+        dir.write("slides.md", "---\ntitle: Demo\nlang: fr\nlogo: img/a.png\n---\n\n## One\n\n- a @1\n\n$x$\n")
+            .write("themes/crystal/glitu.json", r#"{ "version": "1.0.0", "styles": ["theme.css"], "template": true }"#)
             .write("themes/crystal/theme.css", "body {}")
-            .write("themes/crystal/logo.svg", "<svg/>")
             .write("style.css", ".x {}")
             .write("img/a.png", "P")
             .write("public/robots.txt", "R");
@@ -559,7 +613,7 @@ mod tests {
         assert!(index.contains("<html lang=\"fr\"") && index.contains("<title>Demo</title>"));
         assert!(index.contains("href=\"glitu/template.css\">\n  <link rel=\"stylesheet\" href=\"theme/theme.css\">"));
         assert!(index.contains("<link rel=\"stylesheet\" href=\"style.css\">"));
-        assert!(index.contains("\"logo\":\"theme/logo.svg\"") && index.contains("\"theme\":\"crystal\""));
+        assert!(index.contains("\"logo\":\"img/a.png\"") && index.contains("\"theme\":\"crystal\""));
         assert!(index.contains("id=\"glitu-source\"") && index.contains("EventSource"));
     }
 

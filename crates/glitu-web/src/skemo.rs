@@ -50,7 +50,7 @@ fn draw(edge: &Element) {
     set("stroke-dasharray", &format!("{len} {len}"));
     set("stroke-dashoffset", &len.to_string());
     let _ = line.get_bounding_client_rect();
-    set("transition", "stroke-dashoffset .6s ease");
+    set("transition", &format!("stroke-dashoffset {}ms ease", DRAW_MS));
     set("stroke-dashoffset", "0");
     // the head (and the starting one, `.both`) only appears once the line has arrived
     let heads = qsa(edge, ".head, .tail");
@@ -271,11 +271,22 @@ fn update(slide: &Element, animate: bool) {
             unmorph(&svg);
         }
         let morphing = if animate && before.is_some_and(|b| b < s) && !crate::motion::reduced() { replaced(&svg, s) } else { Vec::new() };
+        let after_arrow = if animate && !crate::motion::reduced() { cards_after_arrows(&svg, s) } else { Vec::new() };
         let mut any = false;
         for el in qsa(&svg, STEPPED) {
             let on = visible_at(&el, s);
             if animate && on && has(&el, "sk-off") && data(&el, "fx").as_deref() == Some("draw") {
                 draw(&el);
+            }
+            if on && after_arrow.contains(&el) {
+                // the arrow is drawn first, the card appears once it has arrived
+                let (svg, el) = (svg.clone(), el.clone());
+                dom::timeout(DRAW_MS, move || {
+                    if data(&svg, "sk-at").as_deref() == Some(&s.to_string()) {
+                        dom::remove(&el, "sk-off");
+                    }
+                });
+                continue;
             }
             toggle(&el, "sk-off", !on);
             let f = on && focused_at(&el, s);
@@ -287,6 +298,30 @@ fn update(slide: &Element, animate: bool) {
             morph(&old, &new);
         }
     }
+}
+
+/// Duration of the drawing of an arrow (`draw`), in ms
+const DRAW_MS: f64 = 600.0;
+
+/// The cards appearing at step `s` with an arrow drawn between them and a card already shown:
+/// they wait for the arrow
+fn cards_after_arrows(svg: &Element, s: u32) -> Vec<Element> {
+    let shown = |id: &str| {
+        dom::qs(svg, &format!(".card[data-id=\"{id}\"]")).is_some_and(|c| !has(&c, "sk-off"))
+    };
+    let mut ids = Vec::new();
+    for edge in qsa(svg, ".edge.sk-off[data-fx=\"draw\"]").into_iter().filter(|e| visible_at(e, s)) {
+        let (Some(from), Some(to)) = (data(&edge, "from"), data(&edge, "to")) else { continue };
+        match (shown(&from), shown(&to)) {
+            (true, false) => ids.push(to),
+            (false, true) => ids.push(from),
+            _ => {}
+        }
+    }
+    ids.iter()
+        .filter_map(|id| dom::qs(svg, &format!(".card.sk-off[data-id=\"{id}\"]")))
+        .filter(|c| visible_at(c, s))
+        .collect()
 }
 
 pub fn install() {

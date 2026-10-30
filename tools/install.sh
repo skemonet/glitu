@@ -1,7 +1,7 @@
 #!/bin/sh
 # Installs the `glitu` binary from a GitHub release (Linux and macOS).
 #   curl -fsSL https://raw.githubusercontent.com/skemonet/glitu/main/tools/install.sh | sh
-#   GLITU_VERSION=v0.1.1-rc.1 GLITU_BIN=~/bin sh install.sh
+#   GLITU_VERSION=v0.1.1-rc.2 GLITU_BIN=~/bin sh install.sh
 # Variables: GLITU_VERSION (default: latest release, pre-releases included), GLITU_BIN (default
 # ~/.local/bin), GITHUB_TOKEN (optional: a higher API rate limit).
 # The binary is checked against the SHA-256 the release's description gives before it is installed.

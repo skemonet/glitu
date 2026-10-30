@@ -1,4 +1,0 @@
-/* Types of the diagrams of this presentation, added to the theme's (skemo.css of the theme):
-   --c is the colour of a card, --label its category, drawn above its name. */
-.source { --c: #64748b; --label: "FILE"; }
-.output { --c: #0891b2; --label: "OUTPUT"; }

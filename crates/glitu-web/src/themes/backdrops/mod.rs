@@ -34,6 +34,10 @@ pub trait Scene {
     fn fps(&self) -> f64 {
         30.0
     }
+    /// Resolution of the image, relative to the screen's: a soft scene can draw fewer pixels
+    fn resolution(&self) -> f64 {
+        1.0
+    }
     /// Prepares what depends only on the size (sprites, random positions)
     fn build(&mut self, _w: f64, _h: f64) {}
     fn draw(&self, ctx: &CanvasRenderingContext2d, w: f64, h: f64, t: f64, dim: f64);
@@ -82,7 +86,7 @@ impl Backdrop {
         if w == 0.0 || h == 0.0 { return false }
         let dpr = dom::window().device_pixel_ratio();
         let dpr = if dpr == 0.0 { 1.0 } else { dpr };
-        self.scale = dpr.min(2.0) * rect.width() / w;
+        self.scale = dpr.min(2.0) * rect.width() / w * self.scene.resolution();
         self.canvas.set_width((w * self.scale).round() as u32);
         self.canvas.set_height((h * self.scale).round() as u32);
         if w != self.w || h != self.h {
@@ -150,7 +154,9 @@ impl Animated {
     fn frame(&self, now: f64) {
         let me = self.clone();
         let mut f = self.0.borrow_mut();
-        if now - f.last < 1000.0 / f.scene.fps() {
+        // a few ms of slack: a screen frame that comes a little early is not skipped (an uneven
+        // cadence shows more than a slower one)
+        if now - f.last < 1000.0 / f.scene.fps() - 4.0 {
             f.raf = dom::raf(move |t| me.frame(t));
             return;
         }

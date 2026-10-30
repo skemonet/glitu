@@ -12,6 +12,7 @@
   --accent: #3b82f6;
   --accent-2: #22d3ee;
   --gradient: linear-gradient(90deg, var(--accent), var(--accent-2));
+  --mark: var(--accent);   /* hand-drawn marks: [word]{.circle @2}, .highlight, .underline… */
   --panel-w: 37%;
   --text-scale: 1;   /* multiplies all text sizes (a presentation sets it in its style.css) */
   --header-h: 52px;
@@ -54,6 +55,7 @@
   --body-veil: linear-gradient(90deg, rgba(3,3,8,.72), rgba(3,3,8,.35));
   /* Cover and interludes */
   --cover-title: linear-gradient(180deg, #fff 30%, #b9c6dc);
+  --cover-subtitle: var(--text-dim);
   --chapter-num: transparent;
   --chapter-num-stroke: 2px rgba(34,211,238,.55);
   --glow: rgba(34,211,238,.35);
@@ -290,15 +292,7 @@ html, body, .reveal-viewport { background: var(--base); }
 .reveal .explorer li.dir > span::after { content: "/"; opacity: .5; }
 .reveal .explorer li.current > span { color: #fff; background: rgba(34,211,238,.14); box-shadow: inset 2px 0 var(--accent-2); }
 
-/* ----- skemo diagrams step by step (skemo plugin) ------------------------- */
-.reveal svg.skemo [data-step], .reveal svg.skemo [data-until] { transition: opacity .45s ease, transform .45s ease; }
-.reveal svg.skemo .sk-morph .sk-diff { fill: var(--accent-2); filter: drop-shadow(0 0 4px var(--accent-2)); }   /* what changed, until the next click */
-.reveal svg.skemo .sk-off { opacity: 0 !important; }   /* hidden stays hidden, even under a highlight (sk-focus) */
-.reveal svg.skemo .sk-off[data-fx="up"]   { transform: translateY(12px); }
-.reveal svg.skemo .sk-off[data-fx="zoom"] { transform: scale(.92); transform-box: fill-box; transform-origin: center; }
-.reveal svg.skemo.sk-focus :is(.card, .edge):not(.sk-focus-on) { opacity: .28; transition: opacity .45s ease; }
-.reveal svg.skemo.sk-focus .sk-focus-on :is(.card, .edge) { opacity: 1; }
-.reveal svg.skemo .sk-focus-on { filter: drop-shadow(0 0 6px rgba(34,211,238,.9)); transition: filter .45s ease; }
+/* ----- skemo diagrams (their steps: the engine's sheet, glitu.css) ---------- */
 .reveal .pan-track svg.skemo { height: 540px; width: auto; }
 /* Diagram laid directly on the backdrop (skemo's dark theme, transparent backdrop) */
 .reveal .diagram { width: 100%; height: 100%; }
@@ -357,8 +351,10 @@ html, body, .reveal-viewport { background: var(--base); }
   --term-color-7: #c9d1d9;  --term-color-15: #ffffff;
 }
 
-/* Steps listed on the left: the current step stands out, the previous ones fade */
-.reveal .panel li.fragment.visible:not(.current-fragment) { opacity: .45; }
+/* Steps listed on the left: once a click has shown a step, every bullet but the current one is dimmed, those visible from the
+   start too; nothing is dimmed before the first click, nor when printing or in the overview */
+.reveal section:has(.current-fragment) .panel li:not(.current-fragment, :has(.current-fragment)) { opacity: .45; }
+.reveal .panel li:not(.fragment) { transition: opacity .3s ease; }
 
 /* ----- Cover (full screen) ----------------------------------------------- */
 .reveal .cover {
@@ -379,7 +375,7 @@ html, body, .reveal-viewport { background: var(--base); }
   font-family: var(--title-font); font-size: calc(var(--cover-size) * var(--text-scale, 1)); font-weight: var(--title-weight); letter-spacing: -.03em; line-height: 1; margin: .3em 0 .2em;
   background: var(--cover-title); -webkit-background-clip: text; background-clip: text; color: transparent;
 }
-.reveal .cover .subtitle { font-size: calc(30px * var(--text-scale, 1)); color: var(--text-dim); max-width: 20em; line-height: 1.35; }
+.reveal .cover .subtitle { font-size: calc(30px * var(--text-scale, 1)); color: var(--cover-subtitle); max-width: 20em; line-height: 1.35; }
 .reveal .cover .byline {
   margin-top: 2.4em; font-size: calc(18px * var(--text-scale, 1)); color: var(--text-dim); display: flex; align-items: center; gap: 1em;
 }
@@ -414,6 +410,8 @@ html, body, .reveal-viewport { background: var(--base); }
 }
 .reveal .chapter p { font-size: calc(30px * var(--text-scale, 1)); color: var(--text-dim); margin-top: .6em; }
 .reveal .chapter .tpl-logo { position: absolute; right: 48px; bottom: calc(var(--footer-h) + 24px); height: 34px; opacity: .8; }
+/* a mention in front of every slide (`global-top`) takes the bottom right corner: the logo goes above it */
+.reveal section:has(> .global-top) :is(.cover, .chapter) .tpl-logo { bottom: calc(var(--footer-h) + 64px); }
 
 /* ----- Animated backdrop ---------------------------------------------------------- */
 /* One backdrop for the whole presentation, under the slides (.tpl-backdrop), the theme's

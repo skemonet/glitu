@@ -33,7 +33,7 @@ impl Scene for Blueprint {
     }
 
     fn fps(&self) -> f64 {
-        24.0
+        30.0
     }
 
     fn draw(&self, ctx: &CanvasRenderingContext2d, w: f64, h: f64, t: f64, dim: f64) {

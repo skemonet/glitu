@@ -177,12 +177,13 @@ impl Backdrop {
     }
 }
 
-/// Dimming of the backdrop for this slide: whole under the cover and the chapters, erased on the
-/// text side under a full-width text slide, in between next to a panel
+/// Dimming of the backdrop for this slide: whole under the cover, erased on the text side under a
+/// full-width text slide, in between next to a panel and under the chapters (framed like the
+/// content: going from a chapter to its slides moves nothing)
 fn dim(slide: &Element) -> f64 {
-    if qs(slide, ".chapter, .cover").is_some() {
+    if qs(slide, ".cover").is_some() {
         0.0
-    } else if qs(slide, ".panel").is_some() {
+    } else if qs(slide, ".panel, .chapter").is_some() {
         0.6
     } else {
         1.0
@@ -223,7 +224,7 @@ pub fn install(logo: &str, backdrop: &str) {
     let backdrop = Backdrop::new(&host, backdrop);
     let motion = || {
         let slide = engine::current_slide();
-        let motion = match qs(&slide, "[data-backdrop=\"anime\"]") {
+        let motion = match qs(&slide, "[data-backdrop=\"animated\"]") {
             Some(_) => Motion::Animated { chase: qs(&slide, ".chapter, .cover").is_some() },
             None => Motion::Still,
         };

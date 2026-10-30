@@ -21,7 +21,7 @@ A chapter: numbered, with this line as its subtitle
 - Visible from the start
 - Appears at the first click @1
 - Then this one, coming up @2:up
-- A [word]{.circle @3} circled at click 3
+- Appears and [word]{.circle @3} circled at click 3 @3
 
 Note: The speaker notes, shown by the S key. [click] The first click. [click] The second one.
 
@@ -56,7 +56,7 @@ Drawn by skemo, step by step
 
 ```skemo
 diagram(dir="right")
-  card#md.source(icon="file-text") slides.md        @1
+  card#md.file(icon="file-text") slides.md          @1
     | text, code, diagrams
     to(tool)
   card#tool.tool(icon="terminal") glitu             @2

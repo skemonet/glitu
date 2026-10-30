@@ -7,9 +7,10 @@ Work started on 2026-10-29 and interrupted; this is what remains.
       https://github.com/skemonet/skemo, pinned to a revision.
 - [ ] Pin skemo on a tag once skemo publishes one.
 - [x] Re-capture `tests/oracle` (slide 12 differed since skemo changed the default card look).
-- [ ] `tests/reveal-md/reference` (rendered by reveal-md, outside the project) differs by 0.68 % on
-      slide 0 with Chromium 1243 (text antialiasing only); re-render it with reveal-md in the
-      browser used by the CI.
+- [ ] `tests/reveal-md/reference` (rendered by reveal-md, outside the project) differs on slide 0
+      by text antialiasing only: 0.68 % with Chromium 1243, 1.67 % since "black" uses the 2D slide
+      transition (reveal-md's 3D default changes how the present slide's text is rasterised).
+      Re-render it with reveal-md in the browser used by the CI, with `transition: slide`.
 
 ## Translation to English (code, comments, messages, docs)
 - [x] `crates/glitu-core` (translated and refactored, 41 tests)
