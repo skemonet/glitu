@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use glitu::build::{self, Project};
-use glitu::cli::{self, Build, Command};
+use glitu::cli::{self, Assets, Command};
 use glitu::{serve, standalone};
 
 /// A line on the standard output; a closed output (`glitu themes | head -1`) ends the program
@@ -49,15 +49,20 @@ fn main() -> ExitCode {
 fn run(command: Command, say: &Say) -> Result<bool, String> {
     match command {
         Command::Init { dir, theme, css } => init(&dir, &theme, css, say)?,
-        Command::Build { slides, mode, out } => build(&Project::new(&slides), mode, out, say)?,
+        Command::Build { slides, assets, out } => build(&Project::new(&slides), assets, &out, say)?,
         Command::Serve { slides, port, allow } => serve::serve(Project::new(&slides), port, allow)?,
         Command::Export { slides, out, options } => {
             let n = glitu::export::export(&Project::new(&slides), &out, &options)?;
             say.line(format_args!("{}: {n} {}", out.display(), options.format.unit()));
         }
+        Command::Site { slides, out } => {
+            let site = build::site(&Project::new(&slides), false)?;
+            build::write(&site, &out)?;
+            say.line(format_args!("{}: website, {} files", out.display(), site.len()));
+        }
         Command::Unpack { page, out, force } => unpack(&page, &out, force, say)?,
         Command::Themes => themes()?,
-        Command::Assets { out, themes } => assets(&out, themes, say)?,
+        Command::Version => out(format_args!("glitu {}", env!("CARGO_PKG_VERSION"))),
         #[cfg(feature = "oracle")]
         Command::OracleCapture { url, out } => {
             glitu::oracle::capture(&url, &out)?;
@@ -71,7 +76,14 @@ fn run(command: Command, say: &Say) -> Result<bool, String> {
 /// `glitu init`: what it wrote, then how to see it, and how to adjust the theme
 fn init(dir: &Path, theme: &str, css: bool, say: &Say) -> Result<(), String> {
     let written = glitu::init::run(dir, theme, css)?;
-    for path in &written {
+    let own = dir.join("themes").join(theme);
+    if written.iter().any(|p| p.starts_with(&own)) {
+        say.line(format_args!("created: {}/ (your theme: theme.css, glitu.json, skemo.css, fonts)", own.display()));
+        if !written.iter().any(|p| p.ends_with("slides.md")) {
+            say.line(format_args!("to use it, in the front matter of the presentation: theme: ./themes/{theme}"));
+        }
+    }
+    for path in written.iter().filter(|p| !p.starts_with(&own)) {
         say.line(format_args!("created: {}", path.display()));
     }
     say.line(format_args!("try: glitu serve {}", dir.join("slides.md").display()));
@@ -102,23 +114,15 @@ fn themes() -> Result<(), String> {
     Ok(())
 }
 
-fn build(project: &Project, mode: Build, out: Option<PathBuf>, say: &Say) -> Result<(), String> {
+fn build(project: &Project, assets: Assets, dest: &Path, say: &Say) -> Result<(), String> {
     let site = build::site(project, false)?;
-    let single = match mode {
-        Build::Site => None,
-        Build::Standalone => Some(standalone::Mode::Offline),
-        Build::Web(base) => Some(standalone::Mode::Online { base, theme: published_theme(project)? }),
+    let mode = match assets {
+        Assets::Local => standalone::Mode::Offline,
+        Assets::At(base) => standalone::Mode::Online { base, theme: published_theme(project)? },
     };
-    let Some(mode) = single else {
-        let dest = out.unwrap_or_else(|| "dist".into());
-        build::write(&site, &dest)?;
-        say.line(format_args!("{}: {} files", dest.display(), site.len()));
-        return Ok(());
-    };
-    let dest = out.unwrap_or_else(|| "presentation.html".into());
     let page = standalone::bundle(&site, &mode)?;
-    build::write_file(&dest, page.as_bytes())?;
-    say.line(format_args!("{}: standalone page, {} KB", dest.display(), page.len() / 1024));
+    build::write_file(dest, page.as_bytes())?;
+    say.line(format_args!("{}: {} KB", dest.display(), page.len() / 1024));
     Ok(())
 }
 
@@ -145,23 +149,5 @@ fn unpack(page: &str, dest: &Path, force: bool, say: &Say) -> Result<(), String>
         build::write_file(target, text.as_bytes())?;
         say.line(target.display());
     }
-    Ok(())
-}
-
-/// The engine and the themes, each one at its version: `glitu/<version>/` and
-/// `themes/<name>/<version>/`. The versions already in the output stay: publishing adds to them.
-fn assets(out: &Path, themes: Option<PathBuf>, say: &Say) -> Result<(), String> {
-    let themes = match themes.or_else(|| build::themes_root(Path::new("."))) {
-        Some(dir) => dir,
-        None => glitu::themes::root()?,
-    };
-    let mut n = 0;
-    for published in build::runtime(&themes)? {
-        let dest = out.join(&published.dir);
-        build::write(&published.files, &dest)?;
-        say.line(format_args!("{}: {} files", dest.display(), published.files.len()));
-        n += published.files.len();
-    }
-    say.line(format_args!("{}: {n} files", out.display()));
     Ok(())
 }

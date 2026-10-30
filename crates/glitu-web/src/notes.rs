@@ -140,13 +140,13 @@ button:hover{border-color:#3b82f6}button.on{background:#123044;border-color:#22d
 .split{flex:0 0 12px;cursor:col-resize;position:relative}.split::after{content:'';position:absolute;inset:0 5px;border-radius:2px;background:#1b2333}\
 .split:hover::after,.split.drag::after{background:#22d3ee}\
 .hsplit{flex:0 0 12px;cursor:row-resize;position:relative}.hsplit::after{content:'';position:absolute;inset:5px 0;border-radius:2px;background:#1b2333}\
-.hsplit:hover::after,.hsplit.drag::after{background:#22d3ee}\
+.hsplit:hover::after,.hsplit.drag::after{background:#22d3ee}.left .hsplit{margin:-10px 0}\
 .frame{position:relative;background:#000;border:1px solid #253045;border-radius:8px;overflow:hidden;aspect-ratio:var(--ratio);margin:0 auto}\
-.cur{width:min(100%,calc((100vh - 190px) * var(--ratio)))}\
+.curbox{flex:0 0 var(--slide,60%);min-height:80px;container-type:size}.cur{width:min(100cqw,calc(100cqh * var(--ratio)))}\
 .nextbox{flex:0 0 var(--next,38%);min-height:60px;display:flex;flex-direction:column}.next{height:100%;max-width:100%}\
 iframe{display:block;width:100%;height:100%;border:0;pointer-events:none}\
 h1{font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:#22d3ee;margin:0 0 6px}\
-.dock{flex:1;min-height:150px;display:flex;flex-direction:column;justify-content:center;gap:10px;padding:0 6px}\
+.dock{flex:0 0 auto;display:flex;flex-direction:column;gap:10px;padding:8px 6px 0;border-top:1px solid #1b2333}\
 .row{display:flex;align-items:center;gap:18px;flex-wrap:wrap}\
 .play{font-size:26px;width:52px;height:52px;border-radius:50%;padding:0}\
 .elapsed{font-size:46px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:.02em}.stopped .elapsed{color:#93a0b4}\
@@ -157,14 +157,14 @@ h1{font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:#22d3ee;ma
 .rehearsing .reh{display:flex}.reh .label{color:#22d3ee;font-weight:700}.reh .slide{color:#93a0b4;font-variant-numeric:tabular-nums}\
 .menu{position:relative}.menu .items{display:none;position:absolute;right:0;bottom:44px;background:#111827;border:1px solid #2d3a52;border-radius:8px;padding:6px;min-width:250px;z-index:5}\
 .menu.open .items{display:flex;flex-direction:column;gap:4px}.menu .items button{text-align:left;border:0;background:none}.menu .items button:hover{background:#1b2333}\
-.tabs{display:flex;gap:6px;align-items:center}.tabs .grow{flex:1}\
+.tabs{display:flex;gap:6px;align-items:center}.tabs h1{margin:0}.tabs .grow{flex:1}\
 .pane{flex:1;overflow:auto;min-height:0;position:relative}\
 .notes{font-size:var(--notes,22px);padding-right:6px;scroll-behavior:smooth}.notes p{margin:0 0 .7em}.empty{color:#5d6b82;font-style:italic}\
 .note-click{transition:opacity .2s,background .2s;border-radius:4px}.note-click.past{opacity:.45}\
 .note-click.current{background:rgba(34,211,238,.16);color:#fff}\
 table{width:100%;border-collapse:collapse;font-size:16px;font-variant-numeric:tabular-nums}\
-th{text-align:left;color:#93a0b4;font-weight:400;font-size:13px;letter-spacing:.06em;text-transform:uppercase;padding:4px 6px;border-bottom:1px solid #253045}\
-td{padding:5px 6px;border-bottom:1px solid #161d2b}td.n{color:#5d6b82;width:2.5em}td.t{white-space:nowrap;text-align:right}\
+th{text-align:left;color:#93a0b4;font-weight:400;font-size:13px;letter-spacing:.06em;text-transform:uppercase;padding:4px 6px;border-bottom:1px solid #253045;position:sticky;top:0;background:#0b0f19}\
+td{padding:5px 6px;border-bottom:1px solid #161d2b}td.n{color:#5d6b82;width:2.5em}.t{white-space:nowrap;text-align:right}\
 tr.cur td{background:rgba(34,211,238,.1);color:#fff}tr.cur td.n{color:#22d3ee}\
 .bar{height:3px;background:#1b2333;border-radius:2px;margin-top:3px}.bar i{display:block;height:100%;background:#22d3ee;border-radius:2px}.bar.over i{background:#f87171}\
 .runs{color:#5d6b82;font-size:13px}\
@@ -184,8 +184,8 @@ fn receiver_url() -> String {
     format!("{base}{}receiver", if base.contains('?') { '&' } else { '?' })
 }
 
-/// The window: the current slide and the timer on the left, the next step and the notes (or the
-/// timing) on the right, a separator to drag between them
+/// The window: on the left the current slide, the timing of the slides under it and the timer at
+/// the bottom; on the right the next step and the notes; separators to drag between them
 fn skeleton() -> String {
     let c = engine::config();
     let ratio = format!("{} / {}", c.width, c.height);
@@ -198,8 +198,10 @@ fn skeleton() -> String {
     };
     format!(
         "<style>{STYLE}</style><div class=\"pv\" id=\"pv\" style=\"--ratio:{ratio}\">\
-         <div class=\"col left\">\
-           <div class=\"frame cur\"><iframe id=\"current\" src=\"{url}\"></iframe></div>\
+         <div class=\"col left\" id=\"left\">\
+           <div class=\"curbox\"><div class=\"frame cur\"><iframe id=\"current\" src=\"{url}\"></iframe></div></div>\
+           <div class=\"hsplit\" id=\"vsplit\" title=\"Drag to resize\"></div>\
+           <div class=\"pane\" id=\"timing\"></div>\
            <div class=\"dock\" id=\"dock\">\
              <div class=\"row\">\
                <button class=\"play\" id=\"play\" title=\"Start or stop the timer\"></button>\
@@ -219,9 +221,9 @@ fn skeleton() -> String {
          <div class=\"col right\" id=\"right\">\
            <div class=\"nextbox\"><h1 id=\"next-title\">Next</h1><div class=\"frame next\"><iframe id=\"upcoming\" src=\"{url}&amp;upcoming\"></iframe></div></div>\
            <div class=\"hsplit\" id=\"hsplit\" title=\"Drag to resize\"></div>\
-           <div class=\"tabs\"><button data-tab=\"notes\" class=\"on\">Notes</button><button data-tab=\"timing\">Timing</button>\
+           <div class=\"tabs\"><h1>Notes</h1>\
              <span class=\"grow\"></span><button data-act=\"smaller\" title=\"Smaller notes\">A−</button><button data-act=\"larger\" title=\"Larger notes\">A+</button></div>\
-           <div class=\"pane notes\" id=\"notes\"></div><div class=\"pane\" id=\"timing\" hidden></div>\
+           <div class=\"pane notes\" id=\"notes\"></div>\
          </div>\
          </div><div class=\"modal\" id=\"modal\"><div class=\"dialog\" id=\"dialog\"></div></div><div class=\"toast\" id=\"toast\"></div>"
     )
@@ -273,6 +275,15 @@ fn follow_notes(doc: &Document) {
         el.offset_top() as f64 - (box_.client_height() as f64 - el.offset_height() as f64) / 2.0
     });
     box_.set_scroll_top(top.max(0.0) as i32);
+}
+
+/// The timing table keeps the current slide in sight
+fn follow_timing(doc: &Document) {
+    let Some(pane) = by_id(doc, "timing") else { return };
+    let Some(row) = qs(&pane, "tr.cur") else { return };
+    let row = dom::html(&row);
+    let top = row.offset_top() as f64 - (pane.client_height() as f64 - row.offset_height() as f64) / 2.0;
+    pane.set_scroll_top(top.max(0.0) as i32);
 }
 
 /// `+0:07 behind`, `−0:12 ahead`
@@ -358,10 +369,9 @@ fn update(move_previews: bool) {
         }
         let date = js_sys::Date::new_0();
         set(&doc, "clock", &format!("{:02}:{:02}", date.get_hours(), date.get_minutes()));
-        if by_id(&doc, "timing").is_some_and(|t| !t.has_attribute("hidden")) {
-            set(&doc, "timing", &timing_html(pr, now));
-        }
+        set(&doc, "timing", &timing_html(pr, now));
         if move_previews {
+            follow_timing(&doc);
             set(&doc, "notes", &notes_html(&cur));
             set(&doc, "next-title", if engine::at_end() { "End" } else { "Next" });
             follow_notes(&doc);
@@ -410,36 +420,55 @@ fn forward_keys(doc: &Document) {
 
 // ---------------------------------------------------------------- layout
 
-/// The layout of the view, kept by the browser: width of the left column, height of the next
-/// step (percent), size of the notes (px)
+/// The layout of the view, kept by the browser: width of the left column, height of the current
+/// slide and of the next step (percent), size of the notes (px)
 #[derive(Clone, Copy)]
 struct Layout {
     left: f64,
+    slide: f64,
     next: f64,
     notes: f64,
 }
 
-const LAYOUT: Layout = Layout { left: 62.0, next: 38.0, notes: 22.0 };
+const LAYOUT: Layout = Layout { left: 62.0, slide: 60.0, next: 38.0, notes: 22.0 };
 
 fn layout() -> Layout {
     let v: Option<serde_json::Value> = storage().and_then(|s| s.get_item(LAYOUT_KEY).ok().flatten()).and_then(|t| serde_json::from_str(&t).ok());
     let get = |k: &str, d: f64| v.as_ref().and_then(|v| v[k].as_f64()).unwrap_or(d);
-    Layout { left: get("left", LAYOUT.left), next: get("next", LAYOUT.next), notes: get("notes", LAYOUT.notes) }
+    Layout {
+        left: get("left", LAYOUT.left),
+        slide: get("slide", LAYOUT.slide),
+        next: get("next", LAYOUT.next),
+        notes: get("notes", LAYOUT.notes),
+    }
 }
 
 fn apply_layout(doc: &Document, l: Layout) {
     if let Some(pv) = by_id(doc, "pv") {
         dom::style(&pv, "--left", &format!("{:.1}%", l.left));
+        dom::style(&pv, "--slide", &format!("{:.1}%", l.slide));
         dom::style(&pv, "--next", &format!("{:.1}%", l.next));
         dom::style(&pv, "--notes", &format!("{:.0}px", l.notes));
     }
     if let Some(s) = storage() {
-        let _ = s.set_item(LAYOUT_KEY, &serde_json::json!({ "left": l.left, "next": l.next, "notes": l.notes }).to_string());
+        let _ = s.set_item(LAYOUT_KEY, &serde_json::json!({ "left": l.left, "slide": l.slide, "next": l.next, "notes": l.notes }).to_string());
     }
 }
 
-/// A separator dragged: the left column follows the pointer (`col`), or the next step's height
-fn drag(doc: &Document, id: &str, col: bool) {
+/// Which separator is dragged
+#[derive(Clone, Copy)]
+enum Split {
+    /// Between the columns
+    Columns,
+    /// Under the current slide
+    Slide,
+    /// Under the next step
+    Next,
+}
+
+/// A separator dragged: the left column's width, or the current slide's or the next step's
+/// height, follows the pointer
+fn drag(doc: &Document, id: &str, split_of: Split) {
     let Some(split) = by_id(doc, id) else { return };
     let dragging = std::rc::Rc::new(std::cell::Cell::new(false));
     let (d1, d2, d3) = (dragging.clone(), dragging.clone(), dragging);
@@ -455,14 +484,21 @@ fn drag(doc: &Document, id: &str, col: bool) {
             return;
         }
         let mut l = layout();
-        if col {
-            let Some(pv) = by_id(&doc2, "pv") else { return };
-            let r = pv.get_bounding_client_rect();
-            l.left = ((e.client_x() as f64 - r.left()) / r.width() * 100.0).clamp(25.0, 80.0);
-        } else {
-            let Some(right) = by_id(&doc2, "right") else { return };
-            let r = right.get_bounding_client_rect();
-            l.next = ((e.client_y() as f64 - r.top()) / r.height() * 100.0).clamp(10.0, 80.0);
+        let rect = |id: &str| by_id(&doc2, id).map(|el| el.get_bounding_client_rect());
+        let (x, y) = (e.client_x() as f64, e.client_y() as f64);
+        match split_of {
+            Split::Columns => {
+                let Some(r) = rect("pv") else { return };
+                l.left = ((x - r.left()) / r.width() * 100.0).clamp(25.0, 80.0);
+            }
+            Split::Slide => {
+                let Some(r) = rect("left") else { return };
+                l.slide = ((y - r.top()) / r.height() * 100.0).clamp(20.0, 85.0);
+            }
+            Split::Next => {
+                let Some(r) = rect("right") else { return };
+                l.next = ((y - r.top()) / r.height() * 100.0).clamp(10.0, 80.0);
+            }
         }
         apply_layout(&doc2, l);
     });
@@ -654,7 +690,7 @@ fn end_rehearsal() {
 
 // ---------------------------------------------------------------- the window
 
-/// The clicks of the window: timer, menu, rehearsal, dialogs, tabs, size of the notes
+/// The clicks of the window: timer, menu, rehearsal, dialogs, size of the notes
 fn bind(doc: &Document) {
     let doc2 = doc.clone();
     dom::on::<MouseEvent>(doc, "click", move |e| {
@@ -667,19 +703,6 @@ fn bind(doc: &Document) {
         }
         if target.closest("#play").ok().flatten().is_some() {
             with(|pr, now| if pr.timer.running() { pr.timer.stop(now) } else { pr.timer.start(now) });
-        }
-        if let Some(b) = target.closest("[data-tab]").ok().flatten() {
-            let tab = dom::data(&b, "tab").unwrap_or_default();
-            for t in ["notes", "timing"] {
-                if let Some(pane) = by_id(&doc2, t) {
-                    let _ = if t == tab { pane.remove_attribute("hidden") } else { pane.set_attribute("hidden", "") };
-                }
-            }
-            for other in doc2.query_selector_all("[data-tab]").ok().into_iter().flat_map(|l| (0..l.length()).filter_map(move |i| l.item(i))) {
-                let other: Element = other.unchecked_into();
-                dom::toggle(&other, "on", dom::data(&other, "tab").as_deref() == Some(tab.as_str()));
-            }
-            update(true);
         }
         if let Some(b) = target.closest("[data-keep]").ok().flatten() {
             let spec = dom::data(&b, "keep").unwrap_or_default();
@@ -768,8 +791,9 @@ fn open() {
     });
     bind(&doc);
     forward_keys(&doc);
-    drag(&doc, "split", true);
-    drag(&doc, "hsplit", false);
+    drag(&doc, "split", Split::Columns);
+    drag(&doc, "vsplit", Split::Slide);
+    drag(&doc, "hsplit", Split::Next);
     PRESENTER.with(|p| {
         let mut p = p.borrow_mut();
         match p.as_mut() {

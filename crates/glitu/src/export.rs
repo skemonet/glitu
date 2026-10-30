@@ -36,12 +36,12 @@ pub enum Format {
 }
 
 impl Format {
-    /// According to the extension of the output file; a folder: PNG
+    /// According to the extension of the output file (none for a folder: it may be a website)
     pub fn of(path: &Path) -> Option<Format> {
         match path.extension().and_then(|e| e.to_str()).map(str::to_ascii_lowercase).as_deref() {
             Some("pptx") => Some(Format::Pptx),
             Some("pdf") => Some(Format::Pdf),
-            Some("png") | None => Some(Format::Png),
+            Some("png") => Some(Format::Png),
             _ => None,
         }
     }
@@ -360,7 +360,7 @@ mod tests {
         assert!(parse_range("a").is_err());
         assert!(wanted(&[(1, 3)], 2) && !wanted(&[(1, 3)], 4) && wanted(&[], 9));
         assert_eq!(Format::of(Path::new("x.PDF")), Some(Format::Pdf));
-        assert_eq!(Format::of(Path::new("shots")), Some(Format::Png));
+        assert_eq!(Format::of(Path::new("shots")), None);
         assert_eq!(Format::of(Path::new("x.odp")), None);
         assert!(Format::parse("odp").is_err());
         assert_eq!((Format::Pdf.unit(), Format::Png.default_output()), ("pages", PathBuf::from("presentation")));

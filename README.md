@@ -37,13 +37,15 @@ above. `glitu export` also needs Chromium.
 ```bash
 glitu init talk                 # a sample presentation: talk/slides.md
 glitu init talk --css           # and its talk/style.css: the theme's variables, to adjust it
+glitu init talk --theme mine    # and your own theme, talk/themes/mine/, to change at will
 glitu serve talk/slides.md      # preview at http://localhost:8000, reloads at every save
+glitu build talk/slides.md      # presentation.html: one page, opens anywhere without a network
 glitu --help                    # the commands; glitu <command> --help: their options
 ```
 
 ## Releases
 
-The version is the workspace's, in `Cargo.toml` (`0.1.1-rc.2`: a hyphen gives a pre-release). A push
+The version is the workspace's, in `Cargo.toml` (`0.1.1-rc.3`: a hyphen gives a pre-release). A push
 on `main` whose version has no release yet runs the pipeline (`tools/ci.sh`: lints, tests, smoke
 test of the binary, the same locally and in the CI); when it passes,
 `.github/workflows/release.yml` builds the binary for each platform and publishes the GitHub
@@ -64,22 +66,23 @@ share this template with another animated backdrop: `constellation`, `paper` (cu
 The `glitu` tool (Rust) compiles the markdown into a static page; the presentation engine, also
 written in Rust and compiled to WebAssembly, replaces reveal.js in the browser. No npm
 dependency. The writing rules of reveal.js / reveal-md are accepted too. The engine and the
-themes are published by the maintainer on **static.glitu.net**, each at its version
-(`glitu/0.1.0/`, `themes/crystal/0.1.0/`).
+themes are also published on **glitu.net/static**, each at its version (`glitu/0.1.0/`,
+`themes/crystal/0.1.0/`), for the light pages.
 
 ```sh
 rustup target add wasm32-unknown-unknown     # once; skemo is fetched by Cargo (git dependency)
 cargo build --release                         # builds target/release/glitu (wasm and skemo engines inside)
 
 target/release/glitu init talk [--css]         # a sample presentation in talk/, [and its style.css] (overwrites nothing)
+target/release/glitu init talk --theme mine    # with a theme of your own, talk/themes/mine/ (see "Theme")
 target/release/glitu serve                     # http://localhost:8000, reloads at every change
 target/release/glitu serve --allow 192.168.0.0/16   # also for these addresses (CIDR, repeatable): phone, tablet
-target/release/glitu build -o dist             # static site, to serve with any web server
-target/release/glitu build --standalone -o talk.html   # one page, everything inside, no network
-target/release/glitu build --web https://static.glitu.net -o talk.html   # light page (see below)
+target/release/glitu build -o talk.html        # one page, everything inside, no network (see "One page")
+target/release/glitu build --assets https://glitu.net/static -o talk.html   # light page
+target/release/glitu export --format site -o dist   # static website, to serve with any web server
 target/release/glitu export -o talk.pptx       # editable PowerPoint, notes included (see "Export")
 target/release/glitu export -o talk.pdf        # vector PDF (selectable text)
-target/release/glitu export -o captures/       # one PNG image per slide
+target/release/glitu export --format png -o captures   # one PNG image per slide
 target/release/glitu unpack talk.html -o talk/ # gets the markdown back from a built page (see "Reopen")
 target/release/glitu themes                    # the themes embedded in the binary
 ```
@@ -203,8 +206,22 @@ Java, JavaScript, TypeScript, PHP…); the others stay plain text.
 
 `S` opens the **speaker view**, a separate window: the slide as the audience sees it, the next
 step, the notes (the passage of the current click highlighted, see `[click]`), the time and a
-timer (a click pauses it; "Reset"). The keys of the presentation work there: you can drive from
-this window.
+timer. The keys of the presentation work there: you can drive from this window. Under the
+current slide, the timing of every slide; at the bottom: play/pause, the elapsed time, and, if slides have a
+planned duration, the lead or delay on the schedule; `⋯` resets the timer or changes the layout.
+The columns resize (drag the separators, `A−`/`A+` for the notes) and the browser keeps the
+layout; the timer survives a reload or a closed speaker window.
+
+**Planned durations** are written at the end of a slide's title: `## Demo ⏳95🏃3` — 95 seconds,
+averaged over 3 rehearsals (`🏃` optional). The table under the current slide lists them with
+the time spent on each slide.
+
+**Rehearsals** (under `glitu serve`): `⋯` → "Rehearse from the start" (or "from here") times each
+slide; `↺` restarts the current slide, `⏸` pauses. "Finish" shows a table, slide by slide: the
+time measured, the planned one, and what to do with it — 📊 average it with the previous
+rehearsals (default), ✏️ replace the planned duration, 🗑️ skip; "All" sets every row at once.
+glitu then writes the durations into the titles of the markdown (save your edits first: the
+file is rewritten).
 
 Under `glitu serve`, **the open windows stay together**: changing slide on one moves the others
 (projector, laptop, tablet). With `--allow 192.168.0.0/16`, opening on a phone the address shown
@@ -223,11 +240,16 @@ scroll the page.
 ## Export
 
 ```sh
-glitu export [slides.md] [-o presentation.pptx | x.pdf | folder/] [--format pptx|pdf|png]
+glitu export [slides.md] [-o presentation.pptx | x.pdf | folder] [--format site|pptx|pdf|png]
              [--range 1-3,5] [--clicks] [--images]
 ```
 
-Chromium (headless; the `CHROMIUM` variable for another one) replays the presentation. Each slide
+`--format site` writes a **static website** (default `dist/`): `index.html`, the engine, the
+theme and the resources, to serve with any web server; no browser needed. A folder as output
+asks for `--format site` or `--format png`.
+
+For the other formats, Chromium (headless; the `CHROMIUM` variable for another one) replays the
+presentation. Each slide
 is taken once all its steps have passed, or at each click with `--clicks`; `--range` keeps some
 slides (numbers in reading order).
 
@@ -240,7 +262,8 @@ slides (numbers in reading order).
   `--images` falls back to one capture per slide (faithful, not editable).
 - **PDF**: the page printed by Chromium, as vectors (selectable text); with `--clicks`, one page
   per click (captures) and an outline of the slide titles.
-- **PNG**: `NN.png` per slide (`NN-c.png` per click with `--clicks`) in the given folder.
+- **PNG** (`--format png`): `NN.png` per slide (`NN-c.png` per click with `--clicks`) in the
+  given folder (default `presentation/`).
 
 ## Reopen a presentation
 
@@ -253,12 +276,16 @@ page without a copy.
 
 ## One page
 
-`--standalone` writes everything into the page: engine, theme, fonts, images. It opens with a
-double click and needs no network (about 2 MB): it is the one to carry around to present.
+`glitu build [slides.md] [-o presentation.html] [--assets local|<url>]` builds one page.
 
-`--web <url>` only keeps the presentation in the page (text, diagrams, terminals, images); the
-engine and the theme come from `<url>`: static.glitu.net, or any address where what
-`glitu-site static` produces was published (GitHub Pages works: it lets local pages load them).
+`--assets local` (the default) writes everything into the page: engine, theme, fonts, images. It
+opens with a double click and needs no network (about 2 MB): it is the one to carry around to
+present.
+
+`--assets <url>` only keeps the presentation in the page (text, diagrams, terminals, images); the
+engine and the theme come from `<url>`: https://glitu.net/static, or any address where the
+`assets` example has been published (`cargo run --release -p glitu --example assets -- folder`;
+GitHub Pages works: it lets local pages load them).
 The page aims at exact versions, `glitu/<version of the binary>/` and `themes/<name>/<version of
 the theme>/`, and checks each file by its SHA-384 hash: a file republished differently makes the
 page be refused rather than broken silently. A third-party theme (`theme: ./path`), which is not
@@ -275,18 +302,14 @@ theme: crystal:0.1.0       # official theme at this version (glitu.json, "versio
 theme: ./my-themes/x       # third-party theme, path relative to the presentation
 ```
 
-## Publishing static.glitu.net (maintainer)
-
-`glitu-site static [-o site/static]` (a maintainer tool, not in this repository) writes
-`site/static/glitu/<version>/` (the engine, at the version of the repository) and
-`site/static/themes/<name>/<version>/` (the `"version"` of each theme's `glitu.json`, required),
-to publish as is on static.glitu.net (rsync, scp…). The versions already in `site/static/` stay:
-publishing only adds. Only the maintainer publishes.
-
 ## Website (GitHub Pages)
 
 `tools/site.sh [site/dist]` writes the website: the home page `site/index.html` (with its
-`site/img/`) and the demo, `tests/features/slides.md`, built as one standalone page (`demo.html`).
+`site/img/`), the demo, `tests/features/slides.md`, built as one standalone page (`demo.html`),
+and `static/`, the assets of the light pages: `static/glitu/<version>/` (the engine, at the
+version of the repository) and `static/themes/<name>/<version>/` (the `"version"` of each theme's
+`glitu.json`, required), written by the `assets` example of `crates/glitu`. A deployment replaces
+the whole site: only the versions of `main` stay published.
 The `Website` workflow (`.github/workflows/pages.yml`) builds it on every push and publishes it on
 GitHub Pages from `main` (Settings → Pages → Source: GitHub Actions), under the custom domain
 `glitu.net` (Settings → Pages → Custom domain; `www.glitu.net` redirects to it).
@@ -333,6 +356,11 @@ depending on the theme `skemo.css` (the types of the diagrams). `glitu.json` als
 a third-party theme, the `"name"` the engine recognises. It is looked for next to the markdown,
 then in the parent folders; the official themes are also embedded in the binary (`glitu themes`),
 which uses them when no folder has the theme (written once into `~/.cache/glitu/themes-<hash>/`).
+
+**A theme of your own**: `glitu init talk --theme mine` writes `talk/themes/mine/`, a copy of
+crystal (fonts, `skemo.css`, `glitu.json` without a version) whose `theme.css` sets every variable
+of the template, commented by role; the presentation uses it with `theme: ./themes/mine`. On an
+existing presentation, it only writes the theme folder.
 
 The themes of this repository, except "black" and "white" (reveal.js's), rest on a **shared template**
 (`"template": true`): its sheet, `glitu/template.css`, published with the engine, holds the whole

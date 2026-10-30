@@ -110,9 +110,9 @@
     <h2>One markdown file, four outputs</h2>
     <p class="lead">The same source becomes a site, a page to carry around, a light page or a file.</p>
     <div class="grid">
-      <div class="card"><h3>Static site</h3><p><code>glitu build -o dist</code>, for any web server; <code>glitu serve</code> reloads at every change.</p></div>
-      <div class="card"><h3>Standalone page</h3><p><code>--standalone</code>: one HTML file, opens with a double click, needs no network.</p></div>
-      <div class="card"><h3>Light page</h3><p><code>--web</code>: the engine and the theme come from the web, each file checked by its hash.</p></div>
+      <div class="card"><h3>Standalone page</h3><p><code>glitu build</code>: one HTML file, opens with a double click, needs no network.</p></div>
+      <div class="card"><h3>Light page</h3><p><code>--assets &lt;url&gt;</code>: the engine and the theme come from the web, each file checked by its hash.</p></div>
+      <div class="card"><h3>Static site</h3><p><code>glitu export --format site</code>, for any web server; <code>glitu serve</code> reloads at every change.</p></div>
       <div class="card"><h3>Export</h3><p><code>glitu export</code>: editable PowerPoint, vector PDF, PNG images.</p></div>
     </div>
   </section>
