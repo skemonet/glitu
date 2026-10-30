@@ -18,8 +18,10 @@ fn main() {
     println!("cargo:rerun-if-changed={}", web.join("src").display());
     println!("cargo:rerun-if-changed={}", web.join("Cargo.toml").display());
 
-    // A separate target folder: the parent cargo holds the lock on its own
-    let target = out.join("web-target");
+    // A separate target folder: the parent cargo holds the lock on its own. One per profile
+    // (target/<profile>/web-target, above OUT_DIR), shared by every feature set of the profile:
+    // the engine is compiled once, not again for `--features oracle`
+    let target = out.ancestors().nth(3).unwrap_or(&out).join("web-target");
     let mut cargo = Command::new(env::var("CARGO").unwrap_or_else(|_| "cargo".into()));
     // Under cargo-llvm-cov, the wrapper would instrument the wasm too, which has no profiler
     if env::var_os("CARGO_LLVM_COV").is_some() {
