@@ -12,7 +12,7 @@ use crate::serve::Range;
 #[command(
     name = "glitu",
     version,
-    about = "Presentations written in markdown, rendered by a Rust engine: build, preview, export",
+    about = "Presentations written in markdown, rendered by a Rust engine: preview, build, export",
     after_help = "Start a presentation: glitu init talk && glitu serve talk/slides.md",
     disable_help_subcommand = true
 )]
@@ -32,7 +32,8 @@ pub enum Cmd {
         /// Destination folder (created if needed)
         #[arg(default_value = ".")]
         dir: PathBuf,
-        /// Theme of a new presentation (see `glitu themes`)
+        /// Theme of a new presentation (see `glitu themes`); another name creates your own theme,
+        /// `themes/<name>/`, a copy of crystal to change
         #[arg(long, default_value = "crystal")]
         theme: String,
         /// Also write `style.css`: every variable of the presentation's theme, commented out, to
@@ -51,14 +52,11 @@ pub enum Cmd {
         /// Also serve these addresses besides this machine: phone, tablet, remote (repeatable)
         #[arg(long, value_name = "CIDR")]
         allow: Vec<Range>,
-        /// Timed rehearsal: the speaker view times each slide and writes the durations into the
-        /// markdown
-        #[arg(long)]
-        rehearse: bool,
     },
-    /// Build the presentation: a static site, or one page (--standalone, --web)
+    /// Build the presentation: one page, everything inside (engine, theme, fonts, images)
     Build(BuildArgs),
-    /// Export to an editable PowerPoint, a PDF or PNG images (needs Chromium: `CHROMIUM`)
+    /// Export to a static website, an editable PowerPoint, a PDF or PNG images (all but the
+    /// website need Chromium: `CHROMIUM`)
     Export(ExportArgs),
     /// Get the markdown back out of a built page, to edit the presentation
     Unpack {
@@ -73,15 +71,9 @@ pub enum Cmd {
     },
     /// List the themes embedded in the binary
     Themes,
-    /// The engine and the themes, one folder per version, to host for `build --web` pages
-    Assets {
-        /// Destination folder (the versions already there stay)
-        #[arg(short, long, default_value = "static")]
-        output: PathBuf,
-        /// Folder of the themes (default: themes/ here or above, otherwise the embedded themes)
-        #[arg(long)]
-        themes: Option<PathBuf>,
-    },
+    /// Print the version (same as --version)
+    #[command(hide = true)]
+    Version,
     /// Rendering oracle of the engine's tests: a screenshot per state (slide × click)
     #[cfg(feature = "oracle")]
     #[command(subcommand)]
@@ -93,17 +85,14 @@ pub struct BuildArgs {
     /// The presentation
     #[arg(default_value = "slides.md")]
     file: PathBuf,
-    /// Output: a folder for the site (default dist), a file for one page (default
-    /// presentation.html)
-    #[arg(short, long)]
-    output: Option<PathBuf>,
-    /// One page with everything inside (engine, theme, fonts, images): it opens without a network
-    #[arg(long, conflicts_with = "web")]
-    standalone: bool,
-    /// One light page: the engine and the theme are loaded from this address
-    /// (https://static.glitu.net, or where `glitu assets` was published)
-    #[arg(long, value_name = "URL")]
-    web: Option<String>,
+    /// The page
+    #[arg(short, long, default_value = "presentation.html")]
+    output: PathBuf,
+    /// Where the page takes the engine and the theme from: `local`, written inside (about 2 MB, it
+    /// opens without a network), or an address where they are published, for a light page
+    /// (https://glitu.net/static)
+    #[arg(long, value_name = "local|URL", default_value = "local")]
+    assets: String,
 }
 
 #[derive(Args)]
@@ -111,10 +100,10 @@ pub struct ExportArgs {
     /// The presentation
     #[arg(default_value = "slides.md")]
     file: PathBuf,
-    /// Output: .pptx, .pdf, or a folder for PNG images (default presentation.pptx)
+    /// Output: .pptx, .pdf, or a folder with --format site or png (default presentation.pptx)
     #[arg(short, long)]
     output: Option<PathBuf>,
-    /// Format, when the output does not say it
+    /// Format, when the output's extension does not say it
     #[arg(long, value_enum)]
     format: Option<FormatArg>,
     /// One slide per click rather than per slide
@@ -130,6 +119,8 @@ pub struct ExportArgs {
 
 #[derive(Clone, Copy, ValueEnum)]
 enum FormatArg {
+    /// A static website (index.html, the engine, the theme, the resources), to host anywhere
+    Site,
     Pptx,
     Pdf,
     Png,
@@ -156,27 +147,26 @@ pub enum OracleCmd {
     },
 }
 
-/// How a presentation is built
+/// Where a built page takes the engine and the theme from
 #[derive(Debug, PartialEq)]
-pub enum Build {
-    /// A static site: index.html, the engine, the theme, the resources
-    Site,
-    /// A single page with everything inside: it opens without a network
-    Standalone,
-    /// A single light page: the engine and the theme are loaded from this address
-    Web(String),
+pub enum Assets {
+    /// Everything in the page: it opens without a network
+    Local,
+    /// A light page: the engine and the theme are loaded from this address
+    At(String),
 }
 
 #[derive(Debug, PartialEq)]
 pub enum Command {
     Init { dir: PathBuf, theme: String, css: bool },
-    Build { slides: PathBuf, mode: Build, out: Option<PathBuf> },
-    Serve { slides: PathBuf, port: u16, allow: Vec<Range>, rehearse: bool },
+    Build { slides: PathBuf, assets: Assets, out: PathBuf },
+    Serve { slides: PathBuf, port: u16, allow: Vec<Range> },
     Export { slides: PathBuf, out: PathBuf, options: export::Options },
+    /// `export --format site`: the static website, without a browser
+    Site { slides: PathBuf, out: PathBuf },
     Unpack { page: String, out: PathBuf, force: bool },
     Themes,
-    /// The engine and the themes, one folder per version, for `build --web` pages
-    Assets { out: PathBuf, themes: Option<PathBuf> },
+    Version,
     #[cfg(feature = "oracle")]
     OracleCapture { url: String, out: PathBuf },
     #[cfg(feature = "oracle")]
@@ -193,19 +183,19 @@ pub fn parse<I: IntoIterator<Item = String>>(args: I) -> Result<(Command, bool),
 fn command(cmd: Cmd) -> Result<Command, clap::Error> {
     Ok(match cmd {
         Cmd::Init { dir, theme, css } => Command::Init { dir, theme, css },
-        Cmd::Serve { file, port, allow, rehearse } => Command::Serve { slides: file, port, allow, rehearse },
+        Cmd::Serve { file, port, allow } => Command::Serve { slides: file, port, allow },
         Cmd::Build(b) => {
-            let mode = match b.web {
-                Some(base) => Build::Web(base),
-                None if b.standalone => Build::Standalone,
-                None => Build::Site,
+            let assets = match b.assets.as_str() {
+                "local" => Assets::Local,
+                url if url.starts_with("https://") || url.starts_with("http://") => Assets::At(url.into()),
+                other => return Err(invalid(format!("--assets {other}: `local`, or an http(s):// address"))),
             };
-            Command::Build { slides: b.file, mode, out: b.output }
+            Command::Build { slides: b.file, assets, out: b.output }
         }
         Cmd::Export(e) => export_command(e)?,
         Cmd::Unpack { page, output, force } => Command::Unpack { page, out: output, force },
         Cmd::Themes => Command::Themes,
-        Cmd::Assets { output, themes } => Command::Assets { out: output, themes },
+        Cmd::Version => Command::Version,
         #[cfg(feature = "oracle")]
         Cmd::Oracle(OracleCmd::Capture { url, out }) => Command::OracleCapture { url, out },
         #[cfg(feature = "oracle")]
@@ -213,14 +203,21 @@ fn command(cmd: Cmd) -> Result<Command, clap::Error> {
     })
 }
 
-/// The format follows `--format`, otherwise the output (extension, or a folder for PNG)
+/// The format follows `--format`, otherwise the output's extension
 fn export_command(e: ExportArgs) -> Result<Command, clap::Error> {
     let format = match (e.format, &e.output) {
+        (Some(FormatArg::Site), out) => {
+            return Ok(Command::Site { slides: e.file, out: out.clone().unwrap_or_else(|| "dist".into()) });
+        }
         (Some(FormatArg::Pptx), _) => Format::Pptx,
         (Some(FormatArg::Pdf), _) => Format::Pdf,
         (Some(FormatArg::Png), _) => Format::Png,
-        (None, Some(o)) => Format::of(o)
-            .ok_or_else(|| invalid(format!("{}: unknown extension (.pptx, .pdf, or a folder for PNG images)", o.display())))?,
+        (None, Some(o)) => Format::of(o).ok_or_else(|| {
+            invalid(match o.extension() {
+                Some(_) => format!("{}: unknown extension (.pptx, .pdf, or a folder with --format site or png)", o.display()),
+                None => format!("{}: a folder, for a website (--format site) or PNG images (--format png)?", o.display()),
+            })
+        })?,
         (None, None) => Format::Pptx,
     };
     let range = e.range.as_deref().map(export::parse_range).transpose().map_err(invalid)?.unwrap_or_default();
@@ -253,32 +250,37 @@ mod tests {
     }
 
     #[test]
-    fn build_modes() {
-        assert_eq!(cmd("build").unwrap(), Command::Build { slides: "slides.md".into(), mode: Build::Site, out: None });
-        assert_eq!(cmd("build talk.md --standalone -o t.html").unwrap(), Command::Build {
-            slides: "talk.md".into(),
-            mode: Build::Standalone,
-            out: Some("t.html".into())
+    fn build_assets() {
+        assert_eq!(cmd("build").unwrap(), Command::Build {
+            slides: "slides.md".into(),
+            assets: Assets::Local,
+            out: "presentation.html".into()
         });
-        assert_eq!(cmd("build --web https://x.net/ talk.md").unwrap(), Command::Build {
+        assert_eq!(cmd("build talk.md --assets local -o t.html").unwrap(), Command::Build {
             slides: "talk.md".into(),
-            mode: Build::Web("https://x.net/".into()),
-            out: None
+            assets: Assets::Local,
+            out: "t.html".into()
         });
-        assert!(cmd("build --standalone --web https://x.net/").is_err());
+        assert_eq!(cmd("build --assets https://x.net/ talk.md").unwrap(), Command::Build {
+            slides: "talk.md".into(),
+            assets: Assets::At("https://x.net/".into()),
+            out: "presentation.html".into()
+        });
+        assert!(cmd("build --assets x.net").unwrap_err().to_string().contains("`local`, or an http(s)://"));
+        assert!(cmd("build --standalone").is_err() && cmd("build --web https://x.net/").is_err());
     }
 
     #[test]
     fn serve_options() {
-        let Command::Serve { port, allow, rehearse, slides } =
-            cmd("serve -p 9000 --allow 10.0.0.0/8 --allow 192.168.0.0/16 --rehearse d.md").unwrap()
+        let Command::Serve { port, allow, slides } =
+            cmd("serve -p 9000 --allow 10.0.0.0/8 --allow 192.168.0.0/16 d.md").unwrap()
         else {
             panic!()
         };
-        assert_eq!((port, allow.len(), rehearse, slides), (9000, 2, true, PathBuf::from("d.md")));
+        assert_eq!((port, allow.len(), slides), (9000, 2, PathBuf::from("d.md")));
         assert!(cmd("serve -p x").is_err());
         assert!(cmd("serve --allow nope").is_err());
-        assert!(matches!(cmd("serve").unwrap(), Command::Serve { port: 8000, rehearse: false, .. }));
+        assert!(matches!(cmd("serve").unwrap(), Command::Serve { port: 8000, .. }));
     }
 
     #[test]
@@ -289,9 +291,12 @@ mod tests {
         };
         assert_eq!(format("export"), (Format::Pptx, "presentation.pptx".into()));
         assert_eq!(format("export -o a.pdf"), (Format::Pdf, "a.pdf".into()));
-        assert_eq!(format("export --output shots"), (Format::Png, "shots".into()));
+        assert_eq!(format("export --output shots --format png"), (Format::Png, "shots".into()));
         assert_eq!(format("export --format png"), (Format::Png, "presentation".into()));
         assert!(cmd("export -o a.odp").unwrap_err().to_string().contains("unknown extension"));
+        assert!(cmd("export -o shots").unwrap_err().to_string().contains("--format site"));
+        assert_eq!(cmd("export t.md --format site").unwrap(), Command::Site { slides: "t.md".into(), out: "dist".into() });
+        assert_eq!(cmd("export --format site -o www").unwrap(), Command::Site { slides: "slides.md".into(), out: "www".into() });
         let Command::Export { options, .. } = cmd("export --clicks --images --range 2-3").unwrap() else { panic!() };
         assert!(options.clicks && options.images && options.range == [(2, 3)]);
     }
@@ -305,8 +310,8 @@ mod tests {
         });
         assert!(cmd("unpack").is_err());
         assert_eq!(cmd("themes").unwrap(), Command::Themes);
-        assert_eq!(cmd("assets").unwrap(), Command::Assets { out: "static".into(), themes: None });
-        assert_eq!(cmd("assets -o pub --themes t").unwrap(), Command::Assets { out: "pub".into(), themes: Some("t".into()) });
+        assert!(cmd("assets").is_err());
+        assert_eq!(cmd("version").unwrap(), Command::Version);
         assert!(cmd("nope").is_err() && cmd("").is_err());
         assert_eq!(cmd("--help").unwrap_err().kind(), clap::error::ErrorKind::DisplayHelp);
         assert_eq!(cmd("-V").unwrap_err().kind(), clap::error::ErrorKind::DisplayVersion);

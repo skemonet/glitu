@@ -311,8 +311,18 @@ const DEV_SCRIPT: &str = "
     last = location.hash;
     fetch('/__glitu/position', { method: 'POST', body: JSON.stringify({ id, hash: last }) });
   });
-  // Rehearsal: the durations timed by the speaker view, to be written in the markdown
-  addEventListener('glitu:chrono', () => fetch('/__glitu/chrono', { method: 'POST', body: window.glituChrono }));
+  // Rehearsal: the durations kept by the speaker view, written in the markdown; the new timings
+  // come back and change in place (no reload: it would reopen the speaker view)
+  addEventListener('glitu:chrono', async () => {
+    const r = await fetch('/__glitu/chrono', { method: 'POST', body: window.glituChrono });
+    const timings = await r.json().catch(() => ({}));
+    if (timings.error) { alert('Rehearsal not saved: ' + timings.error); return; }
+    for (const [rank, [secs, runs]] of Object.entries(timings)) {
+      const s = document.querySelector('section[data-slide=\"' + Number(rank) + '\"]');
+      if (s) { s.dataset.duration = secs; s.dataset.runs = runs; }
+    }
+    dispatchEvent(new Event('glitu:timings'));
+  });
 })();
 </script>";
 
@@ -537,6 +547,14 @@ mod tests {
     impl Drop for TempDir {
         fn drop(&mut self) {
             let _ = fs::remove_dir_all(&self.0);
+        }
+    }
+
+    #[test]
+    fn the_script_of_glitu_serve_has_no_broken_quotes() {
+        // a quote doubled by an escape lost in the Rust string: '' or "" inside an expression
+        for line in DEV_SCRIPT.lines() {
+            assert!(!line.contains("=''") && !line.contains("'' +") && !line.contains("+ ''"), "{line}");
         }
     }
 

@@ -1,7 +1,7 @@
 name: Release
 # Publishes a GitHub release of the `glitu` binary, built for every platform: one asset per
 # platform, the binary itself, and the SHA-256 of each in the release's description. The version
-# is the workspace's (Cargo.toml): the binary prints it, and `--web` pages aim at that version of
+# is the workspace's (Cargo.toml): the binary prints it, and `--assets <url>` pages aim at that version of
 # the engine. A version containing a hyphen (0.1.1-rc.1…) gives a pre-release.
 #
 # - a push on main whose version has no release yet publishes `v<version>`, tag included: raising

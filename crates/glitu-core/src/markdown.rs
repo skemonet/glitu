@@ -21,8 +21,8 @@ pub struct Slide {
     pub level: u8,
     pub head: Head,
     pub blocks: Vec<Block>,
-    /// Start of its heading line in the source (bytes, front matter included): `glitu serve
-    /// --rehearse` writes the measured duration there
+    /// Start of its heading line in the source (bytes, front matter included): the rehearsals of
+    /// `glitu serve` write the measured duration there
     pub at: usize,
 }
 
@@ -197,13 +197,46 @@ pub fn step_of(s: &str) -> Stepped {
     out
 }
 
-/// `Title {.large - kicker="X"}`
+/// The rehearsal timing of a slide, `⏳95🏃3`: its planned duration in seconds and the number of
+/// rehearsals it averages (🏃 may be missing)
+pub fn timing(tok: &str) -> Option<(u32, Option<u32>)> {
+    let rest = tok.strip_prefix('⏳')?;
+    let (secs, runs) = rest.split_once('🏃').map_or((rest, None), |(d, r)| (d, Some(r)));
+    let runs = match runs {
+        Some(r) => Some(r.parse().ok()?),
+        None => None,
+    };
+    Some((secs.parse().ok()?, runs))
+}
+
+/// `Title ⏳95🏃3 {.large - kicker="X"}`: the timing may also sit in the braces, and is read from
+/// the former `duration="95" runs="3"` too
 fn head_of(s: &str) -> Head {
     let s = s.trim();
     let mut head = Head { text: s.to_string(), ..Head::default() };
-    let (Some(open), true) = (s.rfind('{'), s.ends_with('}')) else { return head };
-    head.text = s[..open].trim().to_string();
-    for tok in tokens(&s[open + 1..s.len() - 1]) {
+    let take_timing = |head: &mut Head, tok: &str| match timing(tok) {
+        Some((secs, runs)) => {
+            head.attrs.insert("duration".into(), secs.to_string());
+            if let Some(r) = runs {
+                head.attrs.insert("runs".into(), r.to_string());
+            }
+            true
+        }
+        None => false,
+    };
+    let (text, braces) = match (s.rfind('{'), s.ends_with('}')) {
+        (Some(open), true) => (s[..open].trim(), Some(&s[open + 1..s.len() - 1])),
+        _ => (s, None),
+    };
+    head.text = match text.rsplit_once(char::is_whitespace) {
+        Some((before, last)) if take_timing(&mut head, last) => before.trim_end().to_string(),
+        _ => text.to_string(),
+    };
+    let Some(braces) = braces else { return head };
+    for tok in tokens(braces) {
+        if take_timing(&mut head, &tok) {
+            continue;
+        }
         if tok == "-" {
             head.unnumbered = true;
         } else if let Some(c) = tok.strip_prefix('.') {
@@ -403,6 +436,20 @@ impl Reader<'_> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_timing_of_a_heading() {
+        let h = head_of("Ingress ⏳95🏃3 {.large}");
+        assert_eq!((h.text.as_str(), h.attrs["duration"].as_str(), h.attrs["runs"].as_str()), ("Ingress", "95", "3"));
+        assert_eq!(h.classes, ["large"]);
+        let h = head_of("Pods {.cols ⏳40}");
+        assert_eq!((h.text.as_str(), h.attrs["duration"].as_str(), h.attrs.get("runs")), ("Pods", "40", None));
+        // the former attributes
+        let h = head_of("Old {duration=\"30\" runs=\"2\"}");
+        assert_eq!((h.attrs["duration"].as_str(), h.attrs["runs"].as_str()), ("30", "2"));
+        assert_eq!(head_of("Waiting ⏳ for it").text, "Waiting ⏳ for it");
+        assert_eq!(timing("⏳12🏃x"), None);
+    }
 
     #[test]
     fn steps_and_heads() {

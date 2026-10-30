@@ -5,8 +5,10 @@
 //! (`POST /__glitu/position`), and the server sends it to all the others through the same stream
 //! (`position` event). Projector, laptop and phone (`?remote`) stay together.
 //!
-//! `--rehearse`: the speaker view can time a rehearsal; the measured durations arrive through
-//! `POST /__glitu/chrono` and are written in the markdown (see `chrono`).
+//! Rehearsals: the speaker view times them; the durations kept arrive through
+//! `POST /__glitu/chrono`, are written in the markdown (see `chrono`), and go back to the page in
+//! the answer: the server does not reload the pages for its own writing (a reload would reopen
+//! the speaker view).
 
 use std::collections::BTreeMap;
 use std::io::{BufRead, BufReader, Read, Write};
@@ -23,8 +25,10 @@ struct State {
     clients: Vec<TcpStream>,
     /// The last position posted, given to the pages that ask for it when they arrive
     position: Option<String>,
-    /// Rehearsal: the markdown where the timed durations are written
-    rehearse: Option<PathBuf>,
+    /// The markdown where the timed durations of the rehearsals are written
+    slides: PathBuf,
+    /// The server has just written the timings: the next change of the sources reloads no page
+    own_write: bool,
 }
 
 impl State {
@@ -89,14 +93,33 @@ impl Range {
     }
 }
 
+/// Why the server cannot listen, as a sentence
+fn listen_error(port: u16, e: &std::io::Error) -> String {
+    match e.kind() {
+        std::io::ErrorKind::AddrInUse => format!(
+            "port {port} is already in use, maybe by another glitu serve: stop it, or choose another port with -p {}",
+            port.saturating_add(1)
+        ),
+        std::io::ErrorKind::PermissionDenied => {
+            format!("port {port} needs administrator rights: choose a port above 1023 with -p 8000")
+        }
+        _ => format!("cannot listen on port {port} ({e})"),
+    }
+}
+
 /// `allow` empty: the machine alone. Otherwise the server listens on every interface, but only
 /// answers the machine and the given ranges (phone, tablet on the same network).
-pub fn serve(project: Project, port: u16, allow: Vec<Range>, rehearse: bool) -> Result<(), String> {
+pub fn serve(project: Project, port: u16, allow: Vec<Range>) -> Result<(), String> {
     let host = if allow.is_empty() { "127.0.0.1" } else { "0.0.0.0" };
-    let listener = TcpListener::bind((host, port)).map_err(|e| format!("port {port}: {e}"))?;
-    let rehearse = rehearse.then(|| project.slides.clone());
-    let state =
-        Arc::new(Mutex::new(State { site: build::site(&project, true), clients: Vec::new(), position: None, rehearse }));
+    let listener = TcpListener::bind((host, port)).map_err(|e| listen_error(port, &e))?;
+    let slides = project.slides.clone();
+    let state = Arc::new(Mutex::new(State {
+        site: build::site(&project, true),
+        clients: Vec::new(),
+        position: None,
+        slides,
+        own_write: false,
+    }));
     if let Err(e) = &lock(&state).site {
         eprintln!("{e}");
     }
@@ -136,6 +159,10 @@ fn watch(project: &Project, state: &Mutex<State>) {
         }
         let mut s = lock(state);
         s.site = site;
+        // the timings written by the server: the pages already have them
+        if std::mem::take(&mut s.own_write) {
+            continue;
+        }
         s.broadcast("data: reload\n\n");
     }
 }
@@ -238,14 +265,32 @@ fn handle(mut stream: TcpStream, state: &Mutex<State>) -> std::io::Result<()> {
         }
         ("/__glitu/chrono", true) => {
             let body = read_body(&mut reader, &req, 1 << 16)?;
-            let Some(slides) = lock(state).rehearse.clone() else {
-                return stream.write_all(b"HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n");
+            let slides = {
+                let mut s = lock(state);
+                s.own_write = true;
+                s.slides.clone()
             };
-            match crate::chrono::record(&slides, &durations(&body)) {
-                Ok(n) => println!("rehearsal: {n} durations recorded"),
-                Err(e) => eprintln!("rehearsal: {e}"),
-            }
-            stream.write_all(NO_CONTENT)
+            let answer = match crate::chrono::record(&slides, &durations(&body)) {
+                Ok(written) => {
+                    println!("rehearsal: {} durations recorded", written.len());
+                    if written.is_empty() {
+                        lock(state).own_write = false;
+                    }
+                    let json: BTreeMap<String, [u32; 2]> =
+                        written.into_iter().map(|(i, (d, r))| (i.to_string(), [d, r])).collect();
+                    serde_json::to_string(&json).unwrap_or_default()
+                }
+                Err(e) => {
+                    eprintln!("rehearsal: {e}");
+                    lock(state).own_write = false;
+                    serde_json::json!({ "error": e }).to_string()
+                }
+            };
+            write!(
+                stream,
+                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{answer}",
+                answer.len()
+            )
         }
         _ => {
             let (status, kind, body) = file(&req.path, &lock(state));
@@ -280,13 +325,22 @@ fn post_position(body: &str, state: &Mutex<State>) {
     }
 }
 
-/// `{"7": 95.2, "8": 61}`: rank of the slide → seconds; anything else is left out
-fn durations(body: &[u8]) -> BTreeMap<usize, f64> {
-    serde_json::from_slice::<BTreeMap<String, f64>>(body)
+/// `{"7": [95.2, "average"], "8": [61, "replace"]}`: rank of the slide → seconds and what to do with
+/// them; anything else is left out
+fn durations(body: &[u8]) -> BTreeMap<usize, (f64, crate::chrono::Mode)> {
+    use crate::chrono::Mode;
+    serde_json::from_slice::<BTreeMap<String, (f64, String)>>(body)
         .unwrap_or_default()
         .into_iter()
-        .filter_map(|(k, v)| Some((k.parse().ok()?, v)))
-        .filter(|(_, v)| v.is_finite() && *v > 0.0 && *v < 86400.0)
+        .filter_map(|(k, (secs, mode))| {
+            let mode = match mode.as_str() {
+                "average" => Mode::Average,
+                "replace" => Mode::Replace,
+                _ => return None,
+            };
+            Some((k.parse().ok()?, (secs, mode)))
+        })
+        .filter(|(_, (v, _))| v.is_finite() && *v > 0.0 && *v < 86400.0)
         .collect()
 }
 
@@ -300,8 +354,8 @@ fn file(path: &str, s: &State) -> (&'static str, &'static str, Vec<u8>) {
         Ok(files) => files,
     };
     match files.iter().find(|f| f.path == rel) {
-        // In rehearsal mode, the page knows it: the speaker view offers the timing
-        Some(f) if rel == "index.html" && s.rehearse.is_some() => {
+        // Served: the page knows it, the speaker view offers to record rehearsals
+        Some(f) if rel == "index.html" => {
             let page = String::from_utf8_lossy(&f.bytes)
                 .replacen("</head>", "<meta name=\"glitu-rehearse\" content=\"1\"></head>", 1);
             ("200 OK", mime(&rel), page.into_bytes())
@@ -358,8 +412,8 @@ pub fn mime(path: &str) -> &'static str {
 mod tests {
     use super::*;
 
-    fn state(site: Result<Vec<Output>, String>, rehearse: bool) -> State {
-        State { site, clients: Vec::new(), position: None, rehearse: rehearse.then(|| PathBuf::from("slides.md")) }
+    fn state(site: Result<Vec<Output>, String>) -> State {
+        State { site, clients: Vec::new(), position: None, slides: PathBuf::from("slides.md"), own_write: false }
     }
 
     #[test]
@@ -367,7 +421,7 @@ mod tests {
         assert!(valid_position(r##"{"id":"k3x9","hash":"#/3/0/1"}"##));
         assert!(!valid_position("{\"hash\":\"x\"}\n\ndata: reload"));
         assert!(!valid_position("<script>"));
-        let s = Mutex::new(state(Ok(Vec::new()), false));
+        let s = Mutex::new(state(Ok(Vec::new())));
         post_position("<script>", &s);
         assert_eq!(lock(&s).position, None);
         post_position(r##"{"hash":"#/1"}"##, &s);
@@ -402,8 +456,11 @@ mod tests {
 
     #[test]
     fn durations_keep_sensible_values_only() {
-        let d = durations(br#"{"1": 12.5, "x": 3, "2": -1, "3": 1e9, "4": 30}"#);
-        assert_eq!(d, BTreeMap::from([(1, 12.5), (4, 30.0)]));
+        use crate::chrono::Mode;
+        let d = durations(
+            br#"{"1": [12.5, "average"], "x": [3, "average"], "2": [-1, "replace"], "3": [1e9, "average"], "4": [30, "replace"], "5": [8, "?"]}"#,
+        );
+        assert_eq!(d, BTreeMap::from([(1, (12.5, Mode::Average)), (4, (30.0, Mode::Replace))]));
         assert!(durations(b"not json").is_empty());
     }
 
@@ -413,13 +470,13 @@ mod tests {
             Output { path: "index.html".into(), bytes: b"<head></head>".to_vec() },
             Output { path: "img/a b.png".into(), bytes: b"P".to_vec() },
         ];
-        let s = state(Ok(site), true);
+        let s = state(Ok(site));
         let (status, kind, body) = file("/", &s);
         assert_eq!((status, kind), ("200 OK", "text/html; charset=utf-8"));
         assert!(String::from_utf8_lossy(&body).contains("glitu-rehearse"));
         assert_eq!(file("/img/a%20b.png", &s), ("200 OK", "image/png", b"P".to_vec()));
         assert_eq!(file("/absent.js", &s).0, "404 Not Found");
-        let broken = state(Err("line 3: <oops>".into()), false);
+        let broken = state(Err("line 3: <oops>".into()));
         let (status, _, body) = file("/", &broken);
         assert_eq!(status, "500 Internal Server Error");
         assert!(String::from_utf8_lossy(&body).contains("line 3: &lt;oops&gt;"));

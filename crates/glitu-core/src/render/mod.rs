@@ -56,13 +56,16 @@ pub fn render(deck: &Deck, assets: &mut dyn Assets) -> Result<Rendered, String> 
     Ok(Rendered { title: deck.meta.get("title").cloned().unwrap_or_default(), sections: sections.join("\n") })
 }
 
-/// Timing marks on the `<section>` of a slide: its rank in the markdown (`data-slide`, for
-/// `glitu serve --rehearse`) and its planned duration in seconds, if it was timed
-/// (`{duration="95" runs="3"}` after the heading)
+/// Timing marks on the `<section>` of a slide: its rank in the markdown (`data-slide`, for the
+/// rehearsals of `glitu serve`), its planned duration in seconds and the number of rehearsals it
+/// averages, if it was timed (`## Title ⏳95🏃3`)
 fn timed(html: &str, i: usize, head: &Head) -> String {
     let mut attrs = format!(" data-slide=\"{i}\"");
     if let Some(d) = head.attrs.get("duration").and_then(|d| d.parse::<u32>().ok()) {
         attrs += &format!(" data-duration=\"{d}\"");
+        if let Some(r) = head.attrs.get("runs").and_then(|r| r.parse::<u32>().ok()) {
+            attrs += &format!(" data-runs=\"{r}\"");
+        }
     }
     html.replacen("<section", &format!("<section{attrs}"), 1)
 }

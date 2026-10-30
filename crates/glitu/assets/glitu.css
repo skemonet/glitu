@@ -69,7 +69,7 @@ pre.ap-term-text .ap-strike { text-decoration: line-through; }
 .reveal .mark.yellow{--mark-color:#facc15}.reveal .mark.cyan{--mark-color:#22d3ee}.reveal .mark.purple{--mark-color:#a855f7}
 .reveal .mark-svg{position:absolute;left:-.2em;top:-.1em;width:calc(100% + .4em);height:calc(100% + .2em);overflow:visible;pointer-events:none;clip-path:inset(-50% 110% -50% -10%);transition:clip-path .7s ease-out}
 .reveal .mark-svg path{fill:none;stroke:var(--mark-color);stroke-width:3px;stroke-linecap:round;stroke-linejoin:round}
-.reveal .mark-highlight .mark-svg{z-index:-1}.reveal .mark-highlight .mark-svg path{stroke-width:.75em;stroke-opacity:.32;stroke-linecap:butt}
+.reveal .mark-highlight .mark-svg{z-index:-1;left:0;width:100%}.reveal .mark-highlight .mark-svg path{stroke-width:.75em;stroke-opacity:.32;stroke-linecap:butt}
 .reveal .mark:not(:has(> .mark-on)) .mark-svg,.reveal .mark:has(> .mark-on.visible) .mark-svg{clip-path:inset(-50% -10% -50% -10%)}
 
 /* ----- Drawing on the slides (D key) ------------------------------------- */

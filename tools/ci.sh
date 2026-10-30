@@ -21,18 +21,20 @@ cargo clippy --workspace --all-targets --locked --all-features -- -D warnings
 step "tests"
 cargo test --workspace --locked --all-features
 
-# The binary as released (default features) starts, builds the demo, as a site and as one page,
-# and a new presentation outside the repository (the embedded themes); it has no oracle
+# The binary as released (default features) starts, builds the demo as one page and exports it
+# as a website, and a new presentation, with a theme of its own, outside the repository (the
+# embedded themes); it has no oracle
 step "smoke test: the binary"
 cargo build --locked -p glitu
 g=target/debug/glitu
 d=$(mktemp -d)
 "$g" --version
-"$g" build tests/features/slides.md -o "$d/site"
-"$g" build tests/features/slides.md --standalone -o "$d/demo.html"
+"$g" version
+"$g" build tests/features/slides.md -o "$d/demo.html"
+"$g" export tests/features/slides.md --format site -o "$d/site"
 test -s "$d/site/index.html" && test -s "$d/demo.html"
-"$g" init "$d/talk"
-"$g" build "$d/talk/slides.md" --standalone -o "$d/talk.html"
-test -s "$d/talk.html"
+"$g" init "$d/talk" --theme mine
+"$g" build "$d/talk/slides.md" -o "$d/talk.html"
+test -s "$d/talk.html" && test -s "$d/talk/themes/mine/theme.css"
 if "$g" oracle check http://localhost/ > /dev/null 2>&1; then echo "oracle must not be in the released binary" >&2; exit 1; fi
 rm -rf "$d"

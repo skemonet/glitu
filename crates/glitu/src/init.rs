@@ -1,5 +1,7 @@
 //! `glitu init`: a sample presentation (`slides.md`), and with `--css` a `style.css` that lists
 //! the variables of its theme, commented out: it changes nothing until a line is uncommented.
+//! `--theme <name>` with a name that is not an official theme creates the base of a theme of
+//! one's own, `themes/<name>/`: a copy of crystal whose `theme.css` sets every variable.
 //! A file that exists is never overwritten.
 
 use std::fs;
@@ -12,23 +14,26 @@ use crate::build::{self, Project};
 /// The sample presentation
 const SLIDES: &str = include_str!("../init/slides.md");
 
-/// Writes what is missing in `dir`: `slides.md`, and `style.css` with `css`. Its theme is the
-/// one of the existing `slides.md`, otherwise `theme`. Returns the files written.
+/// Writes what is missing in `dir`: `slides.md`, `style.css` with `css`, and `themes/<theme>/`
+/// if `theme` is a new theme. The theme of `slides.md` is `theme`, unless it exists. Returns the
+/// files written.
 pub fn run(dir: &Path, theme: &str, css: bool) -> Result<Vec<PathBuf>, String> {
     let (slides, style) = (dir.join("slides.md"), dir.join("style.css"));
+    let own = own_theme(theme)?;
     let write_slides = !slides.exists();
+    let write_theme = own.as_ref().is_some_and(|_| !dir.join("themes").join(theme).exists());
     let write_style = css && !style.exists();
-    if !write_slides && !write_style {
+    if !write_slides && !write_style && !write_theme {
         let existing = if css { format!("{} and {}", slides.display(), style.display()) } else { slides.display().to_string() };
         return Err(format!("{existing} already exist(s): nothing was written"));
     }
-    if write_slides && !crate::themes::names().contains(&theme) && !theme.starts_with('.') {
-        let names = crate::themes::names().join(", ");
-        return Err(format!("unknown theme: {theme} (embedded themes: {names})"));
-    }
     fs::create_dir_all(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
     let mut written = Vec::new();
+    if write_theme {
+        written.extend(new_theme(&dir.join("themes").join(theme))?);
+    }
     if write_slides {
+        let theme = own.as_deref().unwrap_or(theme);
         let text = SLIDES.replacen("theme: crystal\n", &format!("theme: {theme}\n"), 1);
         fs::write(&slides, text).map_err(|e| format!("{}: {e}", slides.display()))?;
         written.push(slides.clone());
@@ -39,6 +44,63 @@ pub fn run(dir: &Path, theme: &str, css: bool) -> Result<Vec<PathBuf>, String> {
         let text = style_css(&project, &theme)?;
         fs::write(&style, text).map_err(|e| format!("{}: {e}", style.display()))?;
         written.push(style);
+    }
+    Ok(written)
+}
+
+/// `Some(./themes/<name>)` if `theme` names a theme of one's own, to create; `None` for an
+/// official theme or a path
+fn own_theme(theme: &str) -> Result<Option<String>, String> {
+    if crate::themes::names().contains(&theme) || theme.starts_with('.') || theme.contains("://") {
+        return Ok(None);
+    }
+    if theme.is_empty() || !theme.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_') {
+        return Err(format!("{theme}: a theme name is made of letters, digits, - and _"));
+    }
+    Ok(Some(format!("./themes/{theme}")))
+}
+
+/// A theme of one's own in `dest`, from crystal: its fonts, its diagram colours, its `glitu.json`
+/// without a version (it is not published), and a `theme.css` that sets every variable of the
+/// template, to change
+fn new_theme(dest: &Path) -> Result<Vec<PathBuf>, String> {
+    let crystal = crate::themes::dir("crystal")?.ok_or("crystal: theme not embedded")?;
+    let base = build::LocalTheme::open(crystal.clone(), &Theme::Official { name: "crystal".into(), version: None })?;
+    let mut written = Vec::new();
+    let mut put = |rel: &str, bytes: &[u8]| -> Result<(), String> {
+        let path = dest.join(rel);
+        build::write_file(&path, bytes)?;
+        written.push(path);
+        Ok(())
+    };
+    let mut config = base.config.clone();
+    if let Some(c) = config.as_object_mut() {
+        c.remove("version");
+    }
+    put("glitu.json", (serde_json::to_string_pretty(&config).map_err(|e| e.to_string())? + "\n").as_bytes())?;
+    let width = build::theme_variables(&base)?.iter().map(|(n, _)| n.len()).max().unwrap_or(0);
+    let mut css = format!(
+        "/* The \"{}\" theme, made from crystal by `glitu init`: the shared template\n   \
+         (glitu/template.css) with these values. Change them, add rules; `glitu serve` reloads at\n   \
+         every save. glitu.json sets the backdrop (\"backdrop\": crystal, constellation, paper,\n   \
+         aurora, ascii, blueprint or iso), the transition and the size of the slides; skemo.css the\n   \
+         colours of the diagrams. */\n\n",
+        dest.file_name().unwrap_or_default().to_string_lossy()
+    );
+    css += TEMPLATE_GUIDE;
+    css += ":root {\n";
+    for (name, value) in build::theme_variables(&base)? {
+        css += &format!("  {:<width$} {value};\n", format!("{name}:"), width = width + 1);
+    }
+    css += "}\n";
+    css += &TEMPLATE_RULES.replace("Rules, for what the variables do not reach", "Rules of the theme, for what the variables do not reach");
+    put("theme.css", css.as_bytes())?;
+    for file in ["fonts.css", "skemo.css"] {
+        put(file, &fs::read(crystal.join(file)).map_err(|e| format!("{file}: {e}"))?)?;
+    }
+    for font in fs::read_dir(crystal.join("fonts")).map_err(|e| format!("fonts: {e}"))?.flatten() {
+        let name = format!("fonts/{}", font.file_name().to_string_lossy());
+        put(&name, &fs::read(font.path()).map_err(|e| format!("{name}: {e}"))?)?;
     }
     Ok(written)
 }
@@ -149,6 +211,25 @@ mod tests {
         let d = temp("both");
         assert_eq!(run(&d.0, "black", true).unwrap().len(), 2);
         assert!(fs::read_to_string(d.0.join("style.css")).unwrap().contains("--r-"));
-        assert!(run(&temp("unknown").0, "nope", false).unwrap_err().contains("unknown theme"));
+        assert!(run(&temp("bad").0, "no pe", false).unwrap_err().contains("a theme name"));
+    }
+
+    #[test]
+    fn init_creates_a_theme_of_ones_own() {
+        let d = temp("own");
+        let written = run(&d.0, "mine", false).unwrap();
+        assert!(written.contains(&d.0.join("themes/mine/theme.css")) && written.contains(&d.0.join("slides.md")));
+        assert!(fs::read_to_string(d.0.join("slides.md")).unwrap().contains("theme: ./themes/mine\n"));
+        let config = fs::read_to_string(d.0.join("themes/mine/glitu.json")).unwrap();
+        assert!(config.contains("\"backdrop\": \"crystal\"") && !config.contains("version"));
+        // every variable set, none commented out
+        let css = fs::read_to_string(d.0.join("themes/mine/theme.css")).unwrap();
+        assert!(css.contains("\n  --accent:") && css.contains("\"mine\" theme"));
+        // the presentation builds with it; a second run creates nothing
+        let site = build::site(&Project::new(&d.0.join("slides.md")), false).unwrap();
+        assert!(site.iter().any(|f| f.path.starts_with("theme/fonts/")));
+        assert!(run(&d.0, "mine", false).unwrap_err().contains("nothing was written"));
+        // its style.css lists the variables of the new theme
+        assert_eq!(run(&d.0, "mine", true).unwrap(), [d.0.join("style.css")]);
     }
 }
