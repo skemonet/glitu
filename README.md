@@ -42,10 +42,12 @@ glitu --help                    # the commands; glitu <command> --help: their op
 
 ## Releases
 
-A `vX.Y.Z` tag (`-rc.N` for a pre-release) matching the version of `Cargo.toml` runs the pipeline
-(`tools/ci.sh`: lints, tests, smoke test of the binary, the same locally and in the CI); when it
-passes, `.github/workflows/release.yml` builds the binary for each platform and publishes a GitHub
-release with the SHA-256 of each one.
+The version is the workspace's, in `Cargo.toml` (`0.1.1-rc.1`: a hyphen gives a pre-release). A push
+on `main` whose version has no release yet runs the pipeline (`tools/ci.sh`: lints, tests, smoke
+test of the binary, the same locally and in the CI); when it passes,
+`.github/workflows/release.yml` builds the binary for each platform and publishes the GitHub
+release `v<version>`, tag included, with the SHA-256 of each binary. To release: raise the version
+in `Cargo.toml` and merge. Pushing a `vX.Y.Z` tag matching `Cargo.toml` does the same.
 
 **License:** dual-licensed under [MIT](LICENSE-MIT) or [Apache-2.0](LICENSE-APACHE), at your option.
 
