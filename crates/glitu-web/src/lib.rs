@@ -61,6 +61,8 @@ pub fn start(options: JsValue) {
     // The theme first: it lays the template before the components read the slides
     if flag("template", false) {
         themes::template::install(&text("logo"), &text("backdrop"));
+    } else if !text("logo").is_empty() {
+        chrome::logo(&text("logo"));
     }
     chrome::install();
     print::install();

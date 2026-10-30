@@ -5,6 +5,7 @@
 :root {
   --accent: #3b82f6;
   --accent-2: #22d3ee;
+  --mark: var(--accent-2);
   --font: "Lato", "Segoe UI", "Noto Color Emoji", "Apple Color Emoji", "Segoe UI Emoji", system-ui, sans-serif;
   --mono: "JetBrains Mono", "DejaVu Sans Mono", ui-monospace, monospace;
 }

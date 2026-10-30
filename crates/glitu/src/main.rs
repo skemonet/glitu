@@ -39,7 +39,7 @@ fn main() -> ExitCode {
 /// `false`: the command ran but failed its check (the oracle)
 fn run(command: Command, say: &Say) -> Result<bool, String> {
     match command {
-        Command::Init { dir, theme } => init(&dir, &theme, say)?,
+        Command::Init { dir, theme, css } => init(&dir, &theme, css, say)?,
         Command::Build { slides, mode, out } => build(&Project::new(&slides), mode, out, say)?,
         Command::Serve { slides, port, allow, rehearse } => serve::serve(Project::new(&slides), port, allow, rehearse)?,
         Command::Export { slides, out, options } => {
@@ -59,36 +59,29 @@ fn run(command: Command, say: &Say) -> Result<bool, String> {
     Ok(true)
 }
 
-/// The sample presentation of `glitu init`
-const INIT: [(&str, &str); 2] = [("slides.md", include_str!("../init/slides.md")), ("skemo.css", include_str!("../init/skemo.css"))];
-
-/// Writes the sample presentation into `dir`, with the theme `theme`; never overwrites a file
-fn init(dir: &Path, theme: &str, say: &Say) -> Result<(), String> {
-    let names = glitu::themes::names();
-    if !names.contains(&theme) {
-        return Err(format!("unknown theme: {theme} (embedded themes: {})", names.join(", ")));
-    }
-    if let Some((name, _)) = INIT.iter().find(|(n, _)| dir.join(n).exists()) {
-        return Err(format!("{} already exists: nothing was written", dir.join(name).display()));
-    }
-    std::fs::create_dir_all(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
-    for (name, content) in INIT {
-        let path = dir.join(name);
-        let content = content.replacen("theme: crystal\n", &format!("theme: {theme}\n"), 1);
-        std::fs::write(&path, content).map_err(|e| format!("{}: {e}", path.display()))?;
+/// `glitu init`: what it wrote, then how to see it
+fn init(dir: &Path, theme: &str, css: bool, say: &Say) -> Result<(), String> {
+    for path in glitu::init::run(dir, theme, css)? {
         say.line(format_args!("created: {}", path.display()));
     }
     say.line(format_args!("try: glitu serve {}", dir.join("slides.md").display()));
     Ok(())
 }
 
-/// The embedded themes: name, version, animated backdrop
+/// The embedded themes, one per line: name, version, kind, animated backdrop
 fn themes() -> Result<(), String> {
     let root = glitu::themes::root()?;
+    println!("{:<14} {:<8} {:<10} BACKDROP", "THEME", "VERSION", "KIND");
     for name in glitu::themes::names() {
         let theme = build::LocalTheme::open(root.join(name), &glitu_core::Theme::Official { name: name.into(), version: None })?;
-        let backdrop = theme.config["backdrop"].as_str().map_or(String::new(), |b| format!("  backdrop {b}"));
-        println!("{name:<14} {}{backdrop}", theme.version.as_deref().unwrap_or("-"));
+        let kind = if theme.config["template"].as_bool() == Some(true) { "template" } else { "reveal.js" };
+        let backdrop = theme.config["backdrop"].as_str().unwrap_or("-");
+        let default = match name {
+            "crystal" => "  (default)",
+            "black" => "  (default for reveal-md markdown)",
+            _ => "",
+        };
+        println!("{name:<14} {:<8} {kind:<10} {backdrop}{default}", theme.version.as_deref().unwrap_or("-"));
     }
     Ok(())
 }

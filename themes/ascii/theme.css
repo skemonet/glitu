@@ -19,7 +19,9 @@
   --chapter-num-stroke: 0 transparent;
   --chapter-num-size: 150px;
   --chapter-bg: var(--base);
-  --cover-veil: none;
+  /* the characters run under the cover's text: a veil on its side, a bright subtitle */
+  --cover-veil: linear-gradient(90deg, rgba(17,12,6,.86), rgba(17,12,6,.6) 55%, rgba(17,12,6,0) 85%);
+  --cover-subtitle: var(--text);
   --chapter-veil: none;
   --body-veil: none;
   --accent: #ffb347;

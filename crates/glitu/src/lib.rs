@@ -7,6 +7,7 @@ pub mod build;
 pub mod chrono;
 pub mod cli;
 pub mod export;
+pub mod init;
 pub mod online;
 #[cfg(feature = "oracle")]
 pub mod oracle;

@@ -21,7 +21,13 @@ impl Scene for Paper {
     }
 
     fn fps(&self) -> f64 {
-        24.0
+        30.0
+    }
+
+    // soft shapes and blurred shadows: half the pixels, which the blur makes cheap enough to keep
+    // a steady cadence
+    fn resolution(&self) -> f64 {
+        0.5
     }
 
     fn build(&mut self, _w: f64, _h: f64) {

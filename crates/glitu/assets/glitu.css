@@ -62,11 +62,12 @@ pre.ap-term-text .ap-strike { text-decoration: line-through; }
 .reveal .fragment.until,.reveal .fragment.mark-on{display:none}
 .reveal :has(> .fragment.until.visible){opacity:0!important;visibility:hidden!important}
 
-/* Hand-drawn marks (`[text]{.circle @2}`): the stroke draws itself when the mark appears */
-.reveal .mark{position:relative;isolation:isolate;white-space:nowrap;--mark-color:#f59e0b}
+/* Hand-drawn marks (`[text]{.circle @2}`): the stroke draws itself when the mark appears. Colour:
+   the theme's `--mark`; amber without one. Hidden until then: the clip leaves nothing visible */
+.reveal .mark{position:relative;isolation:isolate;white-space:nowrap;--mark-color:var(--mark,#f59e0b)}
 .reveal .mark.red{--mark-color:#ef4444}.reveal .mark.green{--mark-color:#22c55e}.reveal .mark.blue{--mark-color:#3b82f6}
 .reveal .mark.yellow{--mark-color:#facc15}.reveal .mark.cyan{--mark-color:#22d3ee}.reveal .mark.purple{--mark-color:#a855f7}
-.reveal .mark-svg{position:absolute;left:-.2em;top:-.1em;width:calc(100% + .4em);height:calc(100% + .2em);overflow:visible;pointer-events:none;clip-path:inset(-50% 100% -50% -10%);transition:clip-path .7s ease-out}
+.reveal .mark-svg{position:absolute;left:-.2em;top:-.1em;width:calc(100% + .4em);height:calc(100% + .2em);overflow:visible;pointer-events:none;clip-path:inset(-50% 110% -50% -10%);transition:clip-path .7s ease-out}
 .reveal .mark-svg path{fill:none;stroke:var(--mark-color);stroke-width:3px;stroke-linecap:round;stroke-linejoin:round}
 .reveal .mark-highlight .mark-svg{z-index:-1}.reveal .mark-highlight .mark-svg path{stroke-width:.75em;stroke-opacity:.32;stroke-linecap:butt}
 .reveal .mark:not(:has(> .mark-on)) .mark-svg,.reveal .mark:has(> .mark-on.visible) .mark-svg{clip-path:inset(-50% -10% -50% -10%)}
@@ -173,3 +174,17 @@ body.reveal-viewport { transition: transform .8s cubic-bezier(.45,.05,.25,1); }
   .reveal .fx-ring :is(.chase-trail-1, .chase-trail-2) { display: none; }   /* the light alone, over the whole outline */
   body.reveal-viewport { transition: none; }
 }
+
+/* The presentation's logo for the themes without the template (`logo:` in the front matter) */
+.reveal > .glitu-logo{position:absolute;right:20px;top:16px;height:36px;z-index:30;opacity:.9;pointer-events:none}
+html.print-pdf .reveal > .glitu-logo,html.scroll-view .reveal > .glitu-logo{display:none}
+
+/* skemo diagrams step by step, in every theme: what a click has not shown yet stays hidden */
+.reveal svg.skemo [data-step], .reveal svg.skemo [data-until] { transition: opacity .45s ease, transform .45s ease; }
+.reveal svg.skemo .sk-morph .sk-diff { fill: var(--accent-2, #22d3ee); filter: drop-shadow(0 0 4px var(--accent-2, #22d3ee)); }   /* what changed, until the next click */
+.reveal svg.skemo .sk-off { opacity: 0 !important; }   /* hidden stays hidden, even under a highlight (sk-focus) */
+.reveal svg.skemo .sk-off[data-fx="up"]   { transform: translateY(12px); }
+.reveal svg.skemo .sk-off[data-fx="zoom"] { transform: scale(.92); transform-box: fill-box; transform-origin: center; }
+.reveal svg.skemo.sk-focus :is(.card, .edge):not(.sk-focus-on) { opacity: .28; transition: opacity .45s ease; }
+.reveal svg.skemo.sk-focus .sk-focus-on :is(.card, .edge) { opacity: 1; }
+.reveal svg.skemo .sk-focus-on { filter: drop-shadow(0 0 6px rgba(34,211,238,.9)); transition: filter .45s ease; }

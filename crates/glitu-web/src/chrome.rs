@@ -228,6 +228,16 @@ fn number_html() -> String {
     }
 }
 
+/// The presentation's logo (`logo:` in the front matter), in a corner of every slide, for the
+/// themes without the template (which puts it in its header)
+pub fn logo(src: &str) {
+    let img = dom::create("img");
+    img.set_class_name("glitu-logo");
+    let _ = img.set_attribute("src", src);
+    let _ = img.set_attribute("alt", "");
+    let _ = engine::root().append_child(&img);
+}
+
 pub fn install() {
     let c = engine::config();
     let backgrounds = backgrounds();

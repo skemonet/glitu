@@ -12,3 +12,8 @@
 .service  { --c: #0891b2; --label: "SVC"; }
 .svc-network { --c: #ca8a04; }
 .milestone    { --c: #22d3ee; }
+/* Generic types, for any diagram */
+.file     { --c: #64748b; --label: "FILE"; }
+.output   { --c: #0891b2; --label: "OUTPUT"; }
+.user     { --c: #7c3aed; --label: "USER"; }
+.data     { --c: #059669; --label: "DATA"; }

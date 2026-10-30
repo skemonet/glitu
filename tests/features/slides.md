@@ -7,6 +7,7 @@ date: 2026
 font-title: Poppins
 font-mono: Fira Code
 global-top: "glitu · demo"
+logo: img/glitu-logo.svg
 ---
 
 <!-- include: chapters/publishing.md -->
