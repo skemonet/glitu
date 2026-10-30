@@ -123,6 +123,9 @@
 <pre><span class="c"># the binary (Linux, macOS), SHA-256 checked; Windows: see the releases</span>
 curl -fsSL https://raw.githubusercontent.com/skemonet/glitu/main/tools/install.sh | sh
 
+<span class="c"># a new presentation, previewed at http://localhost:8000</span>
+glitu init talk &amp;&amp; glitu serve talk/slides.md
+
 <span class="c"># or from source</span>
 rustup target add wasm32-unknown-unknown
 git clone https://github.com/skemonet/glitu &amp;&amp; cd glitu

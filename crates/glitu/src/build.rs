@@ -66,20 +66,20 @@ impl Project {
         Ok(source::read(&self.slides)?.text)
     }
 
-    /// `themes/<name>` next to the markdown, otherwise in the first parent folder that has one
-    pub fn theme_dir(&self, name: &str) -> PathBuf {
+    /// `themes/<name>` next to the markdown, otherwise in the first parent folder that has one,
+    /// otherwise the theme embedded in the binary (see `themes`)
+    pub fn theme_dir(&self, name: &str) -> Result<PathBuf, String> {
         let start = self.root.canonicalize().unwrap_or_else(|_| self.root.clone());
-        start
-            .ancestors()
-            .map(|d| d.join("themes").join(name))
-            .find(|p| p.is_dir())
-            .unwrap_or_else(|| self.root.join("themes").join(name))
+        if let Some(dir) = start.ancestors().map(|d| d.join("themes").join(name)).find(|p| p.is_dir()) {
+            return Ok(dir);
+        }
+        Ok(crate::themes::dir(name)?.unwrap_or_else(|| self.root.join("themes").join(name)))
     }
 
     /// The theme the presentation asks for, found on disk at the wanted version
     pub fn theme(&self, theme: &Theme) -> Result<LocalTheme, String> {
         let dir = match theme {
-            Theme::Official { name, .. } => self.theme_dir(name),
+            Theme::Official { name, .. } => self.theme_dir(name)?,
             Theme::At(at) if at.contains("://") => {
                 return Err(format!("theme {at}: only themes on disk are supported, copy it into themes/"));
             }

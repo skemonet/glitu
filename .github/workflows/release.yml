@@ -1,35 +1,64 @@
 name: Release
-# A vX.Y.Z[-rc.N] tag builds the `glitu` binary for every platform and publishes a GitHub release:
-# one asset per platform, the binary itself, and the SHA-256 of each in the release's description.
-# The tag must match the version of the workspace (Cargo.toml): the binary prints it, and `--web`
-# pages aim at that version of the engine. A tag containing a hyphen (-rc.1…) gives a
-# pre-release. The publication uses the repository's GITHUB_TOKEN (permission contents: write).
+# Publishes a GitHub release of the `glitu` binary, built for every platform: one asset per
+# platform, the binary itself, and the SHA-256 of each in the release's description. The version
+# is the workspace's (Cargo.toml): the binary prints it, and `--web` pages aim at that version of
+# the engine. A version containing a hyphen (0.1.1-rc.1…) gives a pre-release.
+#
+# - a push on main whose version has no release yet publishes `v<version>`, tag included: raising
+#   the version in Cargo.toml and merging is enough;
+# - a pushed vX.Y.Z[-rc.N] tag publishes that version, which must match Cargo.toml.
+#
+# The publication uses the repository's GITHUB_TOKEN (permission contents: write).
 on:
   push:
+    branches: [main]
     tags: ["v*"]
 
 # The pipeline (ci.yml: the same checks as locally with `tools/ci.sh`) must succeed before
-# anything is built: a tag that does not pass publishes nothing.
+# anything is built: a version that does not pass publishes nothing.
 permissions:
   contents: read
 
-jobs:
-  ci:
-    uses: ./.github/workflows/ci.yml
+concurrency:
+  group: release
+  cancel-in-progress: false
 
+jobs:
   version:
     runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+      release: ${{ steps.version.outputs.release }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: { persist-credentials: false }
-      - name: Tag matches Cargo.toml
+      - name: Version to release, if any
+        id: version
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           version=$(sed -n '/^\[workspace.package\]/,/^\[/s/^version = "\(.*\)"/\1/p' Cargo.toml)
-          [ "v$version" = "$GITHUB_REF_NAME" ] \
-            || { echo "tag $GITHUB_REF_NAME does not match the workspace version $version" >&2; exit 1; }
+          tag="v$version"
+          if [ "$GITHUB_REF_TYPE" = tag ]; then
+            [ "$tag" = "$GITHUB_REF_NAME" ] \
+              || { echo "tag $GITHUB_REF_NAME does not match the workspace version $version" >&2; exit 1; }
+          fi
+          release=true
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            echo "$tag is already released: nothing to publish"
+            release=false
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "release=$release" >> "$GITHUB_OUTPUT"
+
+  ci:
+    needs: version
+    if: needs.version.outputs.release == 'true'
+    uses: ./.github/workflows/ci.yml
 
   build:
-    needs: [ci, version]
+    needs: [version, ci]
+    if: needs.version.outputs.release == 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -64,7 +93,7 @@ jobs:
           path: dist/*
 
   publish:
-    needs: build
+    needs: [version, build]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -74,8 +103,9 @@ jobs:
       - name: Release GitHub
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.version.outputs.tag }}
         run: |
-          pre=""; case "$GITHUB_REF_NAME" in *-*) pre="--prerelease";; esac
+          pre=""; case "$TAG" in *-*) pre="--prerelease";; esac
           # the description: what to download, and the SHA-256 of each binary, one line each
           {
             echo "One binary per platform: download it, make it executable, run it."
@@ -90,11 +120,12 @@ jobs:
             echo "Linux and macOS in one line: \`curl -fsSL https://raw.githubusercontent.com/skemonet/glitu/main/tools/install.sh | sh\`"
             echo
             echo "Check it against its line below (\`sha256sum -c\`, or \`shasum -a 256 -c\` on macOS)."
-            echo "Presenting needs nothing else; \`glitu export\` and \`glitu oracle\` need Chromium."
+            echo "Start with \`glitu init talk && glitu serve talk/slides.md\`; \`glitu export\` needs Chromium."
             echo
             echo '```'
             (cd dist && sha256sum glitu-*)
             echo '```'
           } > notes.md
-          gh release create "$GITHUB_REF_NAME" dist/* --repo "$GITHUB_REPOSITORY" \
-            --title "glitu $GITHUB_REF_NAME" --notes-file notes.md $pre
+          # the tag is created on this commit if it does not exist yet (a push on main)
+          gh release create "$TAG" dist/* --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+            --title "glitu $TAG" --notes-file notes.md $pre
