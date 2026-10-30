@@ -16,6 +16,8 @@ Everything is written in English (code, comments, messages, docs). No npm, no No
 
 ## Rules
 
+- The oracle is a development command, left out of the released binary: build it with
+  `cargo build --release --features oracle`.
 - After any change to the engine or the themes: both oracles at 100 %
   (`glitu serve tests/features/slides.md -p <port> &` then
   `glitu oracle check http://localhost:<port>/ tests/oracle`, and the same for

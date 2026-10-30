@@ -8,6 +8,7 @@ pub mod chrono;
 pub mod cli;
 pub mod export;
 pub mod online;
+#[cfg(feature = "oracle")]
 pub mod oracle;
 pub mod pdf;
 pub mod pptx;
@@ -15,4 +16,5 @@ pub mod raster;
 pub mod serve;
 pub mod source;
 pub mod standalone;
+pub mod themes;
 pub mod zip;

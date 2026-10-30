@@ -16,10 +16,12 @@ use crate::build::Output;
 /// Announced browser: Google Fonts only serves WOFF2 to browsers that read it
 const AGENT: &str = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36";
 
-fn cache_dir() -> PathBuf {
+/// `~/.cache/glitu` (`$XDG_CACHE_HOME/glitu`; `%LOCALAPPDATA%\glitu` on Windows)
+pub fn cache_dir() -> PathBuf {
     std::env::var_os("XDG_CACHE_HOME")
         .map(PathBuf::from)
         .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".cache")))
+        .or_else(|| std::env::var_os("LOCALAPPDATA").map(PathBuf::from))
         .unwrap_or_else(std::env::temp_dir)
         .join("glitu")
 }

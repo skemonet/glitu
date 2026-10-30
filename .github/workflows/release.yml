@@ -90,7 +90,7 @@ jobs:
             echo "Linux and macOS in one line: \`curl -fsSL https://raw.githubusercontent.com/skemonet/glitu/main/tools/install.sh | sh\`"
             echo
             echo "Check it against its line below (\`sha256sum -c\`, or \`shasum -a 256 -c\` on macOS)."
-            echo "Presenting needs nothing else; \`glitu export\` and \`glitu oracle\` need Chromium."
+            echo "Start with \`glitu init talk && glitu serve talk/slides.md\`; \`glitu export\` needs Chromium."
             echo
             echo '```'
             (cd dist && sha256sum glitu-*)

@@ -32,7 +32,13 @@ curl -fsSL https://raw.githubusercontent.com/skemonet/glitu/main/tools/install.s
 Or take a binary from the [releases](https://github.com/skemonet/glitu/releases): `glitu-linux-x86_64`,
 `glitu-linux-arm64`, `glitu-macos-arm64`, `glitu-windows-x86_64.exe` (the latest one is always at
 `https://github.com/skemonet/glitu/releases/latest/download/<file>`), or build it from source as
-above. `glitu export` and `glitu oracle` also need Chromium.
+above. `glitu export` also needs Chromium.
+
+```bash
+glitu init talk                 # a sample presentation: talk/slides.md and talk/skemo.css
+glitu serve talk/slides.md      # preview at http://localhost:8000, reloads at every save
+glitu --help                    # the commands; glitu <command> --help: their options
+```
 
 ## Releases
 
@@ -62,6 +68,7 @@ themes are published by the maintainer on **static.glitu.net**, each at its vers
 rustup target add wasm32-unknown-unknown     # once; skemo is fetched by Cargo (git dependency)
 cargo build --release                         # builds target/release/glitu (wasm and skemo engines inside)
 
+target/release/glitu init talk                 # a sample presentation in talk/ (overwrites nothing)
 target/release/glitu serve                     # http://localhost:8000, reloads at every change
 target/release/glitu serve --allow 192.168.0.0/16   # also for these addresses (CIDR, repeatable): phone, tablet
 target/release/glitu build -o dist             # static site, to serve with any web server
@@ -71,6 +78,7 @@ target/release/glitu export -o talk.pptx       # editable PowerPoint, notes incl
 target/release/glitu export -o talk.pdf        # vector PDF (selectable text)
 target/release/glitu export -o captures/       # one PNG image per slide
 target/release/glitu unpack talk.html -o talk/ # gets the markdown back from a built page (see "Reopen")
+target/release/glitu themes                    # the themes embedded in the binary
 ```
 
 While presenting (`?` shows this list on screen):
@@ -319,7 +327,8 @@ the slides, margin, maximum magnification `maxScale` — 2 by default, 8 for the
 which fill a large screen this way —, centring, arrows, progress, number, transition), and
 depending on the theme `logo.svg`, `skemo.css`. `glitu.json` also carries its `"version"` and, for
 a third-party theme, the `"name"` the engine recognises. It is looked for next to the markdown,
-then in the parent folders.
+then in the parent folders; the official themes are also embedded in the binary (`glitu themes`),
+which uses them when no folder has the theme (written once into `~/.cache/glitu/themes-<hash>/`).
 
 The themes of this repository, except "black", rest on a **shared template**
 (`"template": true`): its sheet, `glitu/template.css`, published with the engine, holds the whole
@@ -366,9 +375,11 @@ transitions, centring. `tests/reveal-md/` checks this rendering against that of 
 ## Oracle
 
 `tests/oracle/` keeps a capture of each state (slide × click) of the demo, `tests/features`: the
-reference of the engine, which must stay identical to the pixel:
+reference of the engine, which must stay identical to the pixel. `glitu oracle` is a development
+command, left out of the released binary:
 
 ```sh
+cargo build --release --features oracle
 target/release/glitu serve tests/features/slides.md -p 8123 &
 target/release/glitu oracle check http://localhost:8123/ tests/oracle
 ```
