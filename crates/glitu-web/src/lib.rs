@@ -28,6 +28,7 @@ mod remote;
 mod skemo;
 mod terminal;
 mod themes;
+mod timing;
 mod zoom;
 
 use wasm_bindgen::prelude::*;

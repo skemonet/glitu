@@ -1,88 +1,82 @@
-//! Speaker view (S key): a separate window with the current slide, the next step, the notes
-//! (the passage of the current click highlighted, see `[click]`), the time and a timer, paused
-//! with a click (it restarts when the slide changes) and corrected by hand (✎). The keys of the
-//! presentation work there too.
+//! Speaker view (S key): a separate window with the current slide, the timer under it, the next
+//! step, and the notes (the passage of the current click highlighted, see `[click]`) or the timing
+//! of every slide. The keys of the presentation work there too.
 //!
-//! Timed slides (`## Title ⏳95🏃3`, see the rehearsals of `glitu serve`) give the lead
-//! or the delay, next to the time: the time spent on the slides since the timer started, minus
-//! their planned durations (the current slide counting at most its own).
-//! In ghost mode, a button times a rehearsal: when it stops, the time spent on each slide left
-//! goes to the server, which writes it in the markdown.
+//! The timer (see `timing`) is started and stopped by hand; on timed slides (`## Title ⏳95🏃3`)
+//! it gives the lead or the delay on the schedule. Under `glitu serve`, it times rehearsals: from
+//! the start or from the current slide, a slide started again after a false start, and at the
+//! end the measure of each slide is averaged with the former ones, replaces them or is skipped;
+//! the server writes them in the markdown. The timer survives a reload of the page and the
+//! closing of the view (localStorage, per presentation); the layout of the view (column widths,
+//! size of the notes) is kept by the browser too.
 //!
 //! The two previews are the presentation itself, loaded with `?receiver` in a frame: it goes
 //! where the message `{glitu: "show", h, v, f, ahead}` tells it (see `engine::receive`).
 
 use std::cell::RefCell;
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 
-use wasm_bindgen::JsValue;
-use web_sys::{Document, Element, HtmlIFrameElement, KeyboardEvent, KeyboardEventInit, Window};
+use wasm_bindgen::{JsCast, JsValue};
+use web_sys::{Document, Element, HtmlIFrameElement, KeyboardEvent, KeyboardEventInit, MouseEvent, PointerEvent, Window};
 
 use crate::dom::{self, qs, qsa};
 use crate::engine::{self, Ev};
+use crate::timing::{self, Timer};
 
-/// The open window and its timer
+/// What to do with the measure of a slide, at the end of a rehearsal
+#[derive(Clone, Copy, PartialEq)]
+enum Keep {
+    Average,
+    Replace,
+    Skip,
+}
+
+impl Keep {
+    const ALL: [Keep; 3] = [Keep::Average, Keep::Replace, Keep::Skip];
+
+    fn icon(self) -> &'static str {
+        match self {
+            Keep::Average => "📊",
+            Keep::Replace => "✏️",
+            Keep::Skip => "🗑️",
+        }
+    }
+
+    fn name(self) -> &'static str {
+        match self {
+            Keep::Average => "Average",
+            Keep::Replace => "Replace",
+            Keep::Skip => "Skip",
+        }
+    }
+
+    fn key(self) -> &'static str {
+        match self {
+            Keep::Average => "average",
+            Keep::Replace => "replace",
+            Keep::Skip => "skip",
+        }
+    }
+}
+
+/// The view: its window (if open), the timer, the choices of the end of a rehearsal
 struct Presenter {
-    win: Window,
-    /// Start of the timer (ms), shifted by the pauses
-    start: f64,
-    /// Paused since (ms)
-    paused: Option<f64>,
-    /// Since the timer started (or was reset)
-    run: Run,
-    /// Timed rehearsal in progress (ghost mode)
-    record: Option<Run>,
-    /// Current slide (reading rank) and time of the timer when it arrived
-    at: (usize, f64),
+    win: Option<Window>,
+    timer: Timer,
+    /// End of a rehearsal: what to keep of each slide measured
+    keep: BTreeMap<usize, Keep>,
 }
 
-/// Time spent (ms) on each slide (reading rank), and the slides left
-#[derive(Default)]
-struct Run {
-    spent: BTreeMap<usize, f64>,
-    left: BTreeSet<usize>,
+thread_local! {
+    static PRESENTER: RefCell<Option<Presenter>> = const { RefCell::new(None) };
 }
 
-impl Presenter {
-    fn new(win: Window, now: f64) -> Presenter {
-        Presenter { win, start: now, paused: None, run: Run::default(), record: None, at: (engine::leaf_index(), 0.0) }
-    }
+/// A slide measured less than this was only gone through: skipped by default
+const GONE_THROUGH: f64 = 2000.0;
 
-    /// Time of the timer (ms), pauses deducted
-    fn elapsed(&self, now: f64) -> f64 {
-        self.paused.unwrap_or(now) - self.start
-    }
+/// Beyond 12 h, a kept timer starts again from zero
+const KEEP: f64 = 12.0 * 3600.0 * 1000.0;
 
-    /// Counts the time spent on the current slide; `leaf`: the slide we are on now
-    fn account(&mut self, now: f64, leaf: usize) {
-        let t = self.elapsed(now);
-        let (cur, since) = self.at;
-        for run in std::iter::once(&mut self.run).chain(self.record.as_mut()) {
-            *run.spent.entry(cur).or_default() += t - since;
-            if leaf != cur {
-                run.left.insert(cur);
-            }
-        }
-        self.at = (leaf, t);
-    }
-
-    /// Delay (positive) or lead (negative), in ms, on the planned durations; none if no slide is
-    /// timed
-    fn delta(&self, leaves: &[Element]) -> Option<f64> {
-        let planned = |i: usize| leaves.get(i).and_then(|l| dom::data(l, "duration")).and_then(|d| d.parse::<f64>().ok()).map(|d| d * 1000.0);
-        if !leaves.iter().any(|l| dom::data(l, "duration").is_some()) {
-            return None;
-        }
-        Some(self.run.spent.iter().map(|(&i, &spent)| match planned(i) {
-            Some(d) if i == self.at.0 => spent - spent.min(d),
-            Some(d) => spent - d,
-            None => 0.0,
-        }).sum())
-    }
-}
-
-/// The timer and its measures survive a reload of the page (localStorage, per presentation);
-/// beyond 12 h, it starts again from zero
 fn storage() -> Option<web_sys::Storage> {
     dom::window().local_storage().ok().flatten()
 }
@@ -91,108 +85,97 @@ fn storage_key() -> String {
     format!("glitu-chrono:{}", dom::window().location().pathname().unwrap_or_default())
 }
 
-const KEEP: f64 = 12.0 * 3600.0 * 1000.0;
+const LAYOUT_KEY: &str = "glitu-speaker-layout";
 
-impl Run {
-    fn to_json(&self) -> serde_json::Value {
-        serde_json::json!({ "spent": self.spent.iter().collect::<Vec<_>>(), "left": self.left })
-    }
-
-    fn from_json(v: &serde_json::Value) -> Option<Run> {
-        let spent = v["spent"].as_array()?.iter().filter_map(|p| Some((p[0].as_u64()? as usize, p[1].as_f64()?))).collect();
-        let left = v["left"].as_array()?.iter().filter_map(|i| Some(i.as_u64()? as usize)).collect();
-        Some(Run { spent, left })
-    }
-}
-
-impl Presenter {
-    fn save(&self, now: f64) {
-        let state = serde_json::json!({
-            "saved": js_sys::Date::now(),
-            "elapsed": self.elapsed(now),
-            "paused": self.paused.is_some(),
-            "at": [self.at.0, self.at.1],
-            "run": self.run.to_json(),
-            "record": self.record.as_ref().map(Run::to_json),
-            "open": true,
-        });
-        if let Some(store) = storage() {
-            let _ = store.set_item(&storage_key(), &state.to_string());
-        }
-    }
-
-    /// The timer left by the page before its reload, if there is one
-    fn restore(win: Window, now: f64) -> Option<Presenter> {
-        let v = saved()?;
-        let away = (js_sys::Date::now() - v["saved"].as_f64()?).max(0.0);
-        let paused = v["paused"].as_bool()?;
-        let elapsed = v["elapsed"].as_f64()? + if paused { 0.0 } else { away };
-        Some(Presenter {
-            win,
-            start: now - elapsed,
-            paused: paused.then_some(now),
-            run: Run::from_json(&v["run"])?,
-            record: Run::from_json(&v["record"]),
-            at: (v["at"][0].as_u64()? as usize, v["at"][1].as_f64()?),
-        })
-    }
-}
-
-/// The kept timer, if it is recent
+/// The kept state of the view, if it is recent: the timer and whether the view was open
 fn saved() -> Option<serde_json::Value> {
     let v: serde_json::Value = serde_json::from_str(&storage()?.get_item(&storage_key()).ok()??).ok()?;
     (js_sys::Date::now() - v["saved"].as_f64()? < KEEP).then_some(v)
 }
 
-/// View closed: its timer stays kept (reopening resumes it), but the reloaded page no longer
-/// reopens it by itself
-fn closed() {
-    if let (Some(mut v), Some(store)) = (saved(), storage()) {
-        v["open"] = false.into();
-        let _ = store.set_item(&storage_key(), &v.to_string());
+fn save(p: &Presenter, now: f64) {
+    let state = serde_json::json!({
+        "saved": js_sys::Date::now(),
+        "timer": p.timer.to_json(now),
+        "open": p.win.is_some(),
+    });
+    if let Some(store) = storage() {
+        let _ = store.set_item(&storage_key(), &state.to_string());
     }
 }
 
-/// `1:02:03`, `12:30`, `45` (minutes) → ms
-fn parse_time(s: &str) -> Option<f64> {
-    let parts: Vec<f64> = s.trim().split(':').map(|p| p.trim().parse::<f64>().ok().filter(|v| *v >= 0.0)).collect::<Option<_>>()?;
-    let secs = match parts[..] {
-        [m] => m * 60.0,
-        [m, s] => m * 60.0 + s,
-        [h, m, s] => h * 3600.0 + m * 60.0 + s,
-        _ => return None,
-    };
-    Some(secs * 1000.0)
-}
-
-/// `+1:20`, `-0:45`
-fn signed(ms: f64) -> String {
-    let secs = (ms.abs() / 1000.0).round() as u64;
-    format!("{}{}:{:02}", if ms < 0.0 { "−" } else { "+" }, secs / 60, secs % 60)
-}
-
-/// Rehearsals: the page served by `glitu serve` says so
-fn rehearse() -> bool {
+/// Rehearsals are recorded under `glitu serve` only (it writes the markdown)
+fn served() -> bool {
     dom::document().query_selector("meta[name=glitu-rehearse]").ok().flatten().is_some()
 }
 
-thread_local! {
-    static PRESENTER: RefCell<Option<Presenter>> = const { RefCell::new(None) };
+/// The planned duration of each slide (ms), in reading order
+fn planned() -> Vec<Option<f64>> {
+    engine::all_leaves()
+        .iter()
+        .map(|(_, _, l)| dom::data(l, "duration").and_then(|d| d.parse::<f64>().ok()).map(|d| d * 1000.0))
+        .collect()
 }
 
-const STYLE: &str = "body{margin:0;background:#0b0f19;color:#e8edf5;font:18px/1.5 Lato,system-ui,sans-serif;height:100vh;overflow:hidden}\
-.pv{display:grid;grid-template-columns:1.6fr 1fr;grid-template-rows:1fr auto;gap:14px;height:100vh;padding:14px;box-sizing:border-box}\
-.cur,.next{position:relative;background:#000;border:1px solid #253045;border-radius:8px;overflow:hidden}\
-.cur{align-self:center}.side{display:flex;flex-direction:column;gap:14px;min-height:0}\
+/// The title of a slide: its topic, otherwise its first heading
+fn title(leaf: &Element, i: usize) -> String {
+    let topic = dom::data(leaf, "header").and_then(|h| h.split('|').nth(1).map(|t| t.trim().to_string()));
+    topic
+        .filter(|t| !t.is_empty())
+        .or_else(|| qs(leaf, "h1, h2, h3").and_then(|h| h.text_content()).map(|t| t.trim().to_string()))
+        .filter(|t| !t.is_empty())
+        .unwrap_or_else(|| format!("Slide {}", i + 1))
+}
+
+fn runs(leaf: &Element) -> Option<u32> {
+    dom::data(leaf, "runs").and_then(|r| r.parse().ok())
+}
+
+const STYLE: &str = "\
+*{box-sizing:border-box}body{margin:0;background:#0b0f19;color:#e8edf5;font:18px/1.5 Lato,system-ui,sans-serif;height:100vh;overflow:hidden}\
+button{background:#1b2333;color:#e8edf5;border:1px solid #2d3a52;border-radius:6px;padding:4px 10px;font:inherit;font-size:15px;cursor:pointer}\
+button:hover{border-color:#3b82f6}button.on{background:#123044;border-color:#22d3ee;color:#fff}\
+.pv{display:flex;height:100vh;padding:12px;gap:0}\
+.col{display:flex;flex-direction:column;min-width:0;gap:10px}.left{flex:0 0 var(--left,62%)}.right{flex:1}\
+.split{flex:0 0 12px;cursor:col-resize;position:relative}.split::after{content:'';position:absolute;inset:0 5px;border-radius:2px;background:#1b2333}\
+.split:hover::after,.split.drag::after{background:#22d3ee}\
+.hsplit{flex:0 0 12px;cursor:row-resize;position:relative}.hsplit::after{content:'';position:absolute;inset:5px 0;border-radius:2px;background:#1b2333}\
+.hsplit:hover::after,.hsplit.drag::after{background:#22d3ee}\
+.frame{position:relative;background:#000;border:1px solid #253045;border-radius:8px;overflow:hidden;aspect-ratio:var(--ratio);margin:0 auto}\
+.cur{width:min(100%,calc((100vh - 190px) * var(--ratio)))}\
+.nextbox{flex:0 0 var(--next,38%);min-height:60px;display:flex;flex-direction:column}.next{height:100%;max-width:100%}\
 iframe{display:block;width:100%;height:100%;border:0;pointer-events:none}\
 h1{font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:#22d3ee;margin:0 0 6px}\
-.notes{flex:1;overflow:auto;font-size:22px;padding-right:6px;position:relative;scroll-behavior:smooth}.notes p{margin:0 0 .7em}.empty{color:#5d6b82;font-style:italic}\
+.dock{flex:1;min-height:150px;display:flex;flex-direction:column;justify-content:center;gap:10px;padding:0 6px}\
+.row{display:flex;align-items:center;gap:18px;flex-wrap:wrap}\
+.play{font-size:26px;width:52px;height:52px;border-radius:50%;padding:0}\
+.elapsed{font-size:46px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:.02em}.stopped .elapsed{color:#93a0b4}\
+.delta{font-size:24px;font-weight:700;font-variant-numeric:tabular-nums}.delta small{font-size:15px;font-weight:400;color:#93a0b4}\
+.late{color:#f87171}.early{color:#4ade80}.where{color:#93a0b4;font-size:17px}.where b{color:#fff}\
+.spacer{flex:1}.clock{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums}\
+.reh{display:none;gap:12px;align-items:center;padding:8px 12px;border:1px solid #2d3a52;border-radius:8px;background:#111827}\
+.rehearsing .reh{display:flex}.reh .label{color:#22d3ee;font-weight:700}.reh .slide{color:#93a0b4;font-variant-numeric:tabular-nums}\
+.menu{position:relative}.menu .items{display:none;position:absolute;right:0;bottom:44px;background:#111827;border:1px solid #2d3a52;border-radius:8px;padding:6px;min-width:250px;z-index:5}\
+.menu.open .items{display:flex;flex-direction:column;gap:4px}.menu .items button{text-align:left;border:0;background:none}.menu .items button:hover{background:#1b2333}\
+.tabs{display:flex;gap:6px;align-items:center}.tabs .grow{flex:1}\
+.pane{flex:1;overflow:auto;min-height:0;position:relative}\
+.notes{font-size:var(--notes,22px);padding-right:6px;scroll-behavior:smooth}.notes p{margin:0 0 .7em}.empty{color:#5d6b82;font-style:italic}\
 .note-click{transition:opacity .2s,background .2s;border-radius:4px}.note-click.past{opacity:.45}\
 .note-click.current{background:rgba(34,211,238,.16);color:#fff}\
-.bar{grid-column:1/3;display:flex;gap:30px;align-items:center;padding:10px 4px 0;border-top:1px solid #253045;color:#93a0b4;font-size:17px}\
-.bar b{color:#fff;font-size:22px}.bar button{background:#1b2333;color:#e8edf5;border:1px solid #2d3a52;border-radius:6px;padding:4px 10px;font:inherit;cursor:pointer}\
-.bar .clock{margin-left:auto}.paused b{color:#f59e0b}.delta{margin-left:.5em;font-weight:700}.delta.late{color:#f87171}.delta.early{color:#4ade80}.bar button.rec{border-color:#f87171;color:#fecaca}";
-
+table{width:100%;border-collapse:collapse;font-size:16px;font-variant-numeric:tabular-nums}\
+th{text-align:left;color:#93a0b4;font-weight:400;font-size:13px;letter-spacing:.06em;text-transform:uppercase;padding:4px 6px;border-bottom:1px solid #253045}\
+td{padding:5px 6px;border-bottom:1px solid #161d2b}td.n{color:#5d6b82;width:2.5em}td.t{white-space:nowrap;text-align:right}\
+tr.cur td{background:rgba(34,211,238,.1);color:#fff}tr.cur td.n{color:#22d3ee}\
+.bar{height:3px;background:#1b2333;border-radius:2px;margin-top:3px}.bar i{display:block;height:100%;background:#22d3ee;border-radius:2px}.bar.over i{background:#f87171}\
+.runs{color:#5d6b82;font-size:13px}\
+.modal{position:fixed;inset:0;background:rgba(3,6,12,.72);display:none;align-items:center;justify-content:center;z-index:10}\
+.modal.open{display:flex}.dialog{background:#111827;border:1px solid #2d3a52;border-radius:12px;padding:22px 26px;max-width:760px;width:90%;max-height:86vh;display:flex;flex-direction:column;gap:14px}\
+.dialog h2{margin:0;font-size:22px}.dialog p{margin:0;color:#c3cad6}.dialog .warn{color:#fbbf24}\
+.dialog .scroll{overflow:auto;min-height:0}.dialog .actions{display:flex;justify-content:flex-end;gap:10px}\
+.dialog .primary{background:#0e7490;border-color:#22d3ee;color:#fff}\
+.all{display:flex;gap:18px;align-items:center;color:#c3cad6}.all label{cursor:pointer;display:flex;gap:6px;align-items:center}\
+.keep{display:flex;gap:4px}.keep button{padding:2px 8px;opacity:.45}.keep button.on{opacity:1}\
+.toast{position:fixed;left:50%;bottom:20px;translate:-50% 0;background:#0e7490;color:#fff;padding:8px 16px;border-radius:8px;display:none}.toast.show{display:block}";
 
 /// Address of the presentation in a preview (without the position, given next by message)
 fn receiver_url() -> String {
@@ -201,15 +184,64 @@ fn receiver_url() -> String {
     format!("{base}{}receiver", if base.contains('?') { '&' } else { '?' })
 }
 
+/// The window: the current slide and the timer on the left, the next step and the notes (or the
+/// timing) on the right, a separator to drag between them
+fn skeleton() -> String {
+    let c = engine::config();
+    let ratio = format!("{} / {}", c.width, c.height);
+    let url = dom::esc(&receiver_url());
+    let rehearse = if served() {
+        "<button data-act=\"from-start\">● Rehearse from the start</button>\
+         <button data-act=\"from-here\">↳ Rehearse from here</button>"
+    } else {
+        ""
+    };
+    format!(
+        "<style>{STYLE}</style><div class=\"pv\" id=\"pv\" style=\"--ratio:{ratio}\">\
+         <div class=\"col left\">\
+           <div class=\"frame cur\"><iframe id=\"current\" src=\"{url}\"></iframe></div>\
+           <div class=\"dock\" id=\"dock\">\
+             <div class=\"row\">\
+               <button class=\"play\" id=\"play\" title=\"Start or stop the timer\"></button>\
+               <span class=\"elapsed\" id=\"elapsed\"></span><span class=\"delta\" id=\"delta\"></span>\
+               <span class=\"spacer\"></span><span class=\"where\" id=\"where\"></span><span class=\"clock\" id=\"clock\"></span>\
+               <div class=\"menu\" id=\"menu\"><button id=\"menu-btn\" title=\"Timer and layout\">⋯</button><div class=\"items\">\
+                 {rehearse}<button data-act=\"reset\">⟲ Reset the timer</button><button data-act=\"layout\">▦ Reset the layout</button>\
+               </div></div>\
+             </div>\
+             <div class=\"reh\" id=\"reh\"><span class=\"label\" id=\"reh-label\"></span><span class=\"slide\" id=\"reh-slide\"></span>\
+               <span class=\"spacer\"></span>\
+               <button data-act=\"restart\" title=\"A false start: the time of this slide goes, it starts again\">↺ Restart this slide</button>\
+               <button data-act=\"finish\" class=\"primary\">■ Finish…</button><button data-act=\"discard\">✕ Discard</button></div>\
+           </div>\
+         </div>\
+         <div class=\"split\" id=\"split\" title=\"Drag to resize\"></div>\
+         <div class=\"col right\" id=\"right\">\
+           <div class=\"nextbox\"><h1 id=\"next-title\">Next</h1><div class=\"frame next\"><iframe id=\"upcoming\" src=\"{url}&amp;upcoming\"></iframe></div></div>\
+           <div class=\"hsplit\" id=\"hsplit\" title=\"Drag to resize\"></div>\
+           <div class=\"tabs\"><button data-tab=\"notes\" class=\"on\">Notes</button><button data-tab=\"timing\">Timing</button>\
+             <span class=\"grow\"></span><button data-act=\"smaller\" title=\"Smaller notes\">A−</button><button data-act=\"larger\" title=\"Larger notes\">A+</button></div>\
+           <div class=\"pane notes\" id=\"notes\"></div><div class=\"pane\" id=\"timing\" hidden></div>\
+         </div>\
+         </div><div class=\"modal\" id=\"modal\"><div class=\"dialog\" id=\"dialog\"></div></div><div class=\"toast\" id=\"toast\"></div>"
+    )
+}
+
 fn by_id(doc: &Document, id: &str) -> Option<Element> {
     doc.get_element_by_id(id)
+}
+
+fn set(doc: &Document, id: &str, html: &str) {
+    if let Some(e) = by_id(doc, id) {
+        e.set_inner_html(html);
+    }
 }
 
 /// Sends the current position to a preview, one step further with `ahead`
 fn send(doc: &Document, id: &str, ahead: bool) {
     // The element comes from the speaker window, another "realm": `dyn_into` (instanceof) would
     // fail there
-    let Some(frame) = by_id(doc, id).map(wasm_bindgen::JsCast::unchecked_into::<HtmlIFrameElement>) else { return };
+    let Some(frame) = by_id(doc, id).map(JsCast::unchecked_into::<HtmlIFrameElement>) else { return };
     let Some(target) = frame.content_window() else { return };
     let (h, v, f) = engine::position();
     let msg = js_sys::Object::new();
@@ -243,61 +275,95 @@ fn follow_notes(doc: &Document) {
     box_.set_scroll_top(top.max(0.0) as i32);
 }
 
-fn clock(ms: f64) -> String {
-    let secs = (ms / 1000.0) as u64;
-    format!("{:02}:{:02}:{:02}", secs / 3600, secs / 60 % 60, secs % 60)
+/// `+0:07 behind`, `−0:12 ahead`
+fn delta_html(d: f64) -> String {
+    if d.abs() < 1000.0 {
+        return "<small>on time</small>".into();
+    }
+    let (class, sign, word) = if d > 0.0 { ("late", "+", "behind") } else { ("early", "−", "ahead") };
+    format!("<span class=\"{class}\">{sign}{}</span> <small>{word}</small>", timing::short(d.abs()))
 }
 
-/// Updates the text; `move_previews`: the previews too (the position changed)
+/// The timing of every slide: planned (⏳, 🏃 rehearsals) and this run, the current one marked
+fn timing_html(p: &Presenter, now: f64) -> String {
+    let planned = planned();
+    let cur = engine::leaf_index();
+    let mut rows = String::new();
+    let (mut total_planned, mut total_now) = (0.0, 0.0);
+    for (i, (_, _, leaf)) in engine::all_leaves().iter().enumerate() {
+        let spent = p.timer.spent_on(now, i);
+        total_now += spent;
+        let plan = planned[i];
+        total_planned += plan.unwrap_or(0.0);
+        let plan_html = plan.map_or("–".into(), |d| {
+            let r = runs(leaf).map_or(String::new(), |r| format!(" <span class=\"runs\">🏃{r}</span>"));
+            format!("{}{r}", timing::short(d))
+        });
+        let over = plan.is_some_and(|d| spent > d * 1.1);
+        let now_html = if spent > 0.0 { timing::short(spent) } else { "–".into() };
+        let bar = match plan {
+            Some(d) if i == cur && d > 0.0 => format!(
+                "<div class=\"bar{}\"><i style=\"width:{:.0}%\"></i></div>",
+                if spent > d { " over" } else { "" },
+                (spent / d * 100.0).min(100.0)
+            ),
+            _ => String::new(),
+        };
+        rows += &format!(
+            "<tr{}><td class=\"n\">{}</td><td>{}{bar}</td><td class=\"t\">{plan_html}</td><td class=\"t{}\">{now_html}</td></tr>",
+            if i == cur { " class=\"cur\"" } else { "" },
+            i + 1,
+            dom::esc(&title(leaf, i)),
+            if over { " late" } else { "" }
+        );
+    }
+    format!(
+        "<table><tr><th>#</th><th>Slide</th><th class=\"t\">⏳ Planned</th><th class=\"t\">This run</th></tr>{rows}\
+         <tr><td></td><td><b>Total</b></td><td class=\"t\"><b>{}</b></td><td class=\"t\"><b>{}</b></td></tr></table>",
+        timing::short(total_planned),
+        timing::short(total_now)
+    )
+}
+
+/// Updates the window; `move_previews`: the previews and the notes too (the position changed)
 fn update(move_previews: bool) {
     PRESENTER.with(|p| {
         let mut p = p.borrow_mut();
-        if p.as_ref().is_some_and(|pr| pr.win.closed().unwrap_or(true)) {
-            *p = None;
-            closed();
-        }
         let Some(pr) = p.as_mut() else { return };
-        let Some(doc) = pr.win.document() else { return };
+        if pr.win.as_ref().is_some_and(|w| w.closed().unwrap_or(true)) {
+            pr.win = None;
+        }
+        let now = dom::now();
+        pr.timer.account(now, engine::leaf_index());
+        save(pr, now);
+        let Some(doc) = pr.win.as_ref().and_then(Window::document) else { return };
         let cur = engine::current_slide();
         let (total, shown) = engine::fragment_counts(&cur);
-        let set = |id: &str, html: &str| {
-            if let Some(e) = by_id(&doc, id) {
-                e.set_inner_html(html);
-            }
-        };
-        set("where", &format!("Slide <b>{} / {}</b>", engine::leaf_index() + 1, engine::all_leaves().len()));
-        set("step", &format!("Step <b>{shown} / {total}</b>"));
-        set("notes", &notes_html(&cur));
-        let now = dom::now();
         let leaf = engine::leaf_index();
-        let moved = leaf != pr.at.0;
-        pr.account(now, leaf);
-        // Changing slide resumes the paused timer
-        if moved && let Some(since) = pr.paused.take() {
-            pr.start += now - since;
+        let step = if total > 0 { format!(" · step <b>{shown}/{total}</b>") } else { String::new() };
+        set(&doc, "where", &format!("slide <b>{}/{}</b>{step}", leaf + 1, engine::all_leaves().len()));
+        set(&doc, "elapsed", &timing::clock(pr.timer.elapsed(now)));
+        set(&doc, "play", if pr.timer.running() { "⏸" } else { "▶" });
+        if let Some(dock) = by_id(&doc, "dock") {
+            dom::toggle(&dock, "stopped", !pr.timer.running());
+            dom::toggle(&dock, "rehearsing", pr.timer.rehearsal.is_some());
         }
-        let leaves: Vec<Element> = engine::all_leaves().into_iter().map(|(_, _, l)| l).collect();
-        let delta = pr.delta(&leaves).map_or(String::new(), |d| {
-            let class = if d > 30_000.0 { "late" } else if d < -30_000.0 { "early" } else { "" };
-            format!("<span class=\"delta {class}\" title=\"Delay (+) or lead (−) on the timed durations\">{}</span>", signed(d))
-        });
-        set("timer", &format!("Time <b>{}</b>{delta}", clock(pr.elapsed(now))));
-        pr.save(now);
-        if let Some(ghost) = by_id(&doc, "ghost") {
-            let label = match &pr.record {
-                Some(run) => format!("■ Stop and save ({} slides)", run.left.len()),
-                None => "● Time a rehearsal".into(),
-            };
-            ghost.set_text_content(Some(&label));
-            dom::toggle(&ghost, "rec", pr.record.is_some());
-        }
-        if let Some(t) = by_id(&doc, "timer") {
-            dom::toggle(&t, "paused", pr.paused.is_some());
+        let planned = planned();
+        set(&doc, "delta", &pr.timer.delta(now, &planned).map_or(String::new(), delta_html));
+        if pr.timer.rehearsal.is_some() {
+            set(&doc, "reh-label", if pr.timer.running() { "⏱ Timing a rehearsal" } else { "⏸ Rehearsal paused" });
+            let spent = timing::short(pr.timer.spent_on(now, leaf));
+            let plan = planned.get(leaf).copied().flatten().map_or(String::new(), |d| format!(" / ⏳{}", timing::short(d)));
+            set(&doc, "reh-slide", &format!("this slide {spent}{plan}"));
         }
         let date = js_sys::Date::new_0();
-        set("clock", &format!("<b>{:02}:{:02}</b>", date.get_hours(), date.get_minutes()));
-        set("next-title", if engine::at_end() { "End" } else { "Next" });
+        set(&doc, "clock", &format!("{:02}:{:02}", date.get_hours(), date.get_minutes()));
+        if by_id(&doc, "timing").is_some_and(|t| !t.has_attribute("hidden")) {
+            set(&doc, "timing", &timing_html(pr, now));
+        }
         if move_previews {
+            set(&doc, "notes", &notes_html(&cur));
+            set(&doc, "next-title", if engine::at_end() { "End" } else { "Next" });
             follow_notes(&doc);
             send(&doc, "current", false);
             send(&doc, "upcoming", true);
@@ -305,9 +371,32 @@ fn update(move_previews: bool) {
     });
 }
 
-/// A key in the speaker window: replayed in the presentation
+/// Acts on the presenter, then updates the window
+fn with(change: impl FnOnce(&mut Presenter, f64)) {
+    PRESENTER.with(|p| {
+        if let Some(pr) = p.borrow_mut().as_mut() {
+            let now = dom::now();
+            pr.timer.account(now, engine::leaf_index());
+            change(pr, now);
+        }
+    });
+    update(false);
+}
+
+fn window() -> Option<Window> {
+    PRESENTER.with(|p| p.borrow().as_ref().and_then(|pr| pr.win.clone()))
+}
+
+/// A key in the speaker window: replayed in the presentation, unless a dialog is open
 fn forward_keys(doc: &Document) {
-    dom::on::<KeyboardEvent>(doc, "keydown", |e| {
+    let doc2 = doc.clone();
+    dom::on::<KeyboardEvent>(doc, "keydown", move |e| {
+        if by_id(&doc2, "modal").is_some_and(|m| dom::has(&m, "open")) {
+            if e.key() == "Escape" {
+                close_dialog();
+            }
+            return;
+        }
         let init = KeyboardEventInit::new();
         init.set_key(&e.key());
         init.set_shift_key(e.shift_key());
@@ -319,118 +408,357 @@ fn forward_keys(doc: &Document) {
     });
 }
 
-/// The window: two previews (the presentation with `?receiver`), the notes, the bottom bar
-fn skeleton() -> String {
-    let c = engine::config();
-    let ratio = format!("{} / {}", c.width, c.height);
-    let url = dom::esc(&receiver_url());
-    let ghost = if rehearse() { "<button id=\"ghost\"></button>" } else { "" };
-    format!(
-        "<style>{STYLE}</style><div class=\"pv\">\
-         <div class=\"cur\" style=\"aspect-ratio:{ratio}\"><iframe id=\"current\" src=\"{url}\"></iframe></div>\
-         <div class=\"side\"><div><h1 id=\"next-title\">Next</h1><div class=\"next\" style=\"aspect-ratio:{ratio}\">\
-         <iframe id=\"upcoming\" src=\"{url}&amp;upcoming\"></iframe></div></div>\
-         <h1>Notes</h1><div class=\"notes\" id=\"notes\"></div></div>\
-         <div class=\"bar\"><span id=\"where\"></span><span id=\"step\"></span>\
-         <span id=\"timer\" title=\"Click: pause or resume\"></span><button id=\"edit-time\" title=\"Correct the time\">✎</button><button id=\"reset\">Reset</button>{ghost}\
-         <span class=\"clock\" id=\"clock\"></span></div></div>"
-    )
+// ---------------------------------------------------------------- layout
+
+/// The layout of the view, kept by the browser: width of the left column, height of the next
+/// step (percent), size of the notes (px)
+#[derive(Clone, Copy)]
+struct Layout {
+    left: f64,
+    next: f64,
+    notes: f64,
 }
 
-/// Acts on the timer (the time of the current slide counted first), then updates the window
-fn with_timer(change: impl Fn(&mut Presenter, f64)) {
-    PRESENTER.with(|p| {
-        if let Some(pr) = p.borrow_mut().as_mut() {
-            let now = dom::now();
-            pr.account(now, pr.at.0);
-            change(pr, now);
-        }
+const LAYOUT: Layout = Layout { left: 62.0, next: 38.0, notes: 22.0 };
+
+fn layout() -> Layout {
+    let v: Option<serde_json::Value> = storage().and_then(|s| s.get_item(LAYOUT_KEY).ok().flatten()).and_then(|t| serde_json::from_str(&t).ok());
+    let get = |k: &str, d: f64| v.as_ref().and_then(|v| v[k].as_f64()).unwrap_or(d);
+    Layout { left: get("left", LAYOUT.left), next: get("next", LAYOUT.next), notes: get("notes", LAYOUT.notes) }
+}
+
+fn apply_layout(doc: &Document, l: Layout) {
+    if let Some(pv) = by_id(doc, "pv") {
+        dom::style(&pv, "--left", &format!("{:.1}%", l.left));
+        dom::style(&pv, "--next", &format!("{:.1}%", l.next));
+        dom::style(&pv, "--notes", &format!("{:.0}px", l.notes));
+    }
+    if let Some(s) = storage() {
+        let _ = s.set_item(LAYOUT_KEY, &serde_json::json!({ "left": l.left, "next": l.next, "notes": l.notes }).to_string());
+    }
+}
+
+/// A separator dragged: the left column follows the pointer (`col`), or the next step's height
+fn drag(doc: &Document, id: &str, col: bool) {
+    let Some(split) = by_id(doc, id) else { return };
+    let dragging = std::rc::Rc::new(std::cell::Cell::new(false));
+    let (d1, d2, d3) = (dragging.clone(), dragging.clone(), dragging);
+    let s1 = split.clone();
+    dom::on::<PointerEvent>(&split, "pointerdown", move |e| {
+        d1.set(true);
+        dom::add(&s1, "drag");
+        e.prevent_default();
     });
+    let doc2 = doc.clone();
+    dom::on::<PointerEvent>(doc, "pointermove", move |e| {
+        if !d2.get() {
+            return;
+        }
+        let mut l = layout();
+        if col {
+            let Some(pv) = by_id(&doc2, "pv") else { return };
+            let r = pv.get_bounding_client_rect();
+            l.left = ((e.client_x() as f64 - r.left()) / r.width() * 100.0).clamp(25.0, 80.0);
+        } else {
+            let Some(right) = by_id(&doc2, "right") else { return };
+            let r = right.get_bounding_client_rect();
+            l.next = ((e.client_y() as f64 - r.top()) / r.height() * 100.0).clamp(10.0, 80.0);
+        }
+        apply_layout(&doc2, l);
+    });
+    let s2 = split;
+    dom::on::<PointerEvent>(doc, "pointerup", move |_| {
+        d3.set(false);
+        dom::remove(&s2, "drag");
+    });
+}
+
+// ---------------------------------------------------------------- dialogs
+
+fn dialog(html: &str) {
+    let Some(doc) = window().and_then(|w| w.document()) else { return };
+    set(&doc, "dialog", html);
+    if let Some(m) = by_id(&doc, "modal") {
+        dom::add(&m, "open");
+    }
+}
+
+fn close_dialog() {
+    let Some(doc) = window().and_then(|w| w.document()) else { return };
+    if let Some(m) = by_id(&doc, "modal") {
+        dom::remove(&m, "open");
+    }
+}
+
+fn toast(text: &str) {
+    let Some(doc) = window().and_then(|w| w.document()) else { return };
+    let Some(t) = by_id(&doc, "toast") else { return };
+    t.set_text_content(Some(text));
+    dom::add(&t, "show");
+    dom::timeout(3000.0, move || dom::remove(&t, "show"));
+}
+
+/// Before a rehearsal: what it does, and the markdown to save first
+fn ask_start(from_here: bool) {
+    let what = if from_here {
+        "The timer starts at the time planned for this slide, from its first step."
+    } else {
+        "The presentation goes back to slide 1, the timer to 0."
+    };
+    dialog(&format!(
+        "<h2>{}</h2><p>{what} At the end, you choose for each slide what to keep of its time; it is \
+         written in the markdown, in its title: <code>## Title ⏳95🏃3</code>.</p>\
+         <p class=\"warn\">⚠ Save the markdown first, and do not edit it during the rehearsal.</p>\
+         <div class=\"actions\"><button data-act=\"cancel\">Cancel</button><button class=\"primary\" data-act=\"{}\">● Start</button></div>",
+        if from_here { "↳ Rehearse from here" } else { "● Rehearse from the start" },
+        if from_here { "start-here" } else { "start" }
+    ));
+}
+
+fn start_rehearsal(from_here: bool) {
+    close_dialog();
+    let (h, v, _) = engine::position();
+    let leaf = if from_here { engine::leaf_index() } else { 0 };
+    if from_here {
+        engine::show(h, v, Some(-1), true);
+    } else {
+        engine::show(0, 0, Some(-1), true);
+    }
+    let planned = planned();
+    with(move |pr, now| {
+        let at = if from_here { Timer::planned_before(leaf, &planned) } else { 0.0 };
+        pr.timer.reset(now, leaf, at, true);
+        pr.timer.rehearsal = Some(leaf);
+    });
+    update(true);
+}
+
+/// The slides measured by the rehearsal, with what to keep by default
+fn measured(pr: &Presenter, now: f64) -> Vec<(usize, f64)> {
+    let from = pr.timer.rehearsal.unwrap_or(0);
+    (from..engine::all_leaves().len()).map(|i| (i, pr.timer.spent_on(now, i))).filter(|(_, s)| *s > 0.0).collect()
+}
+
+/// End of a rehearsal: for each slide measured, average, replace or skip
+fn ask_finish() {
+    let Some(html) = PRESENTER.with(|p| {
+        let mut p = p.borrow_mut();
+        let pr = p.as_mut()?;
+        let now = dom::now();
+        pr.timer.stop(now);
+        let rows = measured(pr, now);
+        pr.keep = rows.iter().map(|&(i, s)| (i, if s < GONE_THROUGH { Keep::Skip } else { Keep::Average })).collect();
+        Some(finish_html(pr, now))
+    }) else {
+        return;
+    };
+    dialog(&html);
     update(false);
 }
 
-/// Click on the time: pause or resume; "Reset" starts again from 0
-fn bind_timer(doc: &Document) {
-    if let Some(timer) = by_id(doc, "timer") {
-        dom::on::<web_sys::MouseEvent>(&timer, "click", |_| {
-            with_timer(|pr, now| match pr.paused.take() {
-                Some(since) => pr.start += now - since,
-                None => pr.paused = Some(now),
-            });
+fn finish_html(pr: &Presenter, now: f64) -> String {
+    let leaves = engine::all_leaves();
+    let planned = planned();
+    let rows = measured(pr, now);
+    // the choice of "All": the one of every slide but those only gone through
+    let kept = |k: Keep| rows.iter().filter(|(_, s)| *s >= GONE_THROUGH).all(|(i, _)| pr.keep.get(i) == Some(&k));
+    let all = |k: Keep| {
+        let checked = if kept(k) && (k != Keep::Skip || pr.keep.values().all(|v| *v == Keep::Skip)) { " checked" } else { "" };
+        format!("<label><input type=\"radio\" name=\"all\" data-all=\"{}\"{checked}> {} {}</label>", k.key(), k.name(), k.icon())
+    };
+    let mut html_rows = String::new();
+    for &(i, spent) in &rows {
+        let Some((_, _, leaf)) = leaves.get(i) else { continue };
+        let plan = planned[i].map_or("–".into(), |d| {
+            format!("{}{}", timing::short(d), runs(leaf).map_or(String::new(), |r| format!(" <span class=\"runs\">🏃{r}</span>")))
         });
+        let keep = pr.keep.get(&i).copied().unwrap_or(Keep::Skip);
+        let buttons: String = Keep::ALL
+            .iter()
+            .map(|k| {
+                format!(
+                    "<button data-keep=\"{i}:{}\" class=\"{}\" title=\"{}\">{}</button>",
+                    k.key(),
+                    if *k == keep { "on" } else { "" },
+                    k.name(),
+                    k.icon()
+                )
+            })
+            .collect();
+        let note = if spent < GONE_THROUGH { " <span class=\"runs\">&lt; 2 s</span>" } else { "" };
+        html_rows += &format!(
+            "<tr><td class=\"n\">{}</td><td>{}{note}</td><td class=\"t\">{plan}</td><td class=\"t\">{}</td><td><div class=\"keep\">{buttons}</div></td></tr>",
+            i + 1,
+            dom::esc(&title(leaf, i)),
+            timing::short(spent)
+        );
     }
-    if let Some(reset) = by_id(doc, "reset") {
-        dom::on::<web_sys::MouseEvent>(&reset, "click", |_| {
-            with_timer(|pr, now| {
-                pr.start = now;
-                pr.paused = pr.paused.map(|_| now);
-                pr.run = Run::default();
-                pr.at.1 = 0.0;
-            });
-        });
-    }
-    // ✎: the time corrected by hand (a page reloaded without its timer); the time added counts for
-    // no slide
-    if let Some(edit) = by_id(doc, "edit-time") {
-        dom::on::<web_sys::MouseEvent>(&edit, "click", |_| {
-            let Some((win, shown)) = PRESENTER.with(|p| p.borrow().as_ref().map(|pr| (pr.win.clone(), clock(pr.elapsed(dom::now()))))) else { return };
-            let Ok(Some(answer)) = win.prompt_with_message_and_default("Elapsed time (h:mm:ss, mm:ss or minutes)", &shown) else { return };
-            let Some(t) = parse_time(&answer) else { return };
-            with_timer(move |pr, now| {
-                let old = pr.elapsed(now);
-                pr.start += old - t;
-                pr.at.1 += t - old;
-            });
-        });
-    }
-    if let Some(ghost) = by_id(doc, "ghost") {
-        dom::on::<web_sys::MouseEvent>(&ghost, "click", |_| {
-            with_timer(|pr, _| match pr.record.take() {
-                None => pr.record = Some(Run::default()),
-                Some(run) => send_record(&run),
-            });
-        });
-    }
+    format!(
+        "<h2>■ End of the rehearsal: what to keep?</h2>\
+         <div class=\"all\">All: {} {} {}</div>\
+         <div class=\"scroll\"><table><tr><th>#</th><th>Slide</th><th class=\"t\">⏳ Planned</th><th class=\"t\">This run</th><th>Keep</th></tr>{html_rows}</table></div>\
+         <p>📊 averages this run with the former ones (🏃 + 1), ✏️ replaces them, 🗑️ keeps nothing. Written in the markdown; the presentation does not reload.</p>\
+         <div class=\"actions\"><button data-act=\"back\">Back to the rehearsal</button><button class=\"primary\" data-act=\"save\">Save</button></div>",
+        all(Keep::Average),
+        all(Keep::Replace),
+        all(Keep::Skip)
+    )
 }
 
-/// End of a rehearsal: the time spent on each slide left (2 s at least: not those crossed to go
-/// further), by rank in the markdown, to the server (`glitu serve` receives it through the page,
-/// see `build`)
-fn send_record(run: &Run) {
-    let leaves = engine::all_leaves();
-    let measured = js_sys::Object::new();
-    for i in &run.left {
-        let (Some(&spent), Some((_, _, leaf))) = (run.spent.get(i), leaves.get(*i)) else { continue };
-        let Some(slide) = dom::data(leaf, "slide") else { continue };
-        if spent >= 2000.0 {
-            let entry = js_sys::Array::of2(&(spent / 1000.0).into(), &"average".into());
-            let _ = js_sys::Reflect::set(&measured, &slide.into(), &entry);
+fn refresh_finish() {
+    let Some(html) = PRESENTER.with(|p| p.borrow().as_ref().map(|pr| finish_html(pr, dom::now()))) else { return };
+    dialog(&html);
+}
+
+/// Sends what to keep to the server (`glitu serve` receives it through the page, see `build`)
+fn save_rehearsal() {
+    let Some(entries) = PRESENTER.with(|p| {
+        let p = p.borrow();
+        let pr = p.as_ref()?;
+        let now = dom::now();
+        let leaves = engine::all_leaves();
+        let out = js_sys::Object::new();
+        let mut n = 0;
+        for (i, spent) in measured(pr, now) {
+            let keep = pr.keep.get(&i).copied().unwrap_or(Keep::Skip);
+            let Some(slide) = leaves.get(i).and_then(|(_, _, l)| dom::data(l, "slide")) else { continue };
+            if keep != Keep::Skip {
+                let entry = js_sys::Array::of2(&(spent / 1000.0).into(), &keep.key().into());
+                let _ = js_sys::Reflect::set(&out, &slide.into(), &entry);
+                n += 1;
+            }
         }
-    }
+        Some((out, n))
+    }) else {
+        return;
+    };
+    let (out, n) = entries;
     let win = dom::window();
-    if let Ok(json) = js_sys::JSON::stringify(&measured) {
+    if let Ok(json) = js_sys::JSON::stringify(&out) {
         let _ = js_sys::Reflect::set(&win, &"glituChrono".into(), &json);
     }
     if let Ok(ev) = web_sys::Event::new("glitu:chrono") {
         let _ = win.dispatch_event(&ev);
     }
+    end_rehearsal();
+    toast(&format!("Saved: {n} slide{} timed in the markdown", if n == 1 { "" } else { "s" }));
 }
 
-fn is_open() -> bool {
-    PRESENTER.with(|p| p.borrow().as_ref().is_some_and(|pr| !pr.win.closed().unwrap_or(true)))
+fn end_rehearsal() {
+    close_dialog();
+    with(|pr, _| {
+        pr.timer.rehearsal = None;
+        pr.keep.clear();
+    });
+}
+
+// ---------------------------------------------------------------- the window
+
+/// The clicks of the window: timer, menu, rehearsal, dialogs, tabs, size of the notes
+fn bind(doc: &Document) {
+    let doc2 = doc.clone();
+    dom::on::<MouseEvent>(doc, "click", move |e| {
+        let Some(target) = e.target().map(JsCast::unchecked_into::<Element>) else { return };
+        let menu = by_id(&doc2, "menu");
+        // the menu closes on any click but its own button
+        if let Some(m) = &menu {
+            let on_button = target.closest("#menu-btn").ok().flatten().is_some();
+            dom::toggle(m, "open", on_button && !dom::has(m, "open"));
+        }
+        if target.closest("#play").ok().flatten().is_some() {
+            with(|pr, now| if pr.timer.running() { pr.timer.stop(now) } else { pr.timer.start(now) });
+        }
+        if let Some(b) = target.closest("[data-tab]").ok().flatten() {
+            let tab = dom::data(&b, "tab").unwrap_or_default();
+            for t in ["notes", "timing"] {
+                if let Some(pane) = by_id(&doc2, t) {
+                    let _ = if t == tab { pane.remove_attribute("hidden") } else { pane.set_attribute("hidden", "") };
+                }
+            }
+            for other in doc2.query_selector_all("[data-tab]").ok().into_iter().flat_map(|l| (0..l.length()).filter_map(move |i| l.item(i))) {
+                let other: Element = other.unchecked_into();
+                dom::toggle(&other, "on", dom::data(&other, "tab").as_deref() == Some(tab.as_str()));
+            }
+            update(true);
+        }
+        if let Some(b) = target.closest("[data-keep]").ok().flatten() {
+            let spec = dom::data(&b, "keep").unwrap_or_default();
+            if let Some((i, k)) = spec.split_once(':') {
+                let keep = Keep::ALL.into_iter().find(|x| x.key() == k).unwrap_or(Keep::Skip);
+                let i: usize = i.parse().unwrap_or(usize::MAX);
+                PRESENTER.with(|p| {
+                    if let Some(pr) = p.borrow_mut().as_mut() {
+                        pr.keep.insert(i, keep);
+                    }
+                });
+                refresh_finish();
+            }
+        }
+        if let Some(b) = target.closest("[data-all]").ok().flatten() {
+            let k = dom::data(&b, "all").unwrap_or_default();
+            let keep = Keep::ALL.into_iter().find(|x| x.key() == k).unwrap_or(Keep::Average);
+            PRESENTER.with(|p| {
+                if let Some(pr) = p.borrow_mut().as_mut() {
+                    pr.keep.values_mut().for_each(|v| *v = keep);
+                }
+            });
+            refresh_finish();
+        }
+        let Some(act) = target.closest("[data-act]").ok().flatten().and_then(|b| dom::data(&b, "act")) else { return };
+        match act.as_str() {
+            "from-start" => ask_start(false),
+            "from-here" => ask_start(true),
+            "start" => start_rehearsal(false),
+            "start-here" => start_rehearsal(true),
+            "cancel" => close_dialog(),
+            "reset" => with(|pr, now| {
+                let running = pr.timer.running();
+                pr.timer.reset(now, engine::leaf_index(), 0.0, running);
+                pr.timer.rehearsal = None;
+            }),
+            "layout" => apply_layout(&doc2, LAYOUT),
+            "smaller" | "larger" => {
+                let mut l = layout();
+                l.notes = (l.notes + if act == "larger" { 2.0 } else { -2.0 }).clamp(12.0, 48.0);
+                apply_layout(&doc2, l);
+            }
+            "restart" => {
+                let (h, v, _) = engine::position();
+                with(|pr, now| pr.timer.restart_slide(now));
+                engine::show(h, v, Some(-1), true);
+            }
+            "finish" => ask_finish(),
+            "back" => {
+                close_dialog();
+                with(|pr, now| pr.timer.start(now));
+            }
+            "save" => save_rehearsal(),
+            "discard" => dialog(
+                "<h2>✕ Discard this rehearsal?</h2><p>Nothing is written; the timer goes on.</p>\
+                 <div class=\"actions\"><button data-act=\"cancel\">Cancel</button><button class=\"primary\" data-act=\"discarded\">Discard</button></div>",
+            ),
+            "discarded" => end_rehearsal(),
+            _ => {}
+        }
+        // a button keeps no focus: Space and the arrows go to the presentation
+        if let Some(b) = target.closest("button").ok().flatten() {
+            let _ = dom::html(&b).blur();
+        }
+    });
 }
 
 fn open() {
-    if is_open() {
-        PRESENTER.with(|p| p.borrow().as_ref().map(|pr| pr.win.focus()));
+    if let Some(w) = window().filter(|w| !w.closed().unwrap_or(true)) {
+        let _ = w.focus();
         return;
     }
-    let Ok(Some(win)) = dom::window().open_with_url_and_target_and_features("", "glitu-notes", "width=1280,height=760") else { return };
+    let Ok(Some(win)) = dom::window().open_with_url_and_target_and_features("", "glitu-notes", "width=1280,height=800") else { return };
     let Some(doc) = win.document() else { return };
     doc.set_title("Speaker view");
     if let Some(body) = doc.body() {
         body.set_inner_html(&skeleton());
     }
+    apply_layout(&doc, layout());
     // A ready preview receives the current position
     dom::on::<web_sys::MessageEvent>(&win, "message", |e| {
         let ready = js_sys::Reflect::get(&e.data(), &"glitu".into()).ok().and_then(|v| v.as_string());
@@ -438,36 +766,49 @@ fn open() {
             update(true);
         }
     });
-    bind_timer(&doc);
+    bind(&doc);
     forward_keys(&doc);
-    let now = dom::now();
-    let pr = Presenter::restore(win.clone(), now).unwrap_or_else(|| Presenter::new(win, now));
-    PRESENTER.with(|p| *p.borrow_mut() = Some(pr));
+    drag(&doc, "split", true);
+    drag(&doc, "hsplit", false);
+    PRESENTER.with(|p| {
+        let mut p = p.borrow_mut();
+        match p.as_mut() {
+            Some(pr) => pr.win = Some(win),
+            None => *p = Some(Presenter { win: Some(win), timer: Timer::new(engine::leaf_index()), keep: BTreeMap::new() }),
+        }
+    });
     update(true);
-    tick();
 }
 
-/// The time and the timer move on even without a change of slide
+/// The time moves on even without a change of slide
 fn tick() {
-    if is_open() {
-        update(false);
-        dom::timeout(1000.0, tick);
-    }
+    update(false);
+    dom::timeout(1000.0, tick);
 }
 
 pub fn install() {
     if engine::receiver() {
         return;
     }
+    // The timer kept before a reload, whether the view was open or not
+    let kept = saved();
+    let now = dom::now();
+    let away = kept.as_ref().and_then(|v| v["saved"].as_f64()).map_or(0.0, |s| js_sys::Date::now() - s);
+    if let Some(timer) = kept.as_ref().and_then(|v| Timer::from_json(&v["timer"], now, away)) {
+        PRESENTER.with(|p| *p.borrow_mut() = Some(Presenter { win: None, timer, keep: BTreeMap::new() }));
+    }
+    let reopen = kept.is_some_and(|v| v["open"] == true);
     engine::on_key("s", open);
-    engine::on(|ev| {
-        // Page reloaded while the view was open (in ghost mode, after the durations were written): it
-        // reopens, with its timer
-        if matches!(ev, Ev::Ready) && saved().is_some_and(|v| v["open"] == true) {
+    // The new timings written by the server: the planned durations of the page change in place
+    dom::on::<web_sys::Event>(&dom::window(), "glitu:timings", |_| update(false));
+    engine::on(move |ev| {
+        // Page reloaded while the view was open: it reopens (the same window), with its timer
+        if matches!(ev, Ev::Ready) && reopen {
             open();
         }
         if !matches!(ev, Ev::Resize) {
             update(true);
         }
     });
+    tick();
 }
