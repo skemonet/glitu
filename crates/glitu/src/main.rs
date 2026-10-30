@@ -51,8 +51,9 @@ fn run(command: Command, say: &Say) -> Result<bool, String> {
         Command::Init { dir, theme, css } => init(&dir, &theme, css, say)?,
         Command::Build { slides, assets, out } => build(&Project::new(&slides), assets, &out, say)?,
         Command::Serve { slides, port, allow } => serve::serve(Project::new(&slides), port, allow)?,
-        Command::Export { slides, out, options } => {
-            let n = glitu::export::export(&Project::new(&slides), &out, &options)?;
+        Command::Export { slides, out, options, download_browser, yes } => {
+            let browser = glitu::chromium::browser(download_browser, yes)?;
+            let n = glitu::export::export(&Project::new(&slides), &out, &options, &browser)?;
             say.line(format_args!("{}: {n} {}", out.display(), options.format.unit()));
         }
         Command::Site { slides, out } => {

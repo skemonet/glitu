@@ -14,7 +14,7 @@ use crate::raster;
 /// Goes through the presentation click by click; writes NN_<slide>-<click>.png and index.json
 pub fn capture(url: &str, out: &Path) -> Result<Vec<String>, String> {
     clear_captures(out)?;
-    let mut b = Browser::launch(9343 + (std::process::id() % 200) as u16, 1280, 720, 1.0)?;
+    let mut b = Browser::launch(&crate::chromium::browser(false, false)?, 9343 + (std::process::id() % 200) as u16, 1280, 720, 1.0)?;
     let base = url.split('#').next().unwrap_or(url);
     b.send("Page.navigate", json!({ "url": format!("{base}#/0") }))?;
     sleep(Duration::from_millis(2500));

@@ -1,9 +1,10 @@
 # The glitu website on GitHub Pages: the home page (site/) and the demo as one standalone page.
-# Every push builds the site; only main publishes it.
+# A push on main builds and publishes it (or a manual run).
 name: Website
 
 on:
   push:
+    branches: [main]
   workflow_dispatch:
 
 permissions:

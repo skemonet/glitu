@@ -136,7 +136,7 @@ impl Drop for TempPage {
 }
 
 /// Exports the presentation; returns the number of slides (pages, images) written
-pub fn export(project: &Project, dest: &Path, opts: &Options) -> Result<usize, String> {
+pub fn export(project: &Project, dest: &Path, opts: &Options, browser: &Path) -> Result<usize, String> {
     let header = glitu_core::header(&project.source()?);
     let config = project.theme(&header.theme)?.config;
     let size = |key, default| config[key].as_u64().map_or(default, |v| v as u32);
@@ -145,7 +145,7 @@ pub fn export(project: &Project, dest: &Path, opts: &Options) -> Result<usize, S
 
     let page = TempPage::write(project)?;
     let url = page.url()?;
-    let mut b = Browser::launch(9543 + (std::process::id() % 200) as u16, width, height, PIXELS / f64::from(width))?;
+    let mut b = Browser::launch(browser, 9543 + (std::process::id() % 200) as u16, width, height, PIXELS / f64::from(width))?;
     if opts.format == Format::Pdf && !opts.clicks {
         let (pdf, n) = print(&mut b, &url, opts)?;
         build::write_file(dest, &pdf)?;

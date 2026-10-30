@@ -6,7 +6,7 @@
 use std::fs;
 use std::io::{BufRead, BufReader, Read, Write};
 use std::net::TcpStream;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::thread::sleep;
 use std::time::Duration;
@@ -27,11 +27,11 @@ pub struct Browser {
 }
 
 impl Browser {
-    /// Headless Chromium, a window of `width` × `height` CSS px, `scale` screen pixels per px
-    pub fn launch(port: u16, width: u32, height: u32, scale: f64) -> Result<Self, String> {
-        let bin = std::env::var("CHROMIUM").unwrap_or_else(|_| "chromium".into());
+    /// The browser `bin` (see `chromium`), headless, a window of `width` × `height` CSS px,
+    /// `scale` screen pixels per px
+    pub fn launch(bin: &Path, port: u16, width: u32, height: u32, scale: f64) -> Result<Self, String> {
         let profile = std::env::temp_dir().join(format!("glitu-browser-{}-{port}", std::process::id()));
-        let child = Command::new(&bin)
+        let child = Command::new(bin)
             .args(["--headless", "--no-sandbox", "--disable-gpu", "--hide-scrollbars"])
             .arg(format!("--remote-debugging-port={port}"))
             .arg(format!("--user-data-dir={}", profile.display()))
@@ -39,7 +39,7 @@ impl Browser {
             .stdout(Stdio::null())
             .stderr(Stdio::null())
             .spawn()
-            .map_err(|e| format!("{bin}: {e} (set CHROMIUM to use another browser)"))?;
+            .map_err(|e| format!("{}: {e} (set CHROMIUM to use another browser)", bin.display()))?;
         let url = debugger_url(port).ok_or("the browser does not answer")?;
         let (ws, _) = tungstenite::connect(url.as_str()).map_err(|e| e.to_string())?;
         let mut b = Browser { child, ws, id: 0, profile };

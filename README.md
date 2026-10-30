@@ -29,10 +29,11 @@ Cargo.
 curl -fsSL https://raw.githubusercontent.com/skemonet/glitu/main/tools/install.sh | sh            # latest release into ~/.local/bin, SHA-256 checked
 ```
 
-Or take a binary from the [releases](https://github.com/skemonet/glitu/releases): `glitu-linux-x86_64`,
-`glitu-linux-arm64`, `glitu-macos-arm64`, `glitu-windows-x86_64.exe` (the latest one is always at
-`https://github.com/skemonet/glitu/releases/latest/download/<file>`), or build it from source as
-above. `glitu export` also needs Chromium.
+Or take the binary from the [releases](https://github.com/skemonet/glitu/releases): for now only
+`glitu-linux-x86_64`, static (the latest one is always at
+`https://github.com/skemonet/glitu/releases/latest/download/glitu-linux-x86_64`); on other
+platforms, build it from source as above. `glitu export` also needs a Chromium-based browser: the one installed is found, otherwise
+`--download-browser` fetches one (see "Export").
 
 ```bash
 glitu init talk                 # a sample presentation: talk/slides.md
@@ -43,13 +44,20 @@ glitu build talk/slides.md      # presentation.html: one page, opens anywhere wi
 glitu --help                    # the commands; glitu <command> --help: their options
 ```
 
+## Writing with Claude
+
+`skills/glitu-presentation/` is a skill for Claude Code (and other agents that read skills): it
+teaches the deck syntax, skemo diagrams and the workflow (outline, write, `glitu build` to check,
+`glitu serve` to preview). Copy the folder into `~/.claude/skills/` (or `.claude/skills/` of a
+project), then ask for a presentation.
+
 ## Releases
 
 The version is the workspace's, in `Cargo.toml` (`0.1.1-rc.3`: a hyphen gives a pre-release). A push
-on `main` whose version has no release yet runs the pipeline (`tools/ci.sh`: lints, tests, smoke
-test of the binary, the same locally and in the CI); when it passes,
-`.github/workflows/release.yml` builds the binary for each platform and publishes the GitHub
-release `v<version>`, tag included, with the SHA-256 of each binary. To release: raise the version
+on `main` whose version has no release yet makes `.github/workflows/release.yml` build the Linux
+x86_64 binary (static, musl) and publish the GitHub release `v<version>`, tag included, with its
+SHA-256. To keep the Actions minutes low, the workflow runs no tests: run `tools/ci.sh` (lints,
+tests, smoke test of the binary) before merging. To release: raise the version
 in `Cargo.toml` and merge. Pushing a `vX.Y.Z` tag matching `Cargo.toml` does the same.
 
 **License:** dual-licensed under [MIT](LICENSE-MIT) or [Apache-2.0](LICENSE-APACHE), at your option.
@@ -241,17 +249,28 @@ scroll the page.
 
 ```sh
 glitu export [slides.md] [-o presentation.pptx | x.pdf | folder] [--format site|pptx|pdf|png]
-             [--range 1-3,5] [--clicks] [--images]
+             [--range 1-3,5] [--clicks] [--images] [--download-browser [-y]]
 ```
 
 `--format site` writes a **static website** (default `dist/`): `index.html`, the engine, the
 theme and the resources, to serve with any web server; no browser needed. A folder as output
 asks for `--format site` or `--format png`.
 
-For the other formats, Chromium (headless; the `CHROMIUM` variable for another one) replays the
-presentation. Each slide
-is taken once all its steps have passed, or at each click with `--clicks`; `--range` keeps some
-slides (numbers in reading order).
+For the other formats, a Chromium-based browser, without a window, replays the presentation. Each
+slide is taken once all its steps have passed, or at each click with `--clicks`; `--range` keeps
+some slides (numbers in reading order).
+
+**The browser** is, in this order: the one given by the `CHROMIUM` variable (a path, or a name in
+the PATH); Chrome's headless shell, if glitu downloaded it; a browser installed on the machine —
+Chrome, Chromium, Edge, Brave or Vivaldi, in the PATH then in their usual places (`/Applications`
+on macOS, `Program Files` on Windows). Without any, the export stops and says what to do.
+`--download-browser` then downloads Chrome's headless shell (Google's "Chrome for Testing" build,
+a Chrome without a window, made for automation; about 100 MB, once): glitu first says what it
+will download and where, and asks for a confirmation (`-y` accepts it without a question, for
+scripts and CI). The archive is checked against the SHA-256 written in glitu, then unpacked into
+`~/.cache/glitu/browser/` (`GLITU_BROWSER_DIR` chooses another folder); the next exports reuse
+it. Deleting the folder removes it. Firefox is not supported: it no longer speaks the DevTools
+protocol.
 
 - **PowerPoint**: each element becomes an **editable** PowerPoint object — text boxes (fonts,
   colours, bold, links, bullets, original line breaks), shapes (backdrops, gradients, borders,
@@ -260,7 +279,7 @@ slides (numbers in reading order).
   rotated or clipped by a frame) stay images. The notes go to the notes page. The theme's fonts
   (Lato, Inter, JetBrains Mono for "crystal") must be installed where the file is opened.
   `--images` falls back to one capture per slide (faithful, not editable).
-- **PDF**: the page printed by Chromium, as vectors (selectable text); with `--clicks`, one page
+- **PDF**: the page printed by the browser, as vectors (selectable text); with `--clicks`, one page
   per click (captures) and an outline of the slide titles.
 - **PNG** (`--format png`): `NN.png` per slide (`NN-c.png` per click with `--clicks`) in the
   given folder (default `presentation/`).

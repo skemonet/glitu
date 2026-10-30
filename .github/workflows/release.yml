@@ -1,6 +1,7 @@
 name: Release
-# Publishes a GitHub release of the `glitu` binary, built for every platform: one asset per
-# platform, the binary itself, and the SHA-256 of each in the release's description. The version
+# Publishes a GitHub release of the `glitu` binary. For now a single platform, Linux x86_64 (a
+# static musl binary), to keep the Actions minutes low; no tests here: run `tools/ci.sh` before
+# merging. The asset is the binary itself, its SHA-256 in the release's description. The version
 # is the workspace's (Cargo.toml): the binary prints it, and `--assets <url>` pages aim at that version of
 # the engine. A version containing a hyphen (0.1.1-rc.1…) gives a pre-release.
 #
@@ -14,8 +15,6 @@ on:
     branches: [main]
     tags: ["v*"]
 
-# The pipeline (ci.yml: the same checks as locally with `tools/ci.sh`) must succeed before
-# anything is built: a version that does not pass publishes nothing.
 permissions:
   contents: read
 
@@ -51,76 +50,38 @@ jobs:
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
           echo "release=$release" >> "$GITHUB_OUTPUT"
 
-  ci:
+  build:
     needs: version
     if: needs.version.outputs.release == 'true'
-    uses: ./.github/workflows/ci.yml
-
-  build:
-    needs: [version, ci]
-    if: needs.version.outputs.release == 'true'
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          # asset: the file name in the release, the same from one version to the next (the release
-          # carries the version), so that releases/latest/download/<asset> is a stable link
-          - { target: x86_64-unknown-linux-musl, os: ubuntu-latest, musl: true, asset: glitu-linux-x86_64 }
-          - { target: aarch64-unknown-linux-musl, os: ubuntu-24.04-arm, musl: true, asset: glitu-linux-arm64 }
-          - { target: aarch64-apple-darwin, os: macos-latest, asset: glitu-macos-arm64 }
-          - { target: x86_64-pc-windows-msvc, os: windows-latest, asset: glitu-windows-x86_64.exe }
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: { persist-credentials: false }
       # wasm32: the web engine, compiled by build.rs and embedded in the binary
       - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
         with:
-          targets: ${{ matrix.target }}, wasm32-unknown-unknown
+          targets: x86_64-unknown-linux-musl, wasm32-unknown-unknown
       # psm (pest's growable stack, through skemo's layout library) assembles native code
-      - if: matrix.musl
-        run: sudo apt-get update && sudo apt-get install -y musl-tools
-      - run: cargo build --release --locked -p glitu --target ${{ matrix.target }}
-      - name: Binary
-        shell: bash
-        run: |
-          exe=glitu; [ "${{ runner.os }}" = Windows ] && exe=glitu.exe
-          mkdir -p dist
-          cp "target/${{ matrix.target }}/release/$exe" "dist/${{ matrix.asset }}"
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: glitu-${{ matrix.target }}
-          path: dist/*
-
-  publish:
-    needs: [version, build]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with: { path: dist, merge-multiple: true }
+      - run: sudo apt-get update && sudo apt-get install -y musl-tools
+      - run: cargo build --release --locked -p glitu --target x86_64-unknown-linux-musl
       - name: Release GitHub
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ needs.version.outputs.tag }}
         run: |
+          mkdir -p dist
+          cp target/x86_64-unknown-linux-musl/release/glitu dist/glitu-linux-x86_64
           pre=""; case "$TAG" in *-*) pre="--prerelease";; esac
-          # the description: what to download, and the SHA-256 of each binary, one line each
+          # the description: what to download, and the SHA-256 of the binary on one line
           {
-            echo "One binary per platform: download it, make it executable, run it."
+            echo "For now, one binary: Linux, Intel or AMD (\`glitu-linux-x86_64\`, static). Download it, make it executable, run it."
             echo
-            echo "| Your machine | File |"
-            echo "|---|---|"
-            echo "| Linux, Intel or AMD | \`glitu-linux-x86_64\` |"
-            echo "| Linux, ARM (Raspberry Pi 4/5, Graviton…) | \`glitu-linux-arm64\` |"
-            echo "| Mac with Apple silicon (M1 and later) | \`glitu-macos-arm64\` |"
-            echo "| Windows, Intel or AMD | \`glitu-windows-x86_64.exe\` |"
+            echo "In one line: \`curl -fsSL https://raw.githubusercontent.com/skemonet/glitu/main/tools/install.sh | sh\`"
             echo
-            echo "Linux and macOS in one line: \`curl -fsSL https://raw.githubusercontent.com/skemonet/glitu/main/tools/install.sh | sh\`"
-            echo
-            echo "Check it against its line below (\`sha256sum -c\`, or \`shasum -a 256 -c\` on macOS)."
-            echo "Start with \`glitu init talk && glitu serve talk/slides.md\`; \`glitu export\` needs Chromium."
+            echo "Check it against its line below (\`sha256sum -c\`)."
+            echo "Start with \`glitu init talk && glitu serve talk/slides.md\`."
             echo
             echo '```'
             (cd dist && sha256sum glitu-*)

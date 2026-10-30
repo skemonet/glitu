@@ -14,6 +14,8 @@ tungstenite = { version = "0.30", default-features = false, features = ["handsha
 png = "0.17"
 base64 = "0.22"
 serde_json = "1"
+# inflates the archive of the headless browser (--download-browser)
+miniz_oxide = "0.8"
 
 [features]
 # `glitu oracle`: the rendering oracle of the engine's tests, for development only (not in the

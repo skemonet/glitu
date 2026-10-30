@@ -56,7 +56,7 @@ pub enum Cmd {
     /// Build the presentation: one page, everything inside (engine, theme, fonts, images)
     Build(BuildArgs),
     /// Export to a static website, an editable PowerPoint, a PDF or PNG images (all but the
-    /// website need Chromium: `CHROMIUM`)
+    /// website need a Chromium-based browser: found on the machine, CHROMIUM, or --download-browser)
     Export(ExportArgs),
     /// Get the markdown back out of a built page, to edit the presentation
     Unpack {
@@ -115,6 +115,13 @@ pub struct ExportArgs {
     /// PowerPoint made of screenshots (faithful, not editable)
     #[arg(long)]
     images: bool,
+    /// Without a Chromium-based browser on this machine: download Chrome's headless shell (once,
+    /// about 100 MB, into GLITU_BROWSER_DIR or ~/.cache/glitu/browser), after a confirmation
+    #[arg(long)]
+    download_browser: bool,
+    /// Accept the download without a question (scripts, CI)
+    #[arg(short, long, requires = "download_browser")]
+    yes: bool,
 }
 
 #[derive(Clone, Copy, ValueEnum)]
@@ -161,7 +168,8 @@ pub enum Command {
     Init { dir: PathBuf, theme: String, css: bool },
     Build { slides: PathBuf, assets: Assets, out: PathBuf },
     Serve { slides: PathBuf, port: u16, allow: Vec<Range> },
-    Export { slides: PathBuf, out: PathBuf, options: export::Options },
+    /// `download_browser`, `yes`: see `chromium::browser`
+    Export { slides: PathBuf, out: PathBuf, options: export::Options, download_browser: bool, yes: bool },
     /// `export --format site`: the static website, without a browser
     Site { slides: PathBuf, out: PathBuf },
     Unpack { page: String, out: PathBuf, force: bool },
@@ -223,7 +231,7 @@ fn export_command(e: ExportArgs) -> Result<Command, clap::Error> {
     let range = e.range.as_deref().map(export::parse_range).transpose().map_err(invalid)?.unwrap_or_default();
     let out = e.output.unwrap_or_else(|| format.default_output());
     let options = export::Options { format, clicks: e.clicks, images: e.images, range };
-    Ok(Command::Export { slides: e.file, out, options })
+    Ok(Command::Export { slides: e.file, out, options, download_browser: e.download_browser, yes: e.yes })
 }
 
 /// A value clap accepted but glitu cannot use
@@ -299,6 +307,8 @@ mod tests {
         assert_eq!(cmd("export --format site -o www").unwrap(), Command::Site { slides: "slides.md".into(), out: "www".into() });
         let Command::Export { options, .. } = cmd("export --clicks --images --range 2-3").unwrap() else { panic!() };
         assert!(options.clicks && options.images && options.range == [(2, 3)]);
+        assert!(matches!(cmd("export --download-browser -y").unwrap(), Command::Export { download_browser: true, yes: true, .. }));
+        assert!(cmd("export -y").is_err());
     }
 
     #[test]

@@ -1,9 +1,10 @@
 //! glitu: presentations written in markdown. The library serves the `glitu` binary and any tool
 //! that wants to share its build and its embedded engine (a website that publishes the engine and
-//! the themes for `glitu build --web` pages, for instance).
+//! the themes for `glitu build --assets <url>` pages, for instance).
 
 pub mod browser;
 pub mod build;
+pub mod chromium;
 pub mod chrono;
 pub mod cli;
 pub mod export;
