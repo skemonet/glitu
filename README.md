@@ -29,10 +29,10 @@ Cargo.
 curl -fsSL https://raw.githubusercontent.com/skemonet/glitu/main/tools/install.sh | sh            # latest release into ~/.local/bin, SHA-256 checked
 ```
 
-Or take a binary from the [releases](https://github.com/skemonet/glitu/releases): `glitu-linux-x86_64`,
-`glitu-linux-arm64`, `glitu-macos-arm64`, `glitu-windows-x86_64.exe` (the latest one is always at
-`https://github.com/skemonet/glitu/releases/latest/download/<file>`), or build it from source as
-above. `glitu export` also needs a Chromium-based browser: the one installed is found, otherwise
+Or take the binary from the [releases](https://github.com/skemonet/glitu/releases): for now only
+`glitu-linux-x86_64`, static (the latest one is always at
+`https://github.com/skemonet/glitu/releases/latest/download/glitu-linux-x86_64`); on other
+platforms, build it from source as above. `glitu export` also needs a Chromium-based browser: the one installed is found, otherwise
 `--download-browser` fetches one (see "Export").
 
 ```bash
@@ -54,10 +54,10 @@ project), then ask for a presentation.
 ## Releases
 
 The version is the workspace's, in `Cargo.toml` (`0.1.1-rc.3`: a hyphen gives a pre-release). A push
-on `main` whose version has no release yet runs the pipeline (`tools/ci.sh`: lints, tests, smoke
-test of the binary, the same locally and in the CI); when it passes,
-`.github/workflows/release.yml` builds the binary for each platform and publishes the GitHub
-release `v<version>`, tag included, with the SHA-256 of each binary. To release: raise the version
+on `main` whose version has no release yet makes `.github/workflows/release.yml` build the Linux
+x86_64 binary (static, musl) and publish the GitHub release `v<version>`, tag included, with its
+SHA-256. To keep the Actions minutes low, the workflow runs no tests: run `tools/ci.sh` (lints,
+tests, smoke test of the binary) before merging. To release: raise the version
 in `Cargo.toml` and merge. Pushing a `vX.Y.Z` tag matching `Cargo.toml` does the same.
 
 **License:** dual-licensed under [MIT](LICENSE-MIT) or [Apache-2.0](LICENSE-APACHE), at your option.
