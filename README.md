@@ -23,6 +23,24 @@ target/release/glitu serve tests/features/slides.md    # http://localhost:8000
 Diagrams are drawn by [skemo](https://github.com/skemonet/skemo), a git dependency fetched by
 Cargo.
 
+## Install
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/skemonet/glitu/main/tools/install.sh | sh            # latest release into ~/.local/bin, SHA-256 checked
+```
+
+Or take a binary from the [releases](https://github.com/skemonet/glitu/releases): `glitu-linux-x86_64`,
+`glitu-linux-arm64`, `glitu-macos-arm64`, `glitu-windows-x86_64.exe` (the latest one is always at
+`https://github.com/skemonet/glitu/releases/latest/download/<file>`), or build it from source as
+above. `glitu export` and `glitu oracle` also need Chromium.
+
+## Releases
+
+A `vX.Y.Z` tag (`-rc.N` for a pre-release) matching the version of `Cargo.toml` runs the pipeline
+(`tools/ci.sh`: lints, tests, smoke test of the binary, the same locally and in the CI); when it
+passes, `.github/workflows/release.yml` builds the binary for each platform and publishes a GitHub
+release with the SHA-256 of each one.
+
 **License:** dual-licensed under [MIT](LICENSE-MIT) or [Apache-2.0](LICENSE-APACHE), at your option.
 
 ## Overview
@@ -376,6 +394,7 @@ site/                      the website glitu.net: home page and its images (buil
 tests/features/            the demo: glitu presented with glitu, then every syntax
 tests/oracle/              reference captures of tests/features (crystal theme)
 tests/reveal-md/           markdown examples of reveal.js and reveal-md, reference rendering
-tools/                     asciicast.py and build_cast.py (terminal recordings), site.sh
+tools/                     ci.sh (the pipeline), install.sh, site.sh, asciicast.py and
+                           build_cast.py (terminal recordings)
 docs/architecture/         the architecture diagram (skemo source and its image)
 ```

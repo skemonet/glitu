@@ -41,7 +41,9 @@ Work started on 2026-10-29 and interrupted; this is what remains.
 - [ ] Coverage: measured with `cargo llvm-cov` (61 % outside `glitu-web` before the work); add a
       `tools/coverage.min` gate. `glitu-web` runs in the browser: extract its pure logic to test it
       natively; it is covered end to end by the visual oracles.
-- [ ] CI: `tools/ci.sh` (fmt, clippy -D warnings, tests, doc, coverage, cargo-deny, no `unsafe`,
+- [x] CI and releases: `tools/ci.sh` (clippy -D warnings, tests, smoke test), `ci.yml`,
+      `release.yml` (binaries per platform on a `vX.Y.Z` tag), `tools/install.sh`.
+- [ ] CI, the rest: fmt, doc, coverage, cargo-deny, no `unsafe`,
       secret scan) and a hardened GitHub workflow calling it; `deny.toml`; dependabot.
 - [ ] Update dependencies (`png` 0.17, `tungstenite`, `wasm-bindgen` pinned at 0.2.129…).
 
