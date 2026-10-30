@@ -44,6 +44,13 @@ glitu build talk/slides.md      # presentation.html: one page, opens anywhere wi
 glitu --help                    # the commands; glitu <command> --help: their options
 ```
 
+## Writing with Claude
+
+`skills/glitu-presentation/` is a skill for Claude Code (and other agents that read skills): it
+teaches the deck syntax, skemo diagrams and the workflow (outline, write, `glitu build` to check,
+`glitu serve` to preview). Copy the folder into `~/.claude/skills/` (or `.claude/skills/` of a
+project), then ask for a presentation.
+
 ## Releases
 
 The version is the workspace's, in `Cargo.toml` (`0.1.1-rc.3`: a hyphen gives a pre-release). A push
