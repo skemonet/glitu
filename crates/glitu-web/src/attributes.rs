@@ -1,12 +1,12 @@
-//! Attributs écrits en commentaire dans le markdown, règle du plugin markdown de reveal.js :
+//! Attributes written in comments in the markdown, rule of reveal.js's markdown plugin:
 //!
 //! ```text
-//!   <!-- .element: class="fragment" data-fragment-index="2" -->   sur l'élément frère qui
-//!                                                                 précède, sinon le parent
-//!   <!-- .slide: data-background="#000" -->                       sur la slide
+//!   <!-- .element: class="fragment" data-fragment-index="2" -->   on the previous sibling
+//!                                                                 element, otherwise the parent
+//!   <!-- .slide: data-background="#000" -->                       on the slide
 //! ```
 //!
-//! Les commentaires sont lus dans le DOM de chaque slide, avant tout le reste.
+//! The comments are read in the DOM of each slide, before everything else.
 
 use wasm_bindgen::JsCast;
 use web_sys::{Element, Node};
@@ -14,7 +14,7 @@ use web_sys::{Element, Node};
 const ELEMENT: u16 = 1;
 const COMMENT: u16 = 8;
 
-/// `key="valeur"` ou `data-x` seul
+/// `key="value"` or `data-x` alone
 fn pairs(spec: &str) -> Vec<(String, String)> {
     let mut out = Vec::new();
     let mut rest = spec;
@@ -39,7 +39,7 @@ fn pairs(spec: &str) -> Vec<(String, String)> {
     out
 }
 
-/// Retire le marqueur du commentaire et pose ses attributs sur `target` ; false s'il est absent
+/// Removes the marker from the comment and sets its attributes on `target`; false if it is absent
 fn apply_marker(comment: &Node, target: &Element, marker: &str) -> bool {
     let value = comment.node_value().unwrap_or_default();
     let Some(at) = value.find(marker) else { return false };

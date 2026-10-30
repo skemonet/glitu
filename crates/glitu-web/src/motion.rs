@@ -1,17 +1,17 @@
-//! Mouvements « FLIP » communs au code animé (`magic`) et aux slides animées (`animate`) :
-//! un élément déjà à sa nouvelle place est d'abord ramené, par une transformation, là où se
-//! trouvait son homologue, puis rendu à sa place par une transition. Les éléments sans
-//! homologue apparaissent en fondu.
+//! "FLIP" movements shared by animated code (`magic`) and animated slides (`animate`): an
+//! element already at its new place is first brought back, by a transform, where its
+//! counterpart was, then given back its place by a transition. The elements without a
+//! counterpart fade in.
 
 use web_sys::Element;
 
 use crate::dom::{self, style, unstyle};
 
-/// Durée d'un mouvement (ms)
+/// Duration of a movement (ms)
 pub const DURATION: f64 = 600.0;
 const EASE: &str = "cubic-bezier(.4, 0, .2, 1)";
 
-/// Une boîte, en coordonnées de la fenêtre
+/// A box, in window coordinates
 #[derive(Clone, Copy)]
 pub struct Rect {
     pub x: f64,
@@ -26,26 +26,26 @@ impl Rect {
         Rect { x: r.left(), y: r.top(), w: r.width(), h: r.height() }
     }
 
-    /// La même boîte, relative à `from` puis reportée sur `to`
+    /// The same box, relative to `from` then carried over to `to`
     pub fn moved(self, from: Rect, to: Rect) -> Rect {
         Rect { x: self.x - from.x + to.x, y: self.y - from.y + to.y, ..self }
     }
 }
 
 pub enum Move {
-    /// D'où part l'élément : la boîte de son homologue
+    /// Where the element starts from: the box of its counterpart
     From(Rect),
-    /// Pas d'homologue : fondu, après que les autres ont commencé à bouger
+    /// No counterpart: fade in, after the others have started moving
     Appear,
 }
 
-/// L'utilisateur (ou l'export) ne veut pas d'animations
+/// The user (or the export) does not want animations
 pub fn reduced() -> bool {
     dom::window().match_media("(prefers-reduced-motion: reduce)").ok().flatten().is_some_and(|m| m.matches())
 }
 
-/// Joue les mouvements : toutes les positions de départ d'abord, une seule mise en page,
-/// puis toutes les transitions
+/// Plays the movements: all the starting positions first, a single layout, then all the
+/// transitions
 pub fn play(moves: Vec<(Element, Move)>) {
     if moves.is_empty() || reduced() {
         return;
@@ -60,7 +60,7 @@ pub fn play(moves: Vec<(Element, Move)>) {
                     unstyle(&el, "transition");
                     continue;
                 }
-                // Coordonnées de la fenêtre → celles de l'élément, que les slides mettent à l'échelle
+                // Window coordinates → those of the element, which the slides scale
                 let scale = new.w / f64::from(dom::html(&el).offset_width().max(1));
                 let (dx, dy) = ((old.x - new.x) / scale, (old.y - new.y) / scale);
                 let (sx, sy) = (old.w / new.w, old.h / new.h);
@@ -78,7 +78,7 @@ pub fn play(moves: Vec<(Element, Move)>) {
             }
         }
     }
-    // Une lecture force la mise en page : les positions de départ sont prises en compte
+    // A read forces the layout: the starting positions are taken into account
     let _ = dom::document().body().map(|b| b.offset_height());
     for (el, transition) in &started {
         style(el, "transition", transition);

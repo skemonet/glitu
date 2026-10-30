@@ -95,7 +95,7 @@ impl Skemo {
             skemo_engine::images::check_name(&name).map_err(|e| format!("skemo: {e}"))?;
             let data = load(&name)?;
             if data.len() > skemo_engine::images::MAX_BYTES {
-                return Err(format!("skemo: image « {name} »: larger than 1 MB"));
+                return Err(format!("skemo: image `{name}`: larger than 1 MB"));
             }
             images.insert(name, data);
         }

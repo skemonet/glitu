@@ -1,5 +1,5 @@
-//! Aller à une slide (G) : on tape son numéro (`12`), sa position (`5.2` ou `5/2`, comme
-//! l'adresse) ou son identifiant, puis Entrée. Même DOM que reveal.js (`.jump-to-slide`).
+//! Go to a slide (G): type its number (`12`), its position (`5.2` or `5/2`, as in the address)
+//! or its identifier, then Enter. Same DOM as reveal.js (`.jump-to-slide`).
 
 use wasm_bindgen::JsCast;
 use web_sys::HtmlInputElement;
@@ -7,11 +7,11 @@ use web_sys::HtmlInputElement;
 use crate::dom::{self, qs};
 use crate::engine;
 
-/// Slide visée par ce qu'on a tapé : (h, v)
+/// Slide aimed at by what was typed: (h, v)
 fn target(text: &str) -> Option<(usize, usize)> {
     let text = text.trim();
     if let Ok(n) = text.parse::<usize>() {
-        // Numéro affiché : on compte toutes les slides, verticales comprises, à partir de 1
+        // Number shown: count all the slides, vertical ones included, from 1
         return engine::all_leaves().get(n.checked_sub(1)?).map(|(h, v, _)| (*h, *v));
     }
     if let Some((h, v)) = text.split_once(['.', '/']) {
@@ -35,7 +35,7 @@ fn open() {
     }
     let box_ = dom::create("div");
     box_.set_class_name("jump-to-slide");
-    box_.set_inner_html("<input type=\"text\" class=\"jump-to-slide-input\" placeholder=\"Aller à la slide…\" aria-label=\"Aller à la slide\">");
+    box_.set_inner_html("<input type=\"text\" class=\"jump-to-slide-input\" placeholder=\"Go to slide…\" aria-label=\"Go to slide\">");
     let _ = root.append_child(&box_);
     let input: HtmlInputElement = qs(&box_, "input").unwrap().unchecked_into();
     let _ = input.focus();
@@ -56,7 +56,7 @@ fn open() {
         e.prevent_default();
         e.stop_propagation();
     });
-    // Toute fermeture passe par la perte du focus : le champ n'est retiré qu'une fois
+    // Every closing goes through the loss of focus: the field is only removed once
     let i3 = input.clone();
     dom::on::<web_sys::Event>(&input, "blur", move |_| close(&i3));
 }

@@ -1,7 +1,7 @@
-//! Code animé (` ````md magic-move `) : le build superpose les versions du bloc dans un même
-//! `<pre class="magic-move">`, chacune après la première étant un fragment, et donne à chaque
-//! mot un identifiant (`data-mm`) commun aux versions qui le gardent. Au passage d'une version
-//! à l'autre, les mots gardés glissent, les nouveaux apparaissent, les autres s'effacent.
+//! Animated code (` ````md magic-move `): the build stacks the versions of the block in one
+//! `<pre class="magic-move">`, each one after the first being a fragment, and gives each word an
+//! identifier (`data-mm`) shared by the versions that keep it. Going from one version to the
+//! next, the words kept slide, the new ones appear, the others fade out.
 
 use std::collections::HashMap;
 
@@ -15,7 +15,7 @@ fn words(code: &Element) -> Vec<(String, Element)> {
     qsa(code, ".mm").into_iter().filter_map(|w| Some((w.get_attribute("data-mm")?, w))).collect()
 }
 
-/// De la version `from`, visible jusqu'ici, à la version `to`
+/// From version `from`, visible until now, to version `to`
 fn transition(from: &Element, to: &Element) {
     if motion::reduced() {
         return;
@@ -31,7 +31,7 @@ fn transition(from: &Element, to: &Element) {
             None => (w, Move::Appear),
         })
         .collect();
-    // L'ancienne version reste affichée le temps que ses mots perdus s'effacent
+    // The old version stays shown while its lost words fade out
     add(from, "mm-leaving");
     motion::play(moves);
     let from = from.clone();

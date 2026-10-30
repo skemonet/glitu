@@ -1,5 +1,5 @@
-//! Plan technique : paper bleu d'architecte, grille fine, une pièce mécanique cotée dont la
-//! couronne de trous tourne lentement, et un cartouche sur la couverture.
+//! Blueprint: architect's blue paper, a fine grid, a dimensioned mechanical part whose ring of
+//! holes turns slowly, and a title block on the cover.
 
 use js_sys::Array;
 use wasm_bindgen::JsValue;
@@ -55,7 +55,7 @@ impl Scene for Blueprint {
         let ink = format!("rgba(232,242,255,{:.3})", lerp(0.92, 0.55, low));
         ctx.set_stroke_style_str(&ink);
         ctx.set_fill_style_str(&ink);
-        // Axes et cercle des trous en trait mixte
+        // Axes and circle of the holes in dash-dot line
         dash(ctx, &[8.0 * k, 3.0 * k, 1.5 * k, 3.0 * k]);
         ctx.set_line_width(0.7 * k);
         line(ctx, cx - r * 1.25, cy, cx + r * 1.25, cy);
@@ -70,7 +70,7 @@ impl Scene for Blueprint {
             let a = i as f64 * TAU / 6.0 - TAU / 4.0 + turn;
             ring(ctx, cx + a.cos() * r * 0.66, cy + a.sin() * r * 0.66, r * 0.09);
         }
-        // Cote du diamètre
+        // Dimension of the diameter
         let dy = cy + r * 1.18;
         ctx.set_line_width(0.8 * k);
         line(ctx, cx - r, cy + r * 0.2, cx - r, dy + 6.0 * k);
@@ -88,7 +88,7 @@ impl Scene for Blueprint {
         ctx.set_text_align("center");
         ctx.set_text_baseline("bottom");
         let _ = ctx.fill_text("Ø 140", cx, dy - 3.0 * k);
-        // Cartouche, qui s'efface derrière le texte
+        // Title block, which fades behind the text
         if low < 1.0 {
             ctx.set_global_alpha(1.0 - low);
             let (bw, bh) = (150.0 * k, 34.0 * k);
@@ -102,8 +102,8 @@ impl Scene for Blueprint {
             ctx.set_font(&format!("{}px \"IBM Plex Mono\", monospace", 7.0 * k));
             for (txt, x, y) in [
                 ("GLITU", bx + 4.0 * k, by + bh / 4.0),
-                ("ÉCH. 1:2", bx + bw * 0.6 + 4.0 * k, by + bh / 4.0),
-                ("PLANCHE 01", bx + 4.0 * k, by + bh * 0.75),
+                ("SCALE 1:2", bx + bw * 0.6 + 4.0 * k, by + bh / 4.0),
+                ("SHEET 01", bx + 4.0 * k, by + bh * 0.75),
                 ("A3", bx + bw * 0.6 + 4.0 * k, by + bh * 0.75),
             ] {
                 let _ = ctx.fill_text(txt, x, y);

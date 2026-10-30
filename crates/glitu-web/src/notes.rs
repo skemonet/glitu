@@ -1,16 +1,16 @@
-//! Vue de l'orateur (touche S) : une fenêtre à part avec la slide en cours, l'étape qui vient,
-//! les notes (le passage du clic en cours surligné, voir `[click]`), l'heure et un chronomètre
-//! qu'on met en pause d'un clic (il repart au changement de slide) et qu'on corrige (✎). Les
-//! touches de la présentation y fonctionnent aussi.
+//! Speaker view (S key): a separate window with the current slide, the next step, the notes
+//! (the passage of the current click highlighted, see `[click]`), the time and a timer, paused
+//! with a click (it restarts when the slide changes) and corrected by hand (✎). The keys of the
+//! presentation work there too.
 //!
-//! Les slides chronométrées (`duration="95"` après leur titre, voir `glitu serve --rehearse`)
-//! donnent l'avance ou le retard, à côté du temps : le temps passé sur les slides depuis le
-//! départ du chronomètre, moins leurs durées prévues (la slide en cours au plus pour la sienne).
-//! En mode fantôme, un bouton chronomètre une répétition : à l'arrêt, le temps passé sur chaque
-//! slide quittée part au serveur, qui l'écrit dans le markdown.
+//! Timed slides (`duration="95"` after their title, see `glitu serve --rehearse`) give the lead
+//! or the delay, next to the time: the time spent on the slides since the timer started, minus
+//! their planned durations (the current slide counting at most its own).
+//! In ghost mode, a button times a rehearsal: when it stops, the time spent on each slide left
+//! goes to the server, which writes it in the markdown.
 //!
-//! Les deux aperçus sont la présentation elle-même, chargée en `?receiver` dans un cadre : elle
-//! va où le message `{glitu: "show", h, v, f, ahead}` lui dit (voir `engine::receive`).
+//! The two previews are the presentation itself, loaded with `?receiver` in a frame: it goes
+//! where the message `{glitu: "show", h, v, f, ahead}` tells it (see `engine::receive`).
 
 use std::cell::RefCell;
 use std::collections::{BTreeMap, BTreeSet};
@@ -21,22 +21,22 @@ use web_sys::{Document, Element, HtmlIFrameElement, KeyboardEvent, KeyboardEvent
 use crate::dom::{self, qs, qsa};
 use crate::engine::{self, Ev};
 
-/// La fenêtre ouverte et son chronomètre
+/// The open window and its timer
 struct Presenter {
     win: Window,
-    /// Début du chronomètre (ms), décalé des pauses
+    /// Start of the timer (ms), shifted by the pauses
     start: f64,
-    /// En pause depuis (ms)
+    /// Paused since (ms)
     paused: Option<f64>,
-    /// Depuis le départ du chronomètre (ou sa remise à zéro)
+    /// Since the timer started (or was reset)
     run: Run,
-    /// Répétition chronométrée en cours (mode fantôme)
+    /// Timed rehearsal in progress (ghost mode)
     record: Option<Run>,
-    /// Slide en cours (rang de lecture) et temps du chronomètre à son arrivée
+    /// Current slide (reading rank) and time of the timer when it arrived
     at: (usize, f64),
 }
 
-/// Temps passé (ms) sur chaque slide (rang de lecture), et les slides quittées
+/// Time spent (ms) on each slide (reading rank), and the slides left
 #[derive(Default)]
 struct Run {
     spent: BTreeMap<usize, f64>,
@@ -48,12 +48,12 @@ impl Presenter {
         Presenter { win, start: now, paused: None, run: Run::default(), record: None, at: (engine::leaf_index(), 0.0) }
     }
 
-    /// Temps du chronomètre (ms), pauses déduites
+    /// Time of the timer (ms), pauses deducted
     fn elapsed(&self, now: f64) -> f64 {
         self.paused.unwrap_or(now) - self.start
     }
 
-    /// Compte le temps passé sur la slide en cours ; `leaf` : la slide où l'on est maintenant
+    /// Counts the time spent on the current slide; `leaf`: the slide we are on now
     fn account(&mut self, now: f64, leaf: usize) {
         let t = self.elapsed(now);
         let (cur, since) = self.at;
@@ -66,8 +66,8 @@ impl Presenter {
         self.at = (leaf, t);
     }
 
-    /// Avance (négatif) ou retard (positif), en ms, sur les durées prévues ; aucun si aucune
-    /// slide n'est chronométrée
+    /// Delay (positive) or lead (negative), in ms, on the planned durations; none if no slide is
+    /// timed
     fn delta(&self, leaves: &[Element]) -> Option<f64> {
         let planned = |i: usize| leaves.get(i).and_then(|l| dom::data(l, "duration")).and_then(|d| d.parse::<f64>().ok()).map(|d| d * 1000.0);
         if !leaves.iter().any(|l| dom::data(l, "duration").is_some()) {
@@ -81,8 +81,8 @@ impl Presenter {
     }
 }
 
-/// Le chronomètre et ses mesures survivent à un rechargement de la page (localStorage, par
-/// présentation) ; au-delà de 12 h, on repart de zéro
+/// The timer and its measures survive a reload of the page (localStorage, per presentation);
+/// beyond 12 h, it starts again from zero
 fn storage() -> Option<web_sys::Storage> {
     dom::window().local_storage().ok().flatten()
 }
@@ -121,7 +121,7 @@ impl Presenter {
         }
     }
 
-    /// Le chronomètre laissé par la page avant son rechargement, s'il y en a un
+    /// The timer left by the page before its reload, if there is one
     fn restore(win: Window, now: f64) -> Option<Presenter> {
         let v = saved()?;
         let away = (js_sys::Date::now() - v["saved"].as_f64()?).max(0.0);
@@ -138,14 +138,14 @@ impl Presenter {
     }
 }
 
-/// Le chronomètre gardé, s'il est récent
+/// The kept timer, if it is recent
 fn saved() -> Option<serde_json::Value> {
     let v: serde_json::Value = serde_json::from_str(&storage()?.get_item(&storage_key()).ok()??).ok()?;
     (js_sys::Date::now() - v["saved"].as_f64()? < KEEP).then_some(v)
 }
 
-/// Vue fermée : son chronomètre reste gardé (une réouverture le reprend), mais la page
-/// rechargée ne la rouvre plus d'elle-même
+/// View closed: its timer stays kept (reopening resumes it), but the reloaded page no longer
+/// reopens it by itself
 fn closed() {
     if let (Some(mut v), Some(store)) = (saved(), storage()) {
         v["open"] = false.into();
@@ -171,7 +171,7 @@ fn signed(ms: f64) -> String {
     format!("{}{}:{:02}", if ms < 0.0 { "−" } else { "+" }, secs / 60, secs % 60)
 }
 
-/// Mode fantôme : la page servie par `glitu serve --rehearse` le dit
+/// Ghost mode: the page served by `glitu serve --rehearse` says so
 fn rehearse() -> bool {
     dom::document().query_selector("meta[name=glitu-rehearse]").ok().flatten().is_some()
 }
@@ -194,7 +194,7 @@ h1{font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:#22d3ee;ma
 .bar .clock{margin-left:auto}.paused b{color:#f59e0b}.delta{margin-left:.5em;font-weight:700}.delta.late{color:#f87171}.delta.early{color:#4ade80}.bar button.rec{border-color:#f87171;color:#fecaca}";
 
 
-/// Adresse de la présentation en aperçu (sans la position, donnée ensuite par message)
+/// Address of the presentation in a preview (without the position, given next by message)
 fn receiver_url() -> String {
     let href = dom::window().location().href().unwrap_or_default();
     let base = href.split('#').next().unwrap_or_default();
@@ -205,10 +205,10 @@ fn by_id(doc: &Document, id: &str) -> Option<Element> {
     doc.get_element_by_id(id)
 }
 
-/// Envoie à un aperçu la position courante, une étape plus loin avec `ahead`
+/// Sends the current position to a preview, one step further with `ahead`
 fn send(doc: &Document, id: &str, ahead: bool) {
-    // L'élément vient de la fenêtre de l'orateur, un autre « realm » : `dyn_into` (instanceof)
-    // y échouerait
+    // The element comes from the speaker window, another "realm": `dyn_into` (instanceof) would
+    // fail there
     let Some(frame) = by_id(doc, id).map(wasm_bindgen::JsCast::unchecked_into::<HtmlIFrameElement>) else { return };
     let Some(target) = frame.content_window() else { return };
     let (h, v, f) = engine::position();
@@ -219,9 +219,9 @@ fn send(doc: &Document, id: &str, ahead: bool) {
     let _ = target.post_message(&msg, "*");
 }
 
-/// Notes de la slide, le passage du clic en cours mis en valeur
+/// Notes of the slide, the passage of the current click highlighted
 fn notes_html(slide: &Element) -> String {
-    let Some(aside) = qs(slide, "aside.notes") else { return "<p class=\"empty\">Pas de notes.</p>".into() };
+    let Some(aside) = qs(slide, "aside.notes") else { return "<p class=\"empty\">No notes.</p>".into() };
     let step = engine::current_step(slide);
     for part in qsa(&aside, ".note-click") {
         let n: u32 = dom::data(&part, "click").and_then(|c| c.parse().ok()).unwrap_or(0);
@@ -231,8 +231,8 @@ fn notes_html(slide: &Element) -> String {
     aside.inner_html()
 }
 
-/// Les notes défilent avec les clics, en avant comme en arrière : le passage en cours (à défaut
-/// le dernier passé) au milieu de la zone, le haut des notes avant le premier
+/// The notes scroll with the clicks, forward as backward: the current passage (failing that the
+/// last one passed) in the middle of the area, the top of the notes before the first one
 fn follow_notes(doc: &Document) {
     let Some(box_) = by_id(doc, "notes") else { return };
     let part = qs(&box_, ".note-click.current").or_else(|| qsa(&box_, ".note-click.past").pop());
@@ -248,7 +248,7 @@ fn clock(ms: f64) -> String {
     format!("{:02}:{:02}:{:02}", secs / 3600, secs / 60 % 60, secs % 60)
 }
 
-/// Met à jour le texte ; `move_previews` : les aperçus aussi (la position a changé)
+/// Updates the text; `move_previews`: the previews too (the position changed)
 fn update(move_previews: bool) {
     PRESENTER.with(|p| {
         let mut p = p.borrow_mut();
@@ -266,27 +266,27 @@ fn update(move_previews: bool) {
             }
         };
         set("where", &format!("Slide <b>{} / {}</b>", engine::leaf_index() + 1, engine::all_leaves().len()));
-        set("step", &format!("Étape <b>{shown} / {total}</b>"));
+        set("step", &format!("Step <b>{shown} / {total}</b>"));
         set("notes", &notes_html(&cur));
         let now = dom::now();
         let leaf = engine::leaf_index();
         let moved = leaf != pr.at.0;
         pr.account(now, leaf);
-        // Changer de slide reprend le chronomètre mis en pause
+        // Changing slide resumes the paused timer
         if moved && let Some(since) = pr.paused.take() {
             pr.start += now - since;
         }
         let leaves: Vec<Element> = engine::all_leaves().into_iter().map(|(_, _, l)| l).collect();
         let delta = pr.delta(&leaves).map_or(String::new(), |d| {
             let class = if d > 30_000.0 { "late" } else if d < -30_000.0 { "early" } else { "" };
-            format!("<span class=\"delta {class}\" title=\"Retard (+) ou avance (−) sur les durées chronométrées\">{}</span>", signed(d))
+            format!("<span class=\"delta {class}\" title=\"Delay (+) or lead (−) on the timed durations\">{}</span>", signed(d))
         });
-        set("timer", &format!("Temps <b>{}</b>{delta}", clock(pr.elapsed(now))));
+        set("timer", &format!("Time <b>{}</b>{delta}", clock(pr.elapsed(now))));
         pr.save(now);
         if let Some(ghost) = by_id(&doc, "ghost") {
             let label = match &pr.record {
-                Some(run) => format!("■ Arrêter et enregistrer ({} slides)", run.left.len()),
-                None => "● Chronométrer".into(),
+                Some(run) => format!("■ Stop and save ({} slides)", run.left.len()),
+                None => "● Time a rehearsal".into(),
             };
             ghost.set_text_content(Some(&label));
             dom::toggle(&ghost, "rec", pr.record.is_some());
@@ -296,7 +296,7 @@ fn update(move_previews: bool) {
         }
         let date = js_sys::Date::new_0();
         set("clock", &format!("<b>{:02}:{:02}</b>", date.get_hours(), date.get_minutes()));
-        set("next-title", if engine::at_end() { "Fin" } else { "Ensuite" });
+        set("next-title", if engine::at_end() { "End" } else { "Next" });
         if move_previews {
             follow_notes(&doc);
             send(&doc, "current", false);
@@ -305,7 +305,7 @@ fn update(move_previews: bool) {
     });
 }
 
-/// Une touche dans la fenêtre de l'orateur : rejouée dans la présentation
+/// A key in the speaker window: replayed in the presentation
 fn forward_keys(doc: &Document) {
     dom::on::<KeyboardEvent>(doc, "keydown", |e| {
         let init = KeyboardEventInit::new();
@@ -319,7 +319,7 @@ fn forward_keys(doc: &Document) {
     });
 }
 
-/// La fenêtre : deux aperçus (la présentation en `?receiver`), les notes, la barre du bas
+/// The window: two previews (the presentation with `?receiver`), the notes, the bottom bar
 fn skeleton() -> String {
     let c = engine::config();
     let ratio = format!("{} / {}", c.width, c.height);
@@ -328,17 +328,16 @@ fn skeleton() -> String {
     format!(
         "<style>{STYLE}</style><div class=\"pv\">\
          <div class=\"cur\" style=\"aspect-ratio:{ratio}\"><iframe id=\"current\" src=\"{url}\"></iframe></div>\
-         <div class=\"side\"><div><h1 id=\"next-title\">Ensuite</h1><div class=\"next\" style=\"aspect-ratio:{ratio}\">\
+         <div class=\"side\"><div><h1 id=\"next-title\">Next</h1><div class=\"next\" style=\"aspect-ratio:{ratio}\">\
          <iframe id=\"upcoming\" src=\"{url}&amp;upcoming\"></iframe></div></div>\
          <h1>Notes</h1><div class=\"notes\" id=\"notes\"></div></div>\
          <div class=\"bar\"><span id=\"where\"></span><span id=\"step\"></span>\
-         <span id=\"timer\" title=\"Clic : pause ou reprise\"></span><button id=\"edit-time\" title=\"Corriger le temps\">✎</button><button id=\"reset\">Remettre à zéro</button>{ghost}\
+         <span id=\"timer\" title=\"Click: pause or resume\"></span><button id=\"edit-time\" title=\"Correct the time\">✎</button><button id=\"reset\">Reset</button>{ghost}\
          <span class=\"clock\" id=\"clock\"></span></div></div>"
     )
 }
 
-/// Agit sur le chronomètre (le temps de la slide en cours compté d'abord), puis met la fenêtre
-/// à jour
+/// Acts on the timer (the time of the current slide counted first), then updates the window
 fn with_timer(change: impl Fn(&mut Presenter, f64)) {
     PRESENTER.with(|p| {
         if let Some(pr) = p.borrow_mut().as_mut() {
@@ -350,7 +349,7 @@ fn with_timer(change: impl Fn(&mut Presenter, f64)) {
     update(false);
 }
 
-/// Clic sur le temps : pause ou reprise ; « Remettre à zéro » repart de 0
+/// Click on the time: pause or resume; "Reset" starts again from 0
 fn bind_timer(doc: &Document) {
     if let Some(timer) = by_id(doc, "timer") {
         dom::on::<web_sys::MouseEvent>(&timer, "click", |_| {
@@ -370,12 +369,12 @@ fn bind_timer(doc: &Document) {
             });
         });
     }
-    // ✎ : le temps corrigé à la main (une page rechargée sans son chronomètre) ; le temps ajouté
-    // ne compte pour aucune slide
+    // ✎: the time corrected by hand (a page reloaded without its timer); the time added counts for
+    // no slide
     if let Some(edit) = by_id(doc, "edit-time") {
         dom::on::<web_sys::MouseEvent>(&edit, "click", |_| {
             let Some((win, shown)) = PRESENTER.with(|p| p.borrow().as_ref().map(|pr| (pr.win.clone(), clock(pr.elapsed(dom::now()))))) else { return };
-            let Ok(Some(answer)) = win.prompt_with_message_and_default("Temps écoulé (h:mm:ss, mm:ss ou minutes)", &shown) else { return };
+            let Ok(Some(answer)) = win.prompt_with_message_and_default("Elapsed time (h:mm:ss, mm:ss or minutes)", &shown) else { return };
             let Some(t) = parse_time(&answer) else { return };
             with_timer(move |pr, now| {
                 let old = pr.elapsed(now);
@@ -394,9 +393,9 @@ fn bind_timer(doc: &Document) {
     }
 }
 
-/// Fin d'une répétition : le temps passé sur chaque slide quittée (2 s au moins : pas celles
-/// qu'on traverse pour aller plus loin), par rang dans le markdown, au serveur (`glitu serve`
-/// le reçoit par la page, voir `build`)
+/// End of a rehearsal: the time spent on each slide left (2 s at least: not those crossed to go
+/// further), by rank in the markdown, to the server (`glitu serve` receives it through the page,
+/// see `build`)
 fn send_record(run: &Run) {
     let leaves = engine::all_leaves();
     let measured = js_sys::Object::new();
@@ -427,11 +426,11 @@ fn open() {
     }
     let Ok(Some(win)) = dom::window().open_with_url_and_target_and_features("", "glitu-notes", "width=1280,height=760") else { return };
     let Some(doc) = win.document() else { return };
-    doc.set_title("Vue de l'orateur");
+    doc.set_title("Speaker view");
     if let Some(body) = doc.body() {
         body.set_inner_html(&skeleton());
     }
-    // Un aperçu prêt reçoit la position courante
+    // A ready preview receives the current position
     dom::on::<web_sys::MessageEvent>(&win, "message", |e| {
         let ready = js_sys::Reflect::get(&e.data(), &"glitu".into()).ok().and_then(|v| v.as_string());
         if ready.as_deref() == Some("ready") {
@@ -447,7 +446,7 @@ fn open() {
     tick();
 }
 
-/// L'heure et le chronomètre avancent même sans changement de slide
+/// The time and the timer move on even without a change of slide
 fn tick() {
     if is_open() {
         update(false);
@@ -461,8 +460,8 @@ pub fn install() {
     }
     engine::on_key("s", open);
     engine::on(|ev| {
-        // Page rechargée pendant que la vue était ouverte (en mode fantôme, après l'écriture des
-        // durées) : elle se rouvre, avec son chronomètre
+        // Page reloaded while the view was open (in ghost mode, after the durations were written): it
+        // reopens, with its timer
         if matches!(ev, Ev::Ready) && saved().is_some_and(|v| v["open"] == true) {
             open();
         }

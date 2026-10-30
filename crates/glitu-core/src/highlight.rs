@@ -53,7 +53,7 @@ fn yaml_line(line: &str) -> String {
     out + &yaml_value(rest)
 }
 
-/// `key:` followed by a space or the end of the line; returns « key: » and the rest
+/// `key:` followed by a space or the end of the line; returns `key:` and the rest
 fn yaml_key(s: &str) -> Option<(&str, &str)> {
     let end = s.find(':')?;
     let key = &s[..end];
@@ -389,7 +389,7 @@ fn scan(chars: &[char], from: usize, keep: impl Fn(char) -> bool) -> usize {
 
 // ---------------------------------------------------------------- blocks
 
-/// « 9-11,14 » → line numbers
+/// `9-11,14` → line numbers
 fn ranges(spec: &str) -> Vec<(usize, usize)> {
     spec.split(',')
         .filter_map(|r| {
@@ -610,13 +610,13 @@ pub fn magic_move(versions: &[(&str, &str)], first_step: u32) -> String {
 pub struct Code<'a> {
     pub lang: &'a str,
     pub code: &'a str,
-    /// Highlighting steps, « 8|9-11|17-21 » (numbers relative to the block)
+    /// Highlighting steps, `8|9-11|17-21` (numbers relative to the block)
     pub lines: Option<&'a str>,
     /// Click of the second highlighting (None: document order)
     pub first_step: Option<u32>,
     /// Displayed number of the first line
     pub start_from: usize,
-    /// reveal-md's classes (« php hljs language-php ») rather than « language-php hljs »
+    /// reveal-md's classes (`php hljs language-php`) rather than `language-php hljs`
     pub reveal_md: bool,
 }
 

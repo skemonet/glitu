@@ -1,15 +1,14 @@
-//! Export PDF (`?print-pdf` dans l'adresse, puis Imprimer → Enregistrer en PDF), comme
-//! reveal.js : une page par slide (`.pdf-page`, que reveal.css habille), toutes les étapes
-//! affichées, au format de la slide.
+//! PDF export (`?print-pdf` in the address, then Print → Save as PDF), as in reveal.js: one page
+//! per slide (`.pdf-page`, which reveal.css dresses), all the steps shown, in the slide's format.
 //!
-//! La vue défilante (`?view=scroll`, ou d'office sur un téléphone) reprend ces pages, mises à
-//! la largeur de la fenêtre : la présentation se lit comme une page web.
+//! The scroll view (`?view=scroll`, or by default on a phone) takes these pages, at the width of
+//! the window: the presentation reads like a web page.
 
 use crate::dom::{self, add, style};
 use crate::engine;
 
-/// Met les slides en pages ; appelé avant `engine::ready`, pour que les composants trouvent
-/// leurs slides déjà en place
+/// Lays the slides out as pages; called before `engine::ready`, so that the components find
+/// their slides already in place
 pub fn install() {
     if !engine::printing() {
         return;
@@ -54,9 +53,9 @@ pub fn install() {
     }
 }
 
-/// Vue défilante : les pages à la largeur de la fenêtre
+/// Scroll view: the pages at the width of the window
 fn fit_width(html: &web_sys::Element, page_width: f64) {
-    // sans la barre de défilement
+    // without the scroll bar
     let width = f64::from(html.client_width());
     let width = if width > 0.0 { width } else { page_width };
     style(html, "--page-zoom", &format!("{}", width / page_width));

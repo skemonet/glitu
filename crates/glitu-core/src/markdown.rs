@@ -176,7 +176,7 @@ impl Fence {
     }
 }
 
-/// « text @3 » → text, 3 (see `marker`)
+/// `text @3` → text, 3 (see `marker`)
 pub fn step_of(s: &str) -> Stepped {
     // markers are read from the end: one appearance, and highlights
     let mut t = s.trim_end();
@@ -197,7 +197,7 @@ pub fn step_of(s: &str) -> Stepped {
     out
 }
 
-/// « Title {.large - kicker="X"} »
+/// `Title {.large - kicker="X"}`
 fn head_of(s: &str) -> Head {
     let s = s.trim();
     let mut head = Head { text: s.to_string(), ..Head::default() };

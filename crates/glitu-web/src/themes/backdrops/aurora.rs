@@ -1,5 +1,5 @@
-//! Aurora : rubans de lumière vert d'eau, cyan et magenta qui ondulent sur un ciel bleu nuit
-//! étoilé. Derrière le texte, les rubans restent en place et pâlissent sous un voile.
+//! Aurora: ribbons of aqua, cyan and magenta light that wave over a starry night-blue sky.
+//! Behind the text, the ribbons stay in place and pale under a veil.
 
 use web_sys::{CanvasRenderingContext2d, HtmlCanvasElement};
 
@@ -9,11 +9,11 @@ const RIBBONS: [&str; 3] = ["#2de2c0", "#3aa8ff", "#c45cff"];
 
 pub struct Aurora {
     noise: Noise,
-    /// Un dégradé vertical par ruban, étiré colonne par colonne
+    /// One vertical gradient per ribbon, stretched column by column
     sprites: Vec<HtmlCanvasElement>,
     stars: Vec<(f64, f64, f64, f64)>,
-    /// Calque des rubans, au tiers de la résolution : agrandi avec lissage, il ne montre pas les
-    /// colonnes qui le composent
+    /// Layer of the ribbons, at a third of the resolution: enlarged with smoothing, it does not show
+    /// the columns it is made of
     layer: Option<(HtmlCanvasElement, CanvasRenderingContext2d)>,
 }
 
@@ -66,7 +66,7 @@ impl Scene for Aurora {
         lc.clear_rect(0.0, 0.0, lw, lh);
         let _ = lc.set_global_composite_operation("lighter");
         let _ = lc.set_transform(lw / w, 0.0, 0.0, lh / h, 0.0, 0.0);
-        // Colonnes jointives d'un pixel du calque : aucune ne double la lumière de sa voisine
+        // Adjoining columns of one pixel of the layer: none doubles the light of its neighbour
         let step = w / lw;
         for (i, sprite) in self.sprites.iter().enumerate() {
             let fi = i as f64;
@@ -76,7 +76,7 @@ impl Scene for Aurora {
                 let n = self.noise.n3(u * 2.2 + fi * 10.0, t * 0.07, fi);
                 let y = h * (0.32 + 0.1 * fi) + (n - 0.5) * h * 0.45 + (u * 3.0 + t * 0.25 + fi).sin() * h * 0.06;
                 let hh = h * (0.22 + 0.4 * self.noise.n3(u * 5.0, t * 0.15, fi + 5.0));
-                // Opacité lentement variable le long du ruban : pas de stries verticales
+                // Opacity slowly varying along the ribbon: no vertical streaks
                 let a = 0.2 + 0.5 * self.noise.n3(u * 1.6 + fi, t * 0.2, 2.0).powf(1.5);
                 lc.set_global_alpha(a * lerp(1.0, 0.6, dim));
                 let _ = lc.draw_image_with_html_canvas_element_and_sw_and_sh_and_dx_and_dy_and_dw_and_dh(

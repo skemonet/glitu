@@ -1,8 +1,8 @@
-//! Dessin sur les slides (touche D) : au stylet, au doigt ou à la souris, par-dessus la slide
-//! en cours. Les traits restent avec leur slide (un `svg.drawing` dans la section, aux
-//! dimensions de la slide) et sont gardés dans le navigateur (localStorage), d'une séance à
-//! l'autre. En mode dessin : 1 à 5 changent la couleur, Z annule le dernier trait, X efface la
-//! slide, D ou Échap en sortent ; les flèches changent toujours de slide.
+//! Drawing on the slides (D key): with a stylus, a finger or the mouse, over the current slide.
+//! The strokes stay with their slide (an `svg.drawing` in the section, the size of the slide)
+//! and are kept in the browser (localStorage), from one session to the next. In drawing mode:
+//! 1 to 5 change the colour, Z undoes the last stroke, X clears the slide, D or Esc leave; the
+//! arrows still change slides.
 
 use std::cell::RefCell;
 
@@ -18,7 +18,7 @@ const COLORS: [&str; 5] = ["#f59e0b", "#ef4444", "#22d3ee", "#22c55e", "#ffffff"
 #[derive(Default)]
 struct Pen {
     color: usize,
-    /// Le trait en cours : son élément et son tracé
+    /// The stroke in progress: its element and its path
     stroke: Option<(Element, String)>,
 }
 
@@ -30,7 +30,7 @@ fn drawing() -> bool {
     has(&engine::root(), "drawing")
 }
 
-/// Clé de stockage : une par présentation (son adresse)
+/// Storage key: one per presentation (its address)
 fn storage_key() -> String {
     format!("glitu-draw:{}", dom::window().location().pathname().unwrap_or_default())
 }
@@ -39,7 +39,7 @@ fn storage() -> Option<web_sys::Storage> {
     dom::window().local_storage().ok().flatten()
 }
 
-/// Le calque de dessin d'une slide, créé au besoin
+/// The drawing layer of a slide, created when needed
 fn layer(slide: &Element) -> Element {
     if let Some(svg) = qs(slide, ":scope > svg.drawing") {
         return svg;
@@ -60,7 +60,7 @@ fn add_path(layer: &Element, color: &str, d: &str) -> Element {
     path
 }
 
-/// Tous les traits, par slide : `{"h/v": [[couleur, tracé], …]}`
+/// All the strokes, by slide: `{"h/v": [[colour, path], …]}`
 fn save() {
     let all = js_sys::Object::new();
     for (h, v, slide) in engine::all_leaves() {
@@ -92,7 +92,7 @@ fn load() {
     }
 }
 
-/// Point de la fenêtre → coordonnées de la slide
+/// Point of the window → slide coordinates
 fn point(svg: &Element, e: &PointerEvent) -> (f64, f64) {
     let r = svg.get_bounding_client_rect();
     let c = engine::config();
@@ -141,7 +141,7 @@ pub fn install() {
         }
         true
     });
-    // Arrivée sur une slide en mode dessin : son calque
+    // Arriving on a slide in drawing mode: its layer
     engine::on(|_| {
         if drawing() {
             layer(&engine::current_slide());

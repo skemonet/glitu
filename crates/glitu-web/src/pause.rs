@@ -1,10 +1,10 @@
-//! Écran noir (B, V, « . ») : la présentation s'efface derrière un voile noir, comme dans
-//! reveal.js (`.reveal.paused` + `.pause-overlay`) ; les mêmes touches la font revenir.
+//! Black screen (B, V, "."): the presentation fades behind a black veil, as in reveal.js
+//! (`.reveal.paused` + `.pause-overlay`); the same keys bring it back.
 
 use crate::dom::{self, has, toggle};
 use crate::engine;
 
-/// Touches de reveal.js : `:` `;` `b` `v` `.` `/`
+/// reveal.js keys: `:` `;` `b` `v` `.` `/`
 const KEYS: [&str; 6] = [":", ";", "b", "v", ".", "/"];
 
 fn toggle_pause() {
@@ -21,7 +21,7 @@ pub fn install() {
         dom::on::<web_sys::Event>(&overlay, "click", |_| toggle_pause());
     }
     let _ = engine::root().append_child(&overlay);
-    // En pause, seules les touches de pause comptent : rien ne bouge derrière le voile
+    // While paused, only the pause keys count: nothing moves behind the veil
     engine::intercept(|e| {
         let key = e.key().to_lowercase();
         if KEYS.contains(&key.as_str()) {

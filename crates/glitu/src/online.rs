@@ -99,7 +99,7 @@ pub fn fonts(meta: &BTreeMap<String, String>) -> Result<Vec<Output>, String> {
         let query = family.replace(' ', "+");
         let sheet = fetch(&format!("https://fonts.googleapis.com/css2?family={query}:wght@400;700&display=swap"))
             .or_else(|_| fetch(&format!("https://fonts.googleapis.com/css2?family={query}&display=swap")))
-            .map_err(|e| format!("font « {family} » not found on Google Fonts ({e})"))?;
+            .map_err(|e| format!("font `{family}` not found on Google Fonts ({e})"))?;
         css += &local_faces(&String::from_utf8_lossy(&sheet), family, &mut files)?;
         css += &format!("{selector} {{ {var}: \"{family}\"; font-family: \"{family}\", sans-serif !important; }}\n");
     }

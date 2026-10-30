@@ -1,6 +1,6 @@
-/* Types des schémas skemo, accordés au thème de la présentation (accent bleu → cyan).
-   La taille des textes pour la projection vient de glitu.json (skemo.fontScale),
-   ou du bloc lui-même : ```skemo font-scale="2" */
+/* Types of the skemo diagrams, matched to the theme of the presentation (blue → cyan accent).
+   The text size for projection comes from glitu.json (skemo.fontScale),
+   or from the block itself: ```skemo font-scale="2" */
 .workstation    { --c: #64748b; }
 .cluster  { --c: #3b82f6; }
 .node    { --c: #64748b; }

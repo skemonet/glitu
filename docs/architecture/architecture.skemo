@@ -1,29 +1,29 @@
-diagram(dir="right" lang="fr")
+diagram(dir="right")
 
-  card#projet.projet(icon="folder-open") Une présentation
-    li slides.md : texte, schémas, code
-    li terminaux, images
+  card#deck.deck(icon="folder-open") A presentation
+    | slides.md: text, diagrams, code
+    | terminals, images
     to(glitu)
 
   card#glitu.tool(icon="terminal") glitu
-    li build · serve
-    li compilateur glitu-core
-    li schémas skemo
+    | build · serve
+    | glitu-core compiler
+    | skemo diagrams
     to(offline online site)
 
-  zone#sorties.sortie Ce qu'on obtient
-    card#offline.sortie(icon="file-down") Hors ligne
-      li un fichier, tout dedans
-    card#online.sortie(icon="globe") En ligne
-      li un HTML court
-      to(static).dashed charge
-    card#site.sortie(icon="refresh-cw") Site local
-      li glitu serve, à la Hugo
+  zone#outputs.output What you get
+    card#offline.output(icon="file-down") Offline
+      | one file, everything inside
+    card#online.output(icon="globe") Online
+      | a short HTML
+      to(static).dashed loads
+    card#site.output(icon="refresh-cw") Local site
+      | glitu serve, like Hugo
 
   card#static.static(icon="cloud") static.glitu.net
-    li moteur, thèmes
-    li une version par dossier
+    | engine, themes
+    | one version per folder
 
-  card#mainteneur.mainteneur(icon="user-cog") Mainteneur
-    li glitu-site static
-    to(static).dashed publie
+  card#maintainer.maintainer(icon="user-cog") Maintainer
+    | glitu-site static
+    to(static).dashed publishes

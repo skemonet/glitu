@@ -160,7 +160,7 @@ impl Assets for Files<'_> {
         let root = self.project.root.clone();
         let mut load = |name: &str| {
             let p = root.join(name);
-            fs::read(&p).map_err(|e| format!("skemo: image « {name} » ({}): {e}", p.display()))
+            fs::read(&p).map_err(|e| format!("skemo: image `{name}` ({}): {e}", p.display()))
         };
         self.skemo.render(source, font_scale, &mut load)
     }
@@ -186,7 +186,7 @@ impl Output {
 /// Builds the site in memory. `dev`: adds the automatic reload.
 ///
 /// Two writing conventions are recognised automatically: glitu's own (`#` chapters, `##` slides,
-/// `@n`) and reveal-md's (slides separated by `---`); default theme « crystal » and « black »
+/// `@n`) and reveal-md's (slides separated by `---`); default theme `crystal` and `black`
 /// respectively.
 pub fn site(project: &Project, dev: bool) -> Result<Vec<Output>, String> {
     let mut source = source::read(&project.slides)?;
@@ -283,7 +283,7 @@ fn deck_logo(project: &Project, meta: &BTreeMap<String, String>) -> Result<Optio
     match logo.strip_prefix("public/") {
         Some(rest) => Ok(Some(rest.to_string())),
         None if logo.starts_with("img/") => Ok(Some(logo.to_string())),
-        None => Err(format!("logo: « {logo} » must be in img/ or public/, which are copied into the site")),
+        None => Err(format!("logo: `{logo}` must be in img/ or public/, which are copied into the site")),
     }
 }
 

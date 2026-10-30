@@ -1,5 +1,5 @@
-//! Paper découpé : couches de paper ondulées, du vert d'eau au bleu pétrole, avec de vraies
-//! ombres portées qui respirent. Derrière le texte, les couches descendent et s'aplatissent.
+//! Cut paper: wavy layers of paper, from aqua to petrol blue, with real drop shadows that
+//! breathe. Behind the text, the layers go down and flatten.
 
 use web_sys::CanvasRenderingContext2d;
 
@@ -30,7 +30,7 @@ impl Scene for Paper {
 
     fn draw(&self, ctx: &CanvasRenderingContext2d, w: f64, h: f64, t: f64, dim: f64) {
         let k = w / 480.0;
-        let low = clamp01(dim / 0.6); // déjà bas sur les slides à panneau
+        let low = clamp01(dim / 0.6); // already low on the panel slides
         ctx.set_fill_style_str("#f2f6f5");
         ctx.fill_rect(0.0, 0.0, w, h);
         let (b0, step, amp) = (lerp(0.4, 0.74, low), lerp(0.1, 0.045, low), lerp(1.0, 0.6, low));

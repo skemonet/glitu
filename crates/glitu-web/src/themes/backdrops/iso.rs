@@ -1,5 +1,5 @@
-//! Isométrique : un plateau de colonnes isométriques qui montent et descendent en vague, une
-//! seule colonne corail au centre. Derrière le texte, le plateau rapetisse dans le coin droit.
+//! Isometric: a board of isometric columns that rise and fall in a wave, a single coral column
+//! in the centre. Behind the text, the board shrinks into the right corner.
 
 use web_sys::CanvasRenderingContext2d;
 
@@ -31,7 +31,7 @@ impl Scene for Iso {
         ctx.fill_rect(0.0, 0.0, w, h);
         let (a, cx, cy) = (w * lerp(0.034, 0.024, low), w * lerp(0.7, 0.82, low), h * lerp(0.46, 0.42, low));
         let mid = (N / 2) as f64;
-        // Des colonnes du backdrop vers l'avant : chacune cache celles de derrière
+        // Columns from the back of the backdrop to the front: each one hides those behind
         for s in 0..=2 * (N - 1) {
             for i in 0..N {
                 let Some(j) = s.checked_sub(i).filter(|&j| j < N) else { continue };

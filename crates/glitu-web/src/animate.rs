@@ -1,9 +1,8 @@
-//! Slides animées, comme l'auto-animate de reveal.js : entre deux slides qui se suivent et
-//! portent toutes deux `data-auto-animate` (`{.animate}` dans le titre), les éléments
-//! communs glissent de leur place dans la première à leur place dans la seconde, en changeant
-//! de taille ; les nouveaux apparaissent en fondu. Deux éléments sont communs s'ils ont le
-//! même `data-id` (`[texte]{#nom}`), sinon la même nature et le même texte (même image pour
-//! une image, même titre pour une fenêtre de code).
+//! Animated slides, like reveal.js's auto-animate: between two slides that follow each other and
+//! both carry `data-auto-animate` (`{.animate}` in the title), the shared elements slide from
+//! their place in the first one to their place in the second one, changing size; the new ones
+//! fade in. Two elements are shared if they have the same `data-id` (`[text]{#name}`), otherwise
+//! the same kind and the same text (same image for an image, same title for a code window).
 
 use std::collections::HashMap;
 
@@ -13,18 +12,18 @@ use crate::dom::{self, add, closest, has, qs, qsa, remove};
 use crate::engine::{self, Ev};
 use crate::motion::{self, Move, Rect};
 
-/// Ce qui peut glisser d'une slide à l'autre
+/// What can slide from one slide to the other
 const CANDIDATES: &str = "[data-id], h1, h2, h3, h4, h5, h6, p, li, img, pre, blockquote, table, .window, .diagram, .formula, .glyphs";
 
 fn animated(slide: &Element) -> bool {
     slide.has_attribute("data-auto-animate")
 }
 
-/// Ce qui change de taille en glissant ; le texte, lui, ne fait que glisser (étiré, il se
-/// déformerait), calé sur son alignement
+/// What changes size while sliding; text only slides (stretched, it would be distorted),
+/// aligned on its alignment
 const BOXES: &str = "img, pre, table, .window, .diagram, .formula";
 
-/// Point de départ d'un texte : sa nouvelle boîte, placée sur l'ancienne
+/// Starting point of a text: its new box, placed on the old one
 fn text_start(el: &Element, old: Rect) -> Rect {
     let new = Rect::of(el);
     let align = dom::window().get_computed_style(el).ok().flatten().and_then(|c| c.get_property_value("text-align").ok()).unwrap_or_default();
@@ -36,7 +35,7 @@ fn text_start(el: &Element, old: Rect) -> Rect {
     Rect { x: old.x + shift, y: old.y, ..new }
 }
 
-/// Ce qui rend deux éléments homologues
+/// What makes two elements counterparts
 fn key(el: &Element) -> String {
     if let Some(id) = el.get_attribute("data-id") {
         return format!("#{id}");
@@ -51,7 +50,7 @@ fn key(el: &Element) -> String {
     format!("{} {}|{what}", el.tag_name(), el.get_attribute("class").unwrap_or_default().split_whitespace().filter(|c| !matches!(*c, "visible" | "current-fragment")).collect::<Vec<_>>().join("."))
 }
 
-/// Les éléments candidats de la slide, dans l'ordre du document, hors notes
+/// The candidate elements of the slide, in document order, outside the notes
 fn candidates(slide: &Element) -> Vec<Element> {
     qsa(slide, CANDIDATES).into_iter().filter(|e| closest(e, "aside.notes").is_none()).collect()
 }
@@ -65,7 +64,7 @@ fn transition(from: &Element, to: &Element) {
     for list in before.values_mut() {
         list.reverse();
     }
-    // Un élément traité emporte ses descendants : on ne les anime pas une seconde fois
+    // A processed element takes its descendants along: they are not animated a second time
     let mut done: Vec<Element> = Vec::new();
     let mut moves = Vec::new();
     for el in candidates(to) {
@@ -90,8 +89,8 @@ pub fn install() {
         if !animated(previous) || !animated(&current) || motion::reduced() {
             return;
         }
-        // Pas de transition de slide : la nouvelle prend aussitôt la place de l'ancienne,
-        // ce sont ses éléments qui bougent
+        // No slide transition: the new one takes the place of the old one at once, its elements are
+        // what moves
         let root = engine::root();
         add(&root, "auto-animating");
         transition(previous, &current);

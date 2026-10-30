@@ -302,8 +302,8 @@ mod tests {
     #[test]
     fn highlights_leave_the_diagram_source_for_its_nodes() {
         let (src, marked) =
-            skemo_marks("card#pg.pod(tag=\"5432\") postgresql @1:up @3-4:halo @6:focus\n  li ip @2\n").unwrap();
-        assert_eq!(src, "card#pg.pod(tag=\"5432\") postgresql @1:up @6:focus\n  li ip @2\n");
+            skemo_marks("card#pg.pod(tag=\"5432\") postgresql @1:up @3-4:halo @6:focus\n  | ip @2\n").unwrap();
+        assert_eq!(src, "card#pg.pod(tag=\"5432\") postgresql @1:up @6:focus\n  | ip @2\n");
         assert_eq!(marked, [("pg".to_string(), " data-fx=\"halo:3-4\"".to_string())]);
         assert!(skemo_marks("  to(b) @2:halo\n").unwrap_err().contains("#id"));
     }

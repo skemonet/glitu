@@ -5,7 +5,7 @@
 //!
 //! Two writing conventions are recognised automatically: glitu's own (`#` chapters, `##` slides,
 //! `@n` click markers) and reveal-md's (slides separated by `---`). Their default themes are
-//! « crystal » and « black » respectively.
+//! `crystal` and `black` respectively.
 
 pub mod highlight;
 pub mod html;

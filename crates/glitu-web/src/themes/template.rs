@@ -1,7 +1,7 @@
-//! Template commun des thèmes (`"template": true` dans glitu.json, styles dans glitu/template.css) :
-//! bandeau « RUBRIQUE / Sujet », logos, backdrop du thème (`"backdrop"` : animé sur la couverture et les
-//! chapitres, fixe derrière les visuels), frise qui se centre sur la carte de l'étape, pied de
-//! page de progression par chapitre.
+//! Shared template of the themes (`"template": true` in glitu.json, styles in glitu/template.css):
+//! "SECTION / Topic" header, logos, the theme's backdrop (`"backdrop"`: animated on the cover and
+//! the chapters, still behind the visuals), frieze that centres on the card of the step, footer
+//! of progress by chapter.
 
 
 use web_sys::Element;
@@ -29,10 +29,10 @@ fn header(slide: &Element, logo: &str) {
 }
 
 
-/// Décalage qui centre l'élément `[data-id=id]` de la bande dans la partie visible (à droite du panneau)
+/// Offset that centres the element `[data-id=id]` of the strip in the visible part (right of the panel)
 fn center_on(track: &Element, id: &str) -> f64 {
     let Some(el) = qs(track, &format!("[data-id=\"{id}\"]")) else {
-        dom::warn(&format!("[crystal] data-pan-to : élément introuvable : {id}"));
+        dom::warn(&format!("[crystal] data-pan-to: element not found: {id}"));
         return 0.0;
     };
     let (t, r) = (track.get_bounding_client_rect(), el.get_bounding_client_rect());
@@ -55,17 +55,17 @@ fn update_pan(slide: &Element) {
     }
 }
 
-/// Un chapitre, en rangs de slide dans l'ordre de lecture (slides verticales comprises)
+/// A chapter, as slide ranks in reading order (vertical slides included)
 struct Chapter {
     start: usize,
-    /// Rang de son intercalaire (là où mène un clic sur son segment)
+    /// Rank of its interlude (where a click on its segment leads)
     at: usize,
     end: usize,
     num: String,
     title: String,
 }
 
-// Chapitres : chaque `.chapter .num` en ouvre un ; les slides d'avant rejoignent le premier
+// Chapters: each `.chapter .num` opens one; the slides before join the first one
 fn chapters(slides: &[Element]) -> Vec<Chapter> {
     let mut list: Vec<Chapter> = Vec::new();
     for (i, s) in slides.iter().enumerate() {
@@ -121,7 +121,7 @@ impl Progress {
     fn update(&self) {
         let i = engine::leaf_index();
         let (steps, done) = engine::fragment_counts(&engine::current_slide());
-        let pos = i as f64 + (done as f64 + 1.0) / (steps as f64 + 1.0); // la slide courante compte au prorata de ses étapes
+        let pos = i as f64 + (done as f64 + 1.0) / (steps as f64 + 1.0); // the current slide counts in proportion to its steps
         for (k, c) in self.parts.iter().enumerate() {
             let fill = ((pos - c.start as f64) / (c.end - c.start) as f64).clamp(0.0, 1.0);
             style(&self.segs[k], "--fill", &format!("{}%", fill * 100.0));
@@ -136,7 +136,7 @@ impl Progress {
     }
 }
 
-/// Le backdrop du thème : le crystal, ou une scène de `backdrops`
+/// The theme's backdrop: crystal, or a scene of `backdrops`
 enum Backdrop {
     Crystal(Crystal),
     Scene(Animated),
@@ -148,7 +148,7 @@ impl Backdrop {
             Some(scene) => Backdrop::Scene(Animated::new(host, scene)),
             None => {
                 if !name.is_empty() && name != "crystal" {
-                    dom::warn(&format!("[template] backdrop inconnu : {name} (crystal à la place)"));
+                    dom::warn(&format!("[template] unknown backdrop: {name} (crystal instead)"));
                 }
                 Backdrop::Crystal(Crystal::new(host, crystal::Options::default()))
             }
@@ -177,8 +177,8 @@ impl Backdrop {
     }
 }
 
-/// Atténuation du backdrop pour cette slide : entier sous la couverture et les chapitres, effacé
-/// côté texte sous une slide de texte pleine largeur, entre les deux à côté d'un panneau
+/// Dimming of the backdrop for this slide: whole under the cover and the chapters, erased on the
+/// text side under a full-width text slide, in between next to a panel
 fn dim(slide: &Element) -> f64 {
     if qs(slide, ".chapter, .cover").is_some() {
         0.0
@@ -209,13 +209,13 @@ pub fn install(logo: &str, backdrop: &str) {
         }
     }
 
-    // Un seul backdrop sous toutes les slides : il ne change pas d'une slide à l'autre, chaque
-    // slide dit seulement s'il tourne (data-backdrop="animated") ou reste figé ("still")
+    // One backdrop under all the slides: it does not change from one slide to another, each slide
+    // only says whether it runs (data-backdrop="animated") or stands still ("still")
     let host = dom::create("div");
     host.set_class_name("tpl-backdrop");
     let _ = root.prepend_with_node_1(&host);
     if engine::printing() {
-        // Hors de la page, à la taille d'une slide : il ne sert qu'à prendre l'image des pages
+        // Outside the page, the size of a slide: it only serves to take the image of the pages
         let c = engine::config();
         style(&host, "width", &format!("{}px", c.width));
         style(&host, "height", &format!("{}px", c.height));
@@ -243,7 +243,7 @@ pub fn install(logo: &str, backdrop: &str) {
             backdrop.redraw();
         }
         if engine::printing() {
-            // Une page imprimée ne peut pas partager le backdrop : chacune reçoit son image
+            // A printed page cannot share the backdrop: each one gets its image
             if let (Ev::Ready, Some(png)) = (ev, backdrop.snapshot()) {
                 style(&engine::slides_element(), "--tpl-backdrop-image", &format!("url(\"{png}\")"));
             }

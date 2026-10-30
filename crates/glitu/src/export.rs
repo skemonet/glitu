@@ -7,7 +7,7 @@
 //!   per click, captured, and an outline of the titles;
 //! - PNG: one image per slide (per click with `--clicks`) in a folder.
 //!
-//! The slides kept are those of `--range` (« 1-3,5 », numbers of the slides in order); without
+//! The slides kept are those of `--range` (`1-3,5`, numbers of the slides in order); without
 //! `--clicks`, each slide is taken once all its steps are done.
 
 use std::fs;
@@ -84,7 +84,7 @@ pub struct Options {
     pub range: Vec<(usize, usize)>,
 }
 
-/// « 1-3,5 » → [(1, 3), (5, 5)]
+/// `1-3,5` → [(1, 3), (5, 5)]
 pub fn parse_range(s: &str) -> Result<Vec<(usize, usize)>, String> {
     s.split(',')
         .filter(|p| !p.trim().is_empty())

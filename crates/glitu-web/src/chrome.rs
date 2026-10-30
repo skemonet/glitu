@@ -1,6 +1,6 @@
-//! Ce que reveal.js pose autour des slides, avec son balisage (que reveal.css habille) :
-//! backdrops de slide (`data-background…`), flèches de navigation, barre de progression,
-//! numéro de slide. Chaque élément est activé par les réglages du thème.
+//! What reveal.js lays around the slides, with its markup (which reveal.css dresses): slide
+//! backdrops (`data-background…`), navigation arrows, progress bar, slide number. Each element
+//! is enabled by the theme's settings.
 
 use web_sys::Element;
 
@@ -9,7 +9,7 @@ use crate::engine::{self, Ev};
 
 // ---------------------------------------------------------------- backdrops
 
-/// Couleur CSS → (r, g, b), pour les formes #rgb, #rrggbb, rgb()/rgba()
+/// CSS colour → (r, g, b), for the forms #rgb, #rrggbb, rgb()/rgba()
 fn rgb(color: &str) -> Option<(f64, f64, f64)> {
     let c = color.trim();
     if let Some(hex) = c.strip_prefix('#') {
@@ -55,7 +55,7 @@ fn background_for(slide: &Element) -> Element {
             style(&content, prop, &v);
         }
     }
-    // Contraste : le thème adapte la couleur du texte (et des flèches) aux backdrops clairs ou sombres
+    // Contrast: the theme adapts the colour of the text (and of the arrows) to light or dark backdrops
     if let Some((r, g, b)) = color.as_deref().and_then(rgb) {
         let brightness = (r * 299.0 + g * 587.0 + b * 114.0) / 1000.0;
         add(slide, if brightness < 128.0 { "has-dark-background" } else { "has-light-background" });
@@ -64,7 +64,7 @@ fn background_for(slide: &Element) -> Element {
 }
 
 struct Backgrounds {
-    /// Par slide horizontale : son backdrop, puis ceux de ses slides verticales
+    /// For each horizontal slide: its backdrop, then those of its vertical slides
     horizontal: Vec<(Element, Vec<Element>)>,
 }
 
@@ -112,7 +112,7 @@ impl Backgrounds {
                 style(ve, "display", if engine::distance(x, y, h, v) < 3 { "block" } else { "none" });
             }
         }
-        // Le contraste de la slide courante remonte sur .reveal
+        // The contrast of the current slide goes up to .reveal
         let cur = engine::current_slide();
         let r = engine::root();
         for c in ["has-dark-background", "has-light-background"] {
@@ -121,7 +121,7 @@ impl Backgrounds {
     }
 }
 
-// ---------------------------------------------------------------- flèches
+// ---------------------------------------------------------------- arrows
 
 struct Controls {
     left: Element,
@@ -162,7 +162,7 @@ impl Controls {
             toggle(el, "enabled", on);
             if on { let _ = el.remove_attribute("disabled"); } else { let _ = el.set_attribute("disabled", "disabled"); }
         }
-        // Étapes restantes : la flèche de l'axe de la slide porte la marque « fragmented »
+        // Steps left: the arrow of the slide's axis carries the "fragmented" mark
         let (prev, next) = engine::fragment_routes();
         let cur = engine::current_slide();
         let vertical = cur.parent_element().is_some_and(|p| p.tag_name() == "SECTION" && qsa(&p, ":scope > section").len() > 1);
@@ -174,7 +174,7 @@ impl Controls {
                 let _ = el.remove_attribute("disabled");
             }
         }
-        // Tutoriel : la flèche vers une direction pas encore empruntée sautille
+        // Tutorial: the arrow towards a direction not yet taken bounces
         let (nav_h, nav_v) = engine::navigated();
         let (_, v, _) = engine::position();
         toggle(&self.down, "highlight", !nav_v && d);
@@ -182,7 +182,7 @@ impl Controls {
     }
 }
 
-// ---------------------------------------------------------------- progression et numéro
+// ---------------------------------------------------------------- progress and number
 
 fn progress_bar() -> Element {
     let el = dom::create("div");
@@ -193,7 +193,7 @@ fn progress_bar() -> Element {
     qs(&el, "span").unwrap()
 }
 
-/// Avancement comme reveal.js : slides passées, plus 0,9 × la part d'étapes affichées
+/// Progress as in reveal.js: slides past, plus 0.9 × the share of steps shown
 fn progress_value() -> f64 {
     let leaves = engine::leaves();
     let total: usize = leaves.iter().map(Vec::len).sum();

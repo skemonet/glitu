@@ -1,9 +1,9 @@
-//! Schémas skemo pas à pas : les marqueurs `@n` du schéma (attributs `data-step`,
-//! `data-until`, `data-focus` du SVG) suivent le clic courant de la slide.
-//! Le build ajoute un fragment invisible (`.sk-step`) par étape du schéma. Une ligne remplacée
-//! par une autre au même clic (`li 172.30.0.3 @5-5` puis `li 172.30.0.6 @6`) se transforme en
-//! elle, comme le code animé : les caractères gardés glissent, les autres s'effacent ou paraissent ;
-//! les nouveaux restent marqués (`.sk-diff`) jusqu'au clic suivant, pour qui aurait raté l'animation.
+//! skemo diagrams step by step: the `@n` markers of the diagram (`data-step`, `data-until`,
+//! `data-focus` attributes of the SVG) follow the current click of the slide.
+//! The build adds an invisible fragment (`.sk-step`) per step of the diagram. A line replaced by
+//! another at the same click (`| 172.30.0.3 @5-5` then `| 172.30.0.6 @6`) morphs into it, like
+//! animated code: the characters kept slide, the others fade out or appear; the new ones stay
+//! marked (`.sk-diff`) until the next click, for whoever missed the animation.
 
 use wasm_bindgen::JsCast;
 use web_sys::{Element, SvgGeometryElement, SvgTextContentElement};
@@ -31,13 +31,13 @@ fn focused_at(el: &Element, s: u32) -> bool {
     data(el, "focus").unwrap_or_default().split_whitespace().any(|r| in_range(r, s))
 }
 
-/// Tracé progressif d'une flèche (effet `draw`), comme le lecteur HTML de skemo
+/// Progressive drawing of an arrow (`draw` effect), like skemo's HTML player
 fn draw(edge: &Element) {
     let Some(line) = dom::qs(edge, ".line") else { return };
     let Ok(geom) = line.clone().dyn_into::<SvgGeometryElement>() else { return };
     let len = geom.get_total_length();
     let dashes = dom::window().get_computed_style(&line).ok().flatten().and_then(|c| c.get_property_value("stroke-dasharray").ok());
-    // un trait en tirets ou pointillés : un masque se trace à sa place, le motif reste
+    // a dashed or dotted line: a mask is drawn in its place, the pattern stays
     let target = match dashes.filter(|d| !d.is_empty() && d != "none") {
         Some(_) => match reveal_mask(&line) {
             Some(m) => m,
@@ -52,7 +52,7 @@ fn draw(edge: &Element) {
     let _ = line.get_bounding_client_rect();
     set("transition", "stroke-dashoffset .6s ease");
     set("stroke-dashoffset", "0");
-    // la pointe (et celle de départ, `.both`) n'apparaît qu'une fois le trait arrivé
+    // the head (and the starting one, `.both`) only appears once the line has arrived
     let heads = qsa(edge, ".head, .tail");
     for h in &heads {
         dom::style(h, "transition", "none");
@@ -69,7 +69,7 @@ fn draw(edge: &Element) {
         for p in ["stroke-dasharray", "stroke-dashoffset", "transition"] {
             dom::unstyle(&line2, p);
         }
-        // le masque d'un trait en tirets, s'il y en a un
+        // the mask of a dashed line, if there is one
         if let Some(id) = line2.get_attribute("data-sk-mask") {
             let _ = line2.remove_attribute("mask");
             let _ = line2.remove_attribute("data-sk-mask");
@@ -86,8 +86,8 @@ thread_local! {
     static MASKS: std::cell::Cell<u32> = const { std::cell::Cell::new(0) };
 }
 
-/// Masque qui révèle `line` le long de son tracé : une copie pleine, blanche et plus épaisse,
-/// que `draw` trace à la place du trait (qui garde ainsi ses tirets)
+/// Mask that reveals `line` along its path: a solid copy, white and thicker, that `draw` draws
+/// in place of the line (which keeps its dashes this way)
 fn reveal_mask(line: &Element) -> Option<Element> {
     let svg = line.closest("svg").ok().flatten()?;
     let n = MASKS.with(|c| { c.set(c.get() + 1); c.get() });
@@ -108,11 +108,11 @@ fn reveal_mask(line: &Element) -> Option<Element> {
     Some(path)
 }
 
-/// Durée du passage d'une ligne à l'autre, en ms
+/// Duration of the change from one line to the other, in ms
 const MORPH: f64 = 650.0;
 
-/// Les lignes qui en remplacent une autre au clic `s` : (celle qui part, celle qui arrive),
-/// sœurs dans la même carte
+/// The lines that replace another one at click `s`: (the one leaving, the one arriving),
+/// siblings in the same card
 fn replaced(svg: &Element, s: u32) -> Vec<(Element, Element)> {
     let mut pairs = Vec::new();
     for old in qsa(svg, "g.li[data-until]") {
@@ -131,7 +131,7 @@ fn replaced(svg: &Element, s: u32) -> Vec<(Element, Element)> {
     pairs
 }
 
-/// Mots d'un texte : suites de lettres et chiffres, ou un autre caractère seul ; (début, mot)
+/// Words of a text: runs of letters and digits, or another character alone; (start, word)
 fn words(a: &[char]) -> Vec<(usize, String)> {
     let mut out: Vec<(usize, String)> = Vec::new();
     for (i, &c) in a.iter().enumerate() {
@@ -143,8 +143,8 @@ fn words(a: &[char]) -> Vec<(usize, String)> {
     out
 }
 
-/// Paires de caractères gardés d'un texte à l'autre : plus longue sous-suite commune des mots,
-/// un mot modifié change en entier (« NodePort » → « ClusterIP » ne garde pas « er »)
+/// Pairs of characters kept from one text to the other: longest common subsequence of the
+/// words, a modified word changes entirely ("NodePort" → "ClusterIP" does not keep "er")
 fn kept(a: &[char], b: &[char]) -> Vec<(usize, usize)> {
     let (a, b) = (words(a), words(b));
     let mut t = vec![vec![0u16; b.len() + 1]; a.len() + 1];
@@ -168,7 +168,7 @@ fn kept(a: &[char], b: &[char]) -> Vec<(usize, usize)> {
     out
 }
 
-/// Un caractère du texte `t`, seul, à sa place : un clone du `<text>` (police, couleur)
+/// One character of the text `t`, alone, in its place: a clone of the `<text>` (font, colour)
 fn glyph(t: &Element, i: usize, c: char) -> Option<(Element, f64, f64)> {
     let p = t.dyn_ref::<SvgTextContentElement>()?.get_start_position_of_char(i as u32).ok()?;
     let g: Element = t.clone_node().ok()?.dyn_into().ok()?;
@@ -179,7 +179,7 @@ fn glyph(t: &Element, i: usize, c: char) -> Option<(Element, f64, f64)> {
     Some((g, x, y))
 }
 
-/// La ligne `old` devient `new` : un calque de caractères posé dans la carte le temps du passage
+/// The line `old` becomes `new`: a layer of characters laid in the card during the change
 fn morph(old: &Element, new: &Element) {
     let (Some(ta), Some(tb), Some(card)) = (dom::qs(old, "text"), dom::qs(new, "text"), old.parent_element()) else { return };
     let a: Vec<char> = ta.text_content().unwrap_or_default().chars().collect();
@@ -196,7 +196,7 @@ fn morph(old: &Element, new: &Element) {
     for (j, &c) in b.iter().enumerate() {
         let Some((g, bx, by)) = glyph(&tb, j, c) else { continue };
         match pairs.iter().find(|(_, pj)| *pj == j).and_then(|(i, _)| glyph(&ta, *i, a[*i])) {
-            // gardé : part de sa place dans l'ancienne ligne
+            // kept: leaves from its place in the old line
             Some((_, ax, ay)) => dom::style(&g, "transform", &format!("translate({}px, {}px)", ax - bx, ay - by)),
             None => {
                 dom::style(&g, "opacity", "0");
@@ -229,7 +229,7 @@ fn morph(old: &Element, new: &Element) {
             dom::style(g, "opacity", "0");
         }
     });
-    // le calque reste, nouveaux caractères marqués, jusqu'au clic suivant (voir `unmorph`)
+    // the layer stays, new characters marked, until the next click (see `unmorph`)
     dom::timeout(MORPH + 50.0, move || {
         for g in gone {
             g.remove();
@@ -237,7 +237,7 @@ fn morph(old: &Element, new: &Element) {
     });
 }
 
-/// Fin du passage : les vraies lignes reprennent la place du calque, sans fondu
+/// End of the change: the real lines take back the place of the layer, without fading
 fn unmorph(svg: &Element) {
     let layers = qsa(svg, ".sk-morph");
     if layers.is_empty() {
@@ -246,7 +246,7 @@ fn unmorph(svg: &Element) {
     let lines = qsa(svg, "g.li[style]");
     for el in &lines {
         dom::unstyle(el, "opacity");
-        // le style recalculé ici, transition coupée : l'opacité change d'un coup
+        // the style computed here, transition cut: the opacity changes at once
         let _ = el.get_bounding_client_rect();
     }
     for l in layers {
@@ -264,7 +264,7 @@ fn unmorph(svg: &Element) {
 fn update(slide: &Element, animate: bool) {
     let s = engine::current_step(slide);
     for svg in qsa(slide, "svg.skemo") {
-        // en avançant d'un clic, les lignes remplacées se transforment
+        // moving forward by one click, the replaced lines morph
         let before = data(&svg, "sk-at").and_then(|v| v.parse::<u32>().ok());
         let _ = svg.set_attribute("data-sk-at", &s.to_string());
         if before != Some(s) {
@@ -294,7 +294,7 @@ pub fn install() {
         dom::add(&el, "sk-off");
     }
     engine::on(|ev| match ev {
-        // À l'impression, chaque schéma montre son état final
+        // When printing, each diagram shows its final state
         Ev::Ready if engine::printing() => engine::all_leaves().iter().for_each(|(_, _, s)| update(s, false)),
         Ev::Ready | Ev::SlideChanged { .. } => update(&engine::current_slide(), false),
         Ev::FragmentShown(_) | Ev::FragmentHidden(_) => update(&engine::current_slide(), true),
