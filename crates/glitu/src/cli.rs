@@ -51,10 +51,6 @@ pub enum Cmd {
         /// Also serve these addresses besides this machine: phone, tablet, remote (repeatable)
         #[arg(long, value_name = "CIDR")]
         allow: Vec<Range>,
-        /// Timed rehearsal: the speaker view times each slide and writes the durations into the
-        /// markdown
-        #[arg(long)]
-        rehearse: bool,
     },
     /// Build the presentation: a static site, or one page (--standalone, --web)
     Build(BuildArgs),
@@ -171,7 +167,7 @@ pub enum Build {
 pub enum Command {
     Init { dir: PathBuf, theme: String, css: bool },
     Build { slides: PathBuf, mode: Build, out: Option<PathBuf> },
-    Serve { slides: PathBuf, port: u16, allow: Vec<Range>, rehearse: bool },
+    Serve { slides: PathBuf, port: u16, allow: Vec<Range> },
     Export { slides: PathBuf, out: PathBuf, options: export::Options },
     Unpack { page: String, out: PathBuf, force: bool },
     Themes,
@@ -193,7 +189,7 @@ pub fn parse<I: IntoIterator<Item = String>>(args: I) -> Result<(Command, bool),
 fn command(cmd: Cmd) -> Result<Command, clap::Error> {
     Ok(match cmd {
         Cmd::Init { dir, theme, css } => Command::Init { dir, theme, css },
-        Cmd::Serve { file, port, allow, rehearse } => Command::Serve { slides: file, port, allow, rehearse },
+        Cmd::Serve { file, port, allow } => Command::Serve { slides: file, port, allow },
         Cmd::Build(b) => {
             let mode = match b.web {
                 Some(base) => Build::Web(base),
@@ -270,15 +266,15 @@ mod tests {
 
     #[test]
     fn serve_options() {
-        let Command::Serve { port, allow, rehearse, slides } =
-            cmd("serve -p 9000 --allow 10.0.0.0/8 --allow 192.168.0.0/16 --rehearse d.md").unwrap()
+        let Command::Serve { port, allow, slides } =
+            cmd("serve -p 9000 --allow 10.0.0.0/8 --allow 192.168.0.0/16 d.md").unwrap()
         else {
             panic!()
         };
-        assert_eq!((port, allow.len(), rehearse, slides), (9000, 2, true, PathBuf::from("d.md")));
+        assert_eq!((port, allow.len(), slides), (9000, 2, PathBuf::from("d.md")));
         assert!(cmd("serve -p x").is_err());
         assert!(cmd("serve --allow nope").is_err());
-        assert!(matches!(cmd("serve").unwrap(), Command::Serve { port: 8000, rehearse: false, .. }));
+        assert!(matches!(cmd("serve").unwrap(), Command::Serve { port: 8000, .. }));
     }
 
     #[test]

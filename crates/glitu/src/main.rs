@@ -10,6 +10,15 @@ use glitu::build::{self, Project};
 use glitu::cli::{self, Build, Command};
 use glitu::{serve, standalone};
 
+/// A line on the standard output; a closed output (`glitu themes | head -1`) ends the program
+/// quietly, as other command-line tools do
+fn out(text: impl std::fmt::Display) {
+    use std::io::Write;
+    if writeln!(std::io::stdout(), "{text}").is_err() {
+        std::process::exit(0);
+    }
+}
+
 /// What a command prints, unless `--quiet`
 struct Say {
     quiet: bool,
@@ -18,7 +27,7 @@ struct Say {
 impl Say {
     fn line(&self, text: impl std::fmt::Display) {
         if !self.quiet {
-            println!("{text}");
+            out(text);
         }
     }
 }
@@ -41,7 +50,7 @@ fn run(command: Command, say: &Say) -> Result<bool, String> {
     match command {
         Command::Init { dir, theme, css } => init(&dir, &theme, css, say)?,
         Command::Build { slides, mode, out } => build(&Project::new(&slides), mode, out, say)?,
-        Command::Serve { slides, port, allow, rehearse } => serve::serve(Project::new(&slides), port, allow, rehearse)?,
+        Command::Serve { slides, port, allow } => serve::serve(Project::new(&slides), port, allow)?,
         Command::Export { slides, out, options } => {
             let n = glitu::export::export(&Project::new(&slides), &out, &options)?;
             say.line(format_args!("{}: {n} {}", out.display(), options.format.unit()));
@@ -59,19 +68,26 @@ fn run(command: Command, say: &Say) -> Result<bool, String> {
     Ok(true)
 }
 
-/// `glitu init`: what it wrote, then how to see it
+/// `glitu init`: what it wrote, then how to see it, and how to adjust the theme
 fn init(dir: &Path, theme: &str, css: bool, say: &Say) -> Result<(), String> {
-    for path in glitu::init::run(dir, theme, css)? {
+    let written = glitu::init::run(dir, theme, css)?;
+    for path in &written {
         say.line(format_args!("created: {}", path.display()));
     }
     say.line(format_args!("try: glitu serve {}", dir.join("slides.md").display()));
+    if !written.iter().any(|p| p.ends_with("style.css")) && !dir.join("style.css").exists() {
+        say.line(format_args!(
+            "tip: glitu init {} --css writes style.css, every variable of the theme (colours, fonts, sizes) to customise it",
+            dir.display()
+        ));
+    }
     Ok(())
 }
 
 /// The embedded themes, one per line: name, version, kind, animated backdrop
 fn themes() -> Result<(), String> {
     let root = glitu::themes::root()?;
-    println!("{:<14} {:<8} {:<10} BACKDROP", "THEME", "VERSION", "KIND");
+    out(format_args!("{:<14} {:<8} {:<10} BACKDROP", "THEME", "VERSION", "KIND"));
     for name in glitu::themes::names() {
         let theme = build::LocalTheme::open(root.join(name), &glitu_core::Theme::Official { name: name.into(), version: None })?;
         let kind = if theme.config["template"].as_bool() == Some(true) { "template" } else { "reveal.js" };
@@ -81,7 +97,7 @@ fn themes() -> Result<(), String> {
             "black" => "  (default for reveal-md markdown)",
             _ => "",
         };
-        println!("{name:<14} {:<8} {kind:<10} {backdrop}{default}", theme.version.as_deref().unwrap_or("-"));
+        out(format_args!("{name:<14} {:<8} {kind:<10} {backdrop}{default}", theme.version.as_deref().unwrap_or("-")));
     }
     Ok(())
 }

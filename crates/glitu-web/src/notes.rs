@@ -3,7 +3,7 @@
 //! with a click (it restarts when the slide changes) and corrected by hand (✎). The keys of the
 //! presentation work there too.
 //!
-//! Timed slides (`duration="95"` after their title, see `glitu serve --rehearse`) give the lead
+//! Timed slides (`## Title ⏳95🏃3`, see the rehearsals of `glitu serve`) give the lead
 //! or the delay, next to the time: the time spent on the slides since the timer started, minus
 //! their planned durations (the current slide counting at most its own).
 //! In ghost mode, a button times a rehearsal: when it stops, the time spent on each slide left
@@ -171,7 +171,7 @@ fn signed(ms: f64) -> String {
     format!("{}{}:{:02}", if ms < 0.0 { "−" } else { "+" }, secs / 60, secs % 60)
 }
 
-/// Ghost mode: the page served by `glitu serve --rehearse` says so
+/// Rehearsals: the page served by `glitu serve` says so
 fn rehearse() -> bool {
     dom::document().query_selector("meta[name=glitu-rehearse]").ok().flatten().is_some()
 }
@@ -403,7 +403,8 @@ fn send_record(run: &Run) {
         let (Some(&spent), Some((_, _, leaf))) = (run.spent.get(i), leaves.get(*i)) else { continue };
         let Some(slide) = dom::data(leaf, "slide") else { continue };
         if spent >= 2000.0 {
-            let _ = js_sys::Reflect::set(&measured, &slide.into(), &(spent / 1000.0).into());
+            let entry = js_sys::Array::of2(&(spent / 1000.0).into(), &"average".into());
+            let _ = js_sys::Reflect::set(&measured, &slide.into(), &entry);
         }
     }
     let win = dom::window();

@@ -194,7 +194,8 @@ fn mark_svg(kind: &str, seed_text: &str) -> String {
             j(100.0, 1.0)
         ),
         "strike" => format!("M{} {} L{} {}", j(-2.0, 1.0), j(55.0, 4.0), j(102.0, 1.0), j(48.0, 4.0)),
-        "highlight" => format!("M{} {} L{} {}", j(-1.0, 1.0), j(58.0, 3.0), j(101.0, 1.0), j(56.0, 3.0)),
+        // exactly over the marked text: the spaces around it stay as they are
+        "highlight" => format!("M{} {} L{} {}", j(0.5, 0.5), j(58.0, 3.0), j(99.5, 0.5), j(56.0, 3.0)),
         "box" => format!(
             "M{} {} L{} {} L{} {} L{} {} Z M{} {} L{} {}",
             j(-3.0, 1.5),
