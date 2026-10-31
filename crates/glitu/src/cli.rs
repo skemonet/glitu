@@ -11,7 +11,7 @@ use crate::serve::Range;
 #[derive(Parser)]
 #[command(
     name = "glitu",
-    version,
+    version = crate::build::VERSION,
     about = "Presentations written in markdown, rendered by a Rust engine: preview, build, export",
     after_help = "Start a presentation: glitu init talk && glitu serve talk/slides.md",
     disable_help_subcommand = true

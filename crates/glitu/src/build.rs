@@ -9,8 +9,13 @@ use glitu_core::{Assets, Header, Theme};
 
 use crate::source::{self, Source};
 
-/// Version of the embedded engine: a presentation that asks for another one (`glitu:`) is refused
-pub const VERSION: &str = env!("CARGO_PKG_VERSION");
+/// Version of the embedded engine: a presentation that asks for another one (`glitu:`) is refused.
+/// The released binaries get it from the release tag (`GLITU_BUILD_VERSION`, set by the CI, see
+/// tools/next-version.sh); other builds say the workspace's.
+pub const VERSION: &str = match option_env!("GLITU_BUILD_VERSION") {
+    Some(v) => v,
+    None => env!("CARGO_PKG_VERSION"),
+};
 
 /// Web engine compiled by build.rs (glitu-web → wasm → wasm-bindgen)
 pub const ENGINE_JS: &str = include_str!(concat!(env!("OUT_DIR"), "/pkg/glitu_web.js"));

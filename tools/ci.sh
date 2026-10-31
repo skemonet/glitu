@@ -2,8 +2,11 @@
 # The glitu checks — the SAME ones as the CI (the `check` job of .gitlab-ci.yml only calls this script).
 #
 #   tools/ci.sh            lints (with and without the `oracle` feature of development), tests,
-#                          then a smoke test of the binary
+#                          then a smoke test of the binary (the CI on main)
+#   tools/ci.sh --quick    lints with every feature and tests only (the CI on other branches)
 set -euo pipefail
+quick=false
+[ "${1:-}" = --quick ] && quick=true
 cd "$(dirname "$0")/.."
 [ -f "$HOME/.cargo/env" ] && . "$HOME/.cargo/env"
 export CARGO_TERM_COLOR="${CARGO_TERM_COLOR:-auto}"
@@ -13,13 +16,14 @@ step() { printf '\n\033[1m▶ %s\033[0m\n' "$*"; }
 # Everything in the dev profile: the release profile (LTO, one codegen unit) is for the
 # distributed binaries, which the `binaries` job builds; here it would only slow the checks down.
 
-step "lints (clippy, -D warnings): default build and --all-features"
-cargo clippy --workspace --all-targets --locked -- -D warnings
+step "lints (clippy, -D warnings): --all-features, then the default build"
 cargo clippy --workspace --all-targets --locked --all-features -- -D warnings
+$quick || cargo clippy --workspace --all-targets --locked -- -D warnings
 
 # --all-features: the tests of the development commands too (oracle)
 step "tests"
 cargo test --workspace --locked --all-features
+$quick && exit 0
 
 # The binary as released (default features) starts, builds the demo as one page and exports it
 # as a website, and a new presentation, with a theme of its own, outside the repository (the

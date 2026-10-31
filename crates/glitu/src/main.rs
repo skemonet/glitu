@@ -63,7 +63,7 @@ fn run(command: Command, say: &Say) -> Result<bool, String> {
         }
         Command::Unpack { page, out, force } => unpack(&page, &out, force, say)?,
         Command::Themes => themes()?,
-        Command::Version => out(format_args!("glitu {}", env!("CARGO_PKG_VERSION"))),
+        Command::Version => out(format_args!("glitu {}", build::VERSION)),
         #[cfg(feature = "oracle")]
         Command::OracleCapture { url, out } => {
             glitu::oracle::capture(&url, &out)?;

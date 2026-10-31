@@ -4,3 +4,5 @@ dist/
 # Presentations kept out of the repository
 /decks/
 __pycache__/
+/.cargo-home/
+/release.env

@@ -1,17 +1,19 @@
 # glitu's pipeline, run by the maintainer's CI (gitlab-ci-local and podman), not by GitHub: GitHub
 # only receives the code, the releases and the website.
 #
-# - every push: tools/ci.sh (lints, tests, smoke test of the binary);
-# - main and vX.Y.Z[-rc.N] tags: the four release binaries (static Linux x86_64 and ARM, macOS ARM,
-#   Windows x86_64), then tools/github-release.sh: main pushed to GitHub, and the release
-#   v<version> of Cargo.toml with the binaries, if it does not exist yet (raising the version and
-#   pushing main is enough to release; a pushed tag must match the version);
-# - main: the website (tools/site.sh), pushed to the gh-pages branch that GitHub Pages serves
-#   (tools/github-pages.sh);
-# - release/… branches: the binaries only, nothing published.
+# - other branches: tools/ci.sh --quick (lints and tests);
+# - main: tools/ci.sh (lints, tests, smoke test of the binary); tools/next-version.sh reads the
+#   commits since the last release (conventional commits: feat, fix, perf, `!`); then, if they call
+#   for a release, the four binaries (static Linux x86_64 and ARM, macOS ARM, Windows x86_64);
+#   tools/github-release.sh pushes main to GitHub, and the tag and the release with the binaries;
+#   last, the website (tools/site.sh), pushed to the gh-pages branch that GitHub Pages serves
+#   (tools/github-pages.sh).
+#
+# Cache: target/ and the cargo registry live in podman volumes kept from one pipeline to the next
+# (gitlab-ci-local --mount-cache, enabled by .gitlab-ci-local-env); a new image starts new ones.
 #
 # Secret: GITHUB_TOKEN, a token allowed to push to skemonet/glitu and to create its releases, in
-# the CI's variables of the repository (main and tags).
+# the CI's variables of the repository.
 
 stages:
   - check
@@ -20,32 +22,57 @@ stages:
 
 default:
   image: localhost/ci/rust:1.99.1-4
+  cache:
+    - key: target-rust-1.99.1-4
+      paths: [target]
+    - key: cargo-rust-1.99.1-4
+      paths: [.cargo-home]
 
 variables:
   CARGO_TERM_COLOR: always
+  CARGO_HOME: $CI_PROJECT_DIR/.cargo-home
   GITHUB_REPO: skemonet/glitu
+
+quick-check:
+  stage: check
+  rules:
+    - if: $CI_COMMIT_BRANCH != "main"
+  script:
+    - tools/ci.sh --quick
 
 check:
   stage: check
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
   script:
-    # the commit tested (the publication jobs push it to GitHub: they need the repository's history)
-    - git log -1 --format='%H %s' || echo "no git history in the job"
     - tools/ci.sh
+
+version:
+  stage: check
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+  cache: []
+  script:
+    - tools/next-version.sh release.env
+  artifacts:
+    paths:
+      - release.env
 
 binaries:
   stage: build
-  needs: [check]
+  needs: [check, version]
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
-    - if: $CI_COMMIT_TAG =~ /^v[0-9]/
-    # a release/… branch builds the binaries without publishing anything: to check them first
-    - if: $CI_COMMIT_BRANCH =~ /^release\//
   script:
     # cargo-zigbuild: zig links every target; the asset is the file name in the release, the same
     # from one version to the next, so that releases/latest/download/<asset> is a stable link
     - |
       set -eu
+      . ./release.env
       mkdir -p dist
+      touch dist/.keep
+      if [ -z "$NEXT_VERSION" ]; then echo "nothing to release: no binary"; exit 0; fi
+      export GLITU_BUILD_VERSION
       for spec in \
         x86_64-unknown-linux-musl:glitu:glitu-linux-x86_64 \
         aarch64-unknown-linux-musl:glitu:glitu-linux-arm64 \
@@ -57,30 +84,30 @@ binaries:
         cargo zigbuild --release --locked -p glitu --target "$target"
         cp "target/$target/release/$exe" "dist/$asset"
       done
-    # the binary of this machine starts and says its version
-    - dist/glitu-linux-x86_64 --version
-    - ls -l dist
-    - (cd dist && sha256sum glitu-*)
+      # the binary of this machine starts and says the version released
+      dist/glitu-linux-x86_64 --version | grep -qx "glitu $NEXT_VERSION"
+      ls -l dist
+      (cd dist && sha256sum glitu-*)
   artifacts:
     paths:
       - dist/
 
 github:
   stage: publish
-  needs: [binaries]
+  needs: [binaries, version]
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
-    - if: $CI_COMMIT_TAG =~ /^v[0-9]/
+  cache: []
   script:
     - tools/github-release.sh
 
 website:
   stage: publish
-  # after the binaries: two release builds at once would not fit in the CI's memory
-  needs: [binaries]
+  # after the push to GitHub: the website shows what GitHub holds
+  needs: [github, version]
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
   script:
-    - cargo build --release --locked -p glitu
-    - tools/site.sh site/dist
+    # the version released, or the last one: the light pages load the engine from glitu/<version>/
+    - . ./release.env && export GLITU_BUILD_VERSION && tools/site.sh site/dist
     - tools/github-pages.sh site/dist

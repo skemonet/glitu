@@ -1,16 +1,15 @@
 #!/bin/sh
-# Publishes a glitu version on GitHub, from the maintainer's CI (see .gitlab-ci.yml):
+# Publishes glitu on GitHub, from the maintainer's CI (see .gitlab-ci.yml), on main once the tests
+# passed:
 #
-# 1. on main: pushes main to github.com/$GITHUB_REPO (fast-forward only: a refused push means
-#    GitHub's main has commits the CI repository lacks, to bring back first);
-# 2. if the version of Cargo.toml (`v<version>`) has no release yet: pushes the tag on this commit
-#    and creates the release with the binaries of dist/ and their SHA-256 in its description. A
-#    version with a hyphen (0.1.1-rc.1…) gives a pre-release. On a pushed tag, the tag must match
-#    the version.
+# 1. pushes main to github.com/$GITHUB_REPO (fast-forward only: a refused push means GitHub's main
+#    has commits the CI repository lacks, to bring back first);
+# 2. if tools/next-version.sh found a version to release (NEXT_VERSION of release.env): pushes the
+#    tag v<version> on this commit and creates the release with the binaries of dist/ and their
+#    SHA-256 in its description. A version with a hyphen (1.0.0-rc.1…) gives a pre-release.
 #
 # Needs: git, curl, jq, sha256sum; GITHUB_TOKEN (allowed to push to the repository and to create
-# its releases), never written in a command line or in the log; CI_COMMIT_SHA, and CI_COMMIT_BRANCH
-# or CI_COMMIT_TAG.
+# its releases), never written in a command line or in the log; CI_COMMIT_SHA; release.env.
 set -eu
 
 repo=${GITHUB_REPO:-skemonet/glitu}
@@ -34,18 +33,15 @@ gh_git() {
     git "$@"
 }
 
-version=$(sed -n '/^\[workspace.package\]/,/^\[/s/^version = "\(.*\)"/\1/p' Cargo.toml)
-[ -n "$version" ] || die "no version in Cargo.toml"
+[ -f release.env ] || die "release.env is missing (tools/next-version.sh first)"
+. ./release.env
+version=$NEXT_VERSION
 tag="v$version"
-if [ -n "${CI_COMMIT_TAG:-}" ] && [ "$CI_COMMIT_TAG" != "$tag" ]; then
-  die "tag $CI_COMMIT_TAG does not match the workspace version $version"
-fi
 
 remote="https://github.com/$repo.git"
-if [ "${CI_COMMIT_BRANCH:-}" = main ]; then
-  echo "main → $remote ($CI_COMMIT_SHA)"
-  gh_git push -q "$remote" "$CI_COMMIT_SHA:refs/heads/main"
-fi
+echo "main → $remote ($CI_COMMIT_SHA)"
+gh_git push -q "$remote" "$CI_COMMIT_SHA:refs/heads/main"
+[ -n "$version" ] || { echo "nothing to release"; exit 0; }
 
 code=$(gh_curl -o /dev/null -w '%{http_code}' "$api/releases/tags/$tag")
 case "$code" in

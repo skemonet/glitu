@@ -53,16 +53,19 @@ project), then ask for a presentation.
 
 ## Releases
 
-The version is the workspace's, in `Cargo.toml` (`0.1.1-rc.4`: a hyphen gives a pre-release). A push
-on `main` whose version has no release yet publishes the GitHub release `v<version>`, tag included,
-with the four binaries and their SHA-256. To release: raise the version in `Cargo.toml` and push
-`main`. Pushing a `vX.Y.Z` tag matching `Cargo.toml` does the same.
+Releases follow the commit messages ([conventional commits](https://www.conventionalcommits.org)):
+once the tests pass on `main`, a `fix:` or `perf:` since the last release gives a patch release, a
+`feat:` a minor one, a `!` after the type (`feat!:`) or a `BREAKING CHANGE:` line a major one
+(minor while the version is 0.x); `docs:`, `ci:`, `chore:`… release nothing. The CI then tags
+`v<version>` and publishes the GitHub release with the four binaries and their SHA-256. The
+version the binary says comes from that tag; `Cargo.toml`'s only serves local builds.
 
 The pipeline is `.gitlab-ci.yml`, run by the maintainer's own CI (`gitlab-ci-local`), not by GitHub
-Actions: on every push, `tools/ci.sh` (lints, tests, smoke test of the binary, the same locally);
-on `main` and on tags, the four binaries (cross-compiled with `cargo zigbuild`), then
-`tools/github-release.sh` (pushes `main` to GitHub, then the tag and the release); on `main`, the
-website (below).
+Actions: on other branches, `tools/ci.sh --quick` (lints and tests); on `main`, `tools/ci.sh` (the
+same plus a smoke test of the binary, also to run locally), `tools/next-version.sh` (the version
+to release, if any), the four binaries (cross-compiled with `cargo zigbuild`) when there is one,
+`tools/github-release.sh` (pushes `main` to GitHub, then the tag and the release), and the website
+(below). `target/` and the cargo registry are cached between pipelines.
 
 **License:** dual-licensed under [MIT](LICENSE-MIT) or [Apache-2.0](LICENSE-APACHE), at your option.
 
@@ -330,7 +333,7 @@ theme: ./my-themes/x       # third-party theme, path relative to the presentatio
 `tools/site.sh [site/dist]` writes the website: the home page `site/index.html` (with its
 `site/img/`), the demo, `tests/features/slides.md`, built as one standalone page (`demo.html`),
 and `static/`, the assets of the light pages: `static/glitu/<version>/` (the engine, at the
-version of the repository) and `static/themes/<name>/<version>/` (the `"version"` of each theme's
+version last released) and `static/themes/<name>/<version>/` (the `"version"` of each theme's
 `glitu.json`, required), written by the `assets` example of `crates/glitu`. A deployment replaces
 the whole site: only the versions of `main` stay published.
 The CI builds it on every push on `main` and `tools/github-pages.sh` publishes it as the only commit

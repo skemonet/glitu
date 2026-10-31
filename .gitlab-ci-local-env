@@ -1,0 +1,3 @@
+# Options of gitlab-ci-local for this repository (see .gitlab-ci.yml): the `cache:` paths are
+# podman volumes, kept from one pipeline to the next
+MOUNT_CACHE=true
