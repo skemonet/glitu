@@ -29,10 +29,10 @@ Cargo.
 curl -fsSL https://raw.githubusercontent.com/skemonet/glitu/main/tools/install.sh | sh            # latest release into ~/.local/bin, SHA-256 checked
 ```
 
-Or take the binary from the [releases](https://github.com/skemonet/glitu/releases): for now only
-`glitu-linux-x86_64`, static (the latest one is always at
-`https://github.com/skemonet/glitu/releases/latest/download/glitu-linux-x86_64`); on other
-platforms, build it from source as above. `glitu export` also needs a Chromium-based browser: the one installed is found, otherwise
+Or take a binary from the [releases](https://github.com/skemonet/glitu/releases): `glitu-linux-x86_64`,
+`glitu-linux-arm64` (both static), `glitu-macos-arm64`, `glitu-windows-x86_64.exe` (the latest one is
+always at `https://github.com/skemonet/glitu/releases/latest/download/<file>`), or build it from
+source as above. `glitu export` also needs a Chromium-based browser: the one installed is found, otherwise
 `--download-browser` fetches one (see "Export").
 
 ```bash
@@ -54,11 +54,15 @@ project), then ask for a presentation.
 ## Releases
 
 The version is the workspace's, in `Cargo.toml` (`0.1.1-rc.3`: a hyphen gives a pre-release). A push
-on `main` whose version has no release yet makes `.github/workflows/release.yml` build the Linux
-x86_64 binary (static, musl) and publish the GitHub release `v<version>`, tag included, with its
-SHA-256. To keep the Actions minutes low, the workflow runs no tests: run `tools/ci.sh` (lints,
-tests, smoke test of the binary) before merging. To release: raise the version
-in `Cargo.toml` and merge. Pushing a `vX.Y.Z` tag matching `Cargo.toml` does the same.
+on `main` whose version has no release yet publishes the GitHub release `v<version>`, tag included,
+with the four binaries and their SHA-256. To release: raise the version in `Cargo.toml` and push
+`main`. Pushing a `vX.Y.Z` tag matching `Cargo.toml` does the same.
+
+The pipeline is `.gitlab-ci.yml`, run by the maintainer's own CI (`gitlab-ci-local`), not by GitHub
+Actions: on every push, `tools/ci.sh` (lints, tests, smoke test of the binary, the same locally);
+on `main` and on tags, the four binaries (cross-compiled with `cargo zigbuild`), then
+`tools/github-release.sh` (pushes `main` to GitHub, then the tag and the release); on `main`, the
+website (below).
 
 **License:** dual-licensed under [MIT](LICENSE-MIT) or [Apache-2.0](LICENSE-APACHE), at your option.
 
@@ -329,9 +333,9 @@ and `static/`, the assets of the light pages: `static/glitu/<version>/` (the eng
 version of the repository) and `static/themes/<name>/<version>/` (the `"version"` of each theme's
 `glitu.json`, required), written by the `assets` example of `crates/glitu`. A deployment replaces
 the whole site: only the versions of `main` stay published.
-The `Website` workflow (`.github/workflows/pages.yml`) builds it on every push and publishes it on
-GitHub Pages from `main` (Settings → Pages → Source: GitHub Actions), under the custom domain
-`glitu.net` (Settings → Pages → Custom domain; `www.glitu.net` redirects to it).
+The CI builds it on every push on `main` and `tools/github-pages.sh` publishes it as the only commit
+of the `gh-pages` branch, which GitHub Pages serves (Settings → Pages → Source: deploy from the
+`gh-pages` branch) under the custom domain `glitu.net` (`www.glitu.net` redirects to it).
 
 ## Diagrams
 
