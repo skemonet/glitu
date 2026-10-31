@@ -1,0 +1,50 @@
+/* ==========================================================================
+   "ascii" theme on the shared template (glitu/template.css): palette, fonts, veils.
+   Amber ASCII: a flowing field of characters, in the amber of an old terminal; all monospaced.
+   Animated "ascii" backdrop (glitu.json); text panel in a slight gradient.
+   ========================================================================== */
+:root {
+  --font: "IBM Plex Sans", "Segoe UI", "Noto Color Emoji", "Apple Color Emoji", "Segoe UI Emoji", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", "DejaVu Sans Mono", ui-monospace, monospace;
+  --title-font: "Familjen Grotesk", var(--font);
+  --title-weight: 700;
+  --label-font: var(--mono);
+  /* Solid titles, overline without a dot, solid chapter number; the backdrop carries its veil */
+  --cover-size: 88px;
+  --cover-title: linear-gradient(var(--heading), var(--heading));
+  --eyebrow-pad: 0;
+  --eyebrow-bg: transparent;
+  --eyebrow-line: transparent;
+  --chapter-num: var(--accent);
+  --chapter-num-stroke: 0 transparent;
+  --chapter-num-size: 150px;
+  --chapter-bg: var(--base);
+  /* the characters run under the cover's text: a veil on its side, a bright subtitle */
+  --cover-veil: linear-gradient(90deg, rgba(17,12,6,.86), rgba(17,12,6,.6) 55%, rgba(17,12,6,0) 85%);
+  --cover-subtitle: var(--text);
+  --chapter-veil: none;
+  --body-veil: none;
+  --accent: #ffb347;
+  --accent-2: #ffcf8a;
+  --base: #110c06;
+  --line: rgba(255,179,71,.25);
+  --text: #ffe2b8;
+  --text-dim: #b88a52;
+  --heading: #fff1dc;
+  --bar-bg: rgba(17,12,6,.94);
+  --progress-bg: rgba(17,12,6,.94);
+  --bar-sep: rgba(255,179,71,.4);
+  --seg-bg: rgba(255,179,71,.14);
+  --panel-bg: linear-gradient(180deg, rgba(31,21,9,.96), rgba(14,10,5,.97));
+  --code-inline: #ffb347;
+  --code-inline-bg: rgba(255,179,71,.1);
+  --link-line: rgba(255,179,71,.4);
+  --backdrop-base: #110c06;
+  --glow: rgba(255,179,71,.35);
+  --win-bg: rgba(10,7,3,.96);
+  --win-border: rgba(255,179,71,.35);
+  --font: "IBM Plex Mono", "DejaVu Sans Mono", "Noto Color Emoji", ui-monospace, monospace;
+  --title-font: var(--mono);
+  --cover-size: 68px;
+  --chapter-num-size: 132px;
+}

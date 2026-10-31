@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>glitu: presentations written in markdown</title>
+<meta name="description" content="glitu turns a markdown file into a presentation: diagrams, code, terminals, formulas. A Rust tool and a WebAssembly engine, no npm.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230b1020'/%3E%3Cpath d='M9 22 15 10h4l-6 12zM15 22l6-12h3l-6 12z' fill='%2322d3ee'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #070b16;
+    --panel: #0f1628;
+    --line: #1e293b;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+    --accent: #22d3ee;
+    --accent-2: #3b82f6;
+    --mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: radial-gradient(1200px 600px at 80% -10%, #1e3a8a55, transparent), var(--bg);
+    color: var(--text);
+    font: 17px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  a { color: var(--accent); }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 16px; }
+  header.top { display: flex; align-items: center; justify-content: space-between; padding: 20px 0; }
+  .brand { font-weight: 800; font-size: 22px; letter-spacing: -.02em; color: var(--text); text-decoration: none; }
+  .brand span { color: var(--accent); }
+  nav a { color: var(--muted); text-decoration: none; margin-left: 20px; }
+  nav a:hover { color: var(--text); }
+  .hero { padding: 56px 0 40px; }
+  .hero h1 { font-size: clamp(34px, 6vw, 60px); line-height: 1.08; letter-spacing: -.03em; margin: 0 0 18px; }
+  .hero h1 em { font-style: normal; color: var(--accent); }
+  .hero p { color: var(--muted); font-size: 19px; max-width: 640px; margin: 0 0 28px; }
+  .actions { display: flex; flex-wrap: wrap; gap: 12px; }
+  .btn {
+    display: inline-block; padding: 12px 20px; border-radius: 10px; font-weight: 600; text-decoration: none;
+    border: 1px solid var(--line); color: var(--text); background: var(--panel);
+  }
+  .btn.primary { background: linear-gradient(90deg, var(--accent-2), var(--accent)); color: #04121c; border: 0; }
+  .shot {
+    display: block; margin: 44px 0 0; border-radius: 14px; overflow: hidden; border: 1px solid var(--line);
+    box-shadow: 0 30px 80px -30px #000;
+  }
+  .shot img { display: block; width: 100%; height: auto; }
+  section { padding: 48px 0; border-top: 1px solid var(--line); }
+  h2 { font-size: 28px; letter-spacing: -.02em; margin: 0 0 8px; }
+  .lead { color: var(--muted); margin: 0 0 28px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 18px 20px; }
+  .card h3 { margin: 0 0 6px; font-size: 17px; }
+  .card p { margin: 0; color: var(--muted); font-size: 15px; }
+  .gallery { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+  .gallery figure { margin: 0; }
+  .gallery img { width: 100%; height: auto; border-radius: 10px; border: 1px solid var(--line); display: block; }
+  .gallery figcaption { color: var(--muted); font-size: 14px; margin-top: 6px; }
+  pre {
+    background: #0a0f1d; border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px;
+    overflow-x: auto; font: 14px/1.6 var(--mono); color: #cbd5e1; margin: 0;
+  }
+  pre .c { color: #64748b; }
+  footer { padding: 32px 0 48px; color: var(--muted); font-size: 14px; border-top: 1px solid var(--line); }
+  @media (max-width: 560px) {
+    nav a { margin-left: 14px; }
+    .hero { padding-top: 32px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <a class="brand" href="./">gl<span>i</span>tu</a>
+    <nav>
+      <a href="demo.html">Demo</a>
+      <a href="https://github.com/skemonet/glitu">GitHub</a>
+    </nav>
+  </header>
+
+  <div class="hero">
+    <h1>Presentations written in <em>markdown</em>, rendered by a Rust engine</h1>
+    <p>One <code>slides.md</code> holds the text, the diagrams, the code shown on screen and the
+      terminal recordings. glitu builds it into a page; its WebAssembly engine presents it.
+      No npm, no Node.</p>
+    <div class="actions">
+      <a class="btn primary" href="demo.html">▶ Watch the demo</a>
+      <a class="btn" href="https://github.com/skemonet/glitu/releases/latest">Download</a>
+      <a class="btn" href="https://github.com/skemonet/glitu">Source on GitHub</a>
+    </div>
+    <a class="shot" href="demo.html"><img src="img/cover.webp" width="1280" height="720" alt="The cover slide of the demo presentation"></a>
+  </div>
+
+  <section>
+    <h2>The demo is glitu, presented with glitu</h2>
+    <p class="lead">A single standalone page: engine, theme and fonts inside. Press <kbd>→</kbd> or
+      space to advance, <kbd>S</kbd> for the speaker view, <kbd>?</kbd> for every key.</p>
+    <div class="gallery">
+      <figure><img src="img/frieze.webp" width="1280" height="720" loading="lazy" alt="A frieze of slide tools, from PowerPoint to glitu">
+        <figcaption>A frieze that follows each click</figcaption></figure>
+      <figure><img src="img/architecture.webp" width="1280" height="720" loading="lazy" alt="The architecture diagram of glitu">
+        <figcaption>A skemo diagram built click by click</figcaption></figure>
+      <figure><img src="img/terminal.webp" width="1280" height="720" loading="lazy" alt="A terminal recording of glitu build">
+        <figcaption>A terminal recording, paused at each click</figcaption></figure>
+    </div>
+  </section>
+
+  <section>
+    <h2>One markdown file, four outputs</h2>
+    <p class="lead">The same source becomes a site, a page to carry around, a light page or a file.</p>
+    <div class="grid">
+      <div class="card"><h3>Standalone page</h3><p><code>glitu build</code>: one HTML file, opens with a double click, needs no network.</p></div>
+      <div class="card"><h3>Light page</h3><p><code>--assets &lt;url&gt;</code>: the engine and the theme come from the web, each file checked by its hash.</p></div>
+      <div class="card"><h3>Static site</h3><p><code>glitu export --format site</code>, for any web server; <code>glitu serve</code> reloads at every change.</p></div>
+      <div class="card"><h3>Export</h3><p><code>glitu export</code>: editable PowerPoint, vector PDF, PNG images.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Get started</h2>
+    <p class="lead">Diagrams are drawn by <a href="https://skemo.net">skemo</a>, fetched by Cargo.</p>
+<pre><span class="c"># the binary (Linux, macOS), SHA-256 checked; Windows: see the releases</span>
+curl -fsSL https://raw.githubusercontent.com/skemonet/glitu/main/tools/install.sh | sh
+
+<span class="c"># a new presentation, previewed at http://localhost:8000</span>
+glitu init talk &amp;&amp; glitu serve talk/slides.md
+
+<span class="c"># or from source</span>
+rustup target add wasm32-unknown-unknown
+git clone https://github.com/skemonet/glitu &amp;&amp; cd glitu
+cargo build --release
+
+<span class="c"># the demo, from the clone, at http://localhost:8000</span>
+glitu serve tests/features/slides.md</pre>
+  </section>
+
+  <footer>
+    glitu is dual-licensed under MIT or Apache-2.0. Its code is AI-generated and provided as is.
+  </footer>
+</div>
+</body>
+</html>
