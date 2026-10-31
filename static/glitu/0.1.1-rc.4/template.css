@@ -1,0 +1,541 @@
+/* ==========================================================================
+   Shared template of the glitu themes (`"template": true` in glitu.json): header, text panel
+   on the left, visual on the right (photo, diagram, code), progress footer. Slides of 1280 × 720.
+   Each theme only changes its variables (palette, fonts, veils) and a few details; the default
+   values are those of the "crystal" theme.
+   ========================================================================== */
+:root {
+  --base: #0b0f19;
+  --surface-1: #161d2b;
+  --surface-2: #0f1520;
+  --line: rgba(255,255,255,.08);
+  --accent: #3b82f6;
+  --accent-2: #22d3ee;
+  --gradient: linear-gradient(90deg, var(--accent), var(--accent-2));
+  --mark: var(--accent);   /* hand-drawn marks: [word]{.circle @2}, .highlight, .underline… */
+  --panel-w: 37%;
+  --text-scale: 1;   /* multiplies all text sizes (a presentation sets it in its style.css) */
+  --header-h: 52px;
+  --footer-h: 34px;
+  --text: #e8edf5;
+  --text-dim: #93a0b4;
+  --ink: #1f2937;
+  --stage: #eef2f8;
+  --font: "Lato", "Segoe UI", "Noto Color Emoji", "Apple Color Emoji", "Segoe UI Emoji", system-ui, sans-serif;
+  --mono: "JetBrains Mono", "DejaVu Sans Mono", ui-monospace, monospace;
+  /* Titles */
+  --title-font: var(--font);
+  --title-weight: 900;
+  --heading: #fff;
+  /* Header and footer */
+  --bar-bg: rgba(11,15,25,.82);
+  --progress-bg: rgba(11,15,25,.78);
+  --bar-sep: rgba(255,255,255,.25);
+  --seg-bg: rgba(255,255,255,.1);
+  /* Text panel: slight gradient, slanted rule along the right edge */
+  --panel-bg:
+    radial-gradient(circle at 0 0, rgba(59,130,246,.16), transparent 55%),
+    linear-gradient(180deg, var(--surface-1), var(--surface-2));
+  --panel-rule: linear-gradient(180deg, var(--accent), var(--accent-2) 60%, transparent);
+  --code-inline: #7dd3fc;
+  --code-inline-bg: rgba(125,211,252,.1);
+  --link-line: rgba(34,211,238,.4);
+  /* Separation of the two columns, slanted clockwise; --slant: horizontal offset of its foot
+     from its top, over the whole height under the header */
+  --tilt: 2deg;
+  --slant: calc(tan(var(--tilt)) * (720px - var(--header-h)));
+  /* Animated backdrop and veils laid on it on the text side */
+  --backdrop-base: #030308;
+  --cover-veil: linear-gradient(90deg, rgba(3,3,8,.75), rgba(3,3,8,.2) 75%);
+  --chapter-bg:
+    radial-gradient(circle at 85% 15%, rgba(59,130,246,.35), transparent 45%),
+    radial-gradient(circle at 15% 110%, rgba(34,211,238,.22), transparent 45%),
+    var(--base);
+  --chapter-veil: linear-gradient(90deg, rgba(3,3,8,.7), rgba(3,3,8,.15) 70%);
+  --body-veil: linear-gradient(90deg, rgba(3,3,8,.72), rgba(3,3,8,.35));
+  /* Cover and interludes */
+  --cover-title: linear-gradient(180deg, #fff 30%, #b9c6dc);
+  --cover-subtitle: var(--text-dim);
+  --chapter-num: transparent;
+  --chapter-num-stroke: 2px rgba(34,211,238,.55);
+  --glow: rgba(34,211,238,.35);
+  --cover-place: center;
+  --cover-pad: 0 112px;
+  --cover-size: 128px;
+  --chapter-num-size: 180px;
+  /* Labels (section of the header, overline, footer) */
+  --label-font: var(--font);
+  --eyebrow-pad: .45em 1em;
+  --eyebrow-bg: color-mix(in srgb, var(--accent-2) 10%, transparent);
+  --eyebrow-line: color-mix(in srgb, var(--accent-2) 30%, transparent);
+  /* Code window, dark in all themes */
+  --win-bg: rgba(13,17,23,.94);
+  --win-border: rgba(255,255,255,.1);
+}
+
+/* ----- Base --------------------------------------------------------------- */
+html, body, .reveal-viewport { background: var(--base); }
+.reveal { font-family: var(--font); font-size: calc(24px * var(--text-scale, 1)); color: var(--text); }
+.reveal .slides { text-align: left; }
+.reveal .slides > section,
+.reveal .slides > section > section {
+  width: 100%; height: 100%; padding: 0; top: 0 !important;
+  overflow: hidden;
+}
+.reveal .slides > section.present { display: block !important; }
+.reveal h1, .reveal h2, .reveal h3 {
+  font-family: var(--title-font); text-transform: none; text-shadow: none;
+  letter-spacing: -.01em; color: inherit; margin: 0;
+}
+.reveal p { margin: 0; }
+
+/* ----- Header ------------------------------------------------------------- */
+.tpl-header {
+  position: absolute; z-index: 20; inset: 0 0 auto 0; height: var(--header-h);
+  display: flex; align-items: baseline; gap: .55em; padding: 0 28px;
+  background: var(--bar-bg);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--line);
+  color: var(--heading); white-space: nowrap;
+}
+.tpl-header .tpl-kicker {
+  font-family: var(--label-font); font-size: calc(15px * var(--text-scale, 1)); font-weight: 700; text-transform: uppercase; letter-spacing: .16em;
+  background: var(--gradient); -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.tpl-header .tpl-sep { font-size: calc(20px * var(--text-scale, 1)); color: var(--bar-sep); }
+.tpl-header .tpl-topic { font-family: var(--title-font); font-size: calc(21px * var(--text-scale, 1)); font-weight: 700; color: var(--text); }
+/* Chapter, separator and topic on one baseline, whatever their fonts (a mono label and a
+   grotesque title do not have the same centre); each one as high as the header, so that the
+   line stays in the middle */
+.tpl-header :is(.tpl-kicker, .tpl-sep, .tpl-topic) { line-height: var(--header-h); }
+.tpl-header .tpl-logo { margin-left: auto; height: 26px; opacity: .85; align-self: center; }
+
+/* ----- Left panel --------------------------------------------------------- */
+/* Its right edge leans by --tilt: it passes --panel-w by --slant / 2 at the top and stops
+   --slant / 2 before at the bottom; the text keeps the width of a straight panel */
+.reveal .panel {
+  position: absolute; z-index: 10; left: 0; top: var(--header-h); bottom: 0;
+  width: calc(var(--panel-w) + var(--slant) / 2);
+  padding: 40px calc(40px + var(--slant) / 2) calc(var(--footer-h) + 28px) 40px;
+  background: var(--panel-bg);
+  clip-path: polygon(0 0, 100% 0, calc(100% - var(--slant)) 100%, 0 100%);
+  box-sizing: border-box;
+}
+.reveal .panel::after {                       /* gradient rule along the right edge, slanted */
+  content: ""; position: absolute; top: 0; bottom: 0; right: calc(var(--slant) / 2); width: 3px;
+  background: var(--panel-rule);
+  transform: skewX(calc(-1 * var(--tilt)));
+}
+.reveal .panel h2 {
+  font-family: var(--title-font); font-size: calc(38px * var(--text-scale, 1)); font-weight: var(--title-weight); color: var(--heading); margin: 0 0 1em; line-height: 1.1;
+}
+.reveal .panel h2::after {
+  content: ""; display: block; width: 44px; height: 4px; margin-top: .4em;
+  border-radius: 2px; background: var(--gradient);
+}
+.reveal .panel ul { list-style: none; margin: 0; padding: 0; }
+.reveal .panel li {
+  position: relative; padding-left: 1.1em; margin: 0 0 .85em;
+  font-size: calc(22px * var(--text-scale, 1)); line-height: 1.45; color: var(--text);
+}
+.reveal .panel li::before {
+  content: ""; position: absolute; left: 0; top: .55em;
+  width: .36em; height: .36em; border-radius: 2px; background: var(--accent-2);
+}
+.reveal .panel.compact li { margin-bottom: .5em; font-size: calc(20px * var(--text-scale, 1)); }
+.reveal .panel a, .reveal .caption a {
+  color: var(--accent-2); text-decoration: underline; text-decoration-color: var(--link-line); text-underline-offset: .18em;
+}
+.reveal .panel code {
+  font-family: var(--mono); font-size: .82em; color: var(--code-inline);
+  background: var(--code-inline-bg); padding: .08em .35em; border-radius: 4px;
+}
+/* Panel whose content changes at each step: the blocks are stacked */
+.reveal .panel .panel-steps { display: grid; }
+.reveal .panel .panel-steps > * { grid-area: 1 / 1; }
+
+/* ----- Stage (right) ------------------------------------------------------ */
+.reveal .stage {
+  position: absolute; inset: var(--header-h) 0 0 0; z-index: 1;
+  display: flex; align-items: center; justify-content: center;
+  padding: 32px 36px calc(var(--footer-h) + 28px) calc(var(--panel-w) + var(--slant) / 2 + 28px);
+  box-sizing: border-box;
+  background: var(--stage) center / cover no-repeat;
+}
+.reveal .stage.full { padding: 24px 64px calc(var(--footer-h) + 20px); }
+.reveal .stage.photo::before {               /* dark veil: the photo stays a mood */
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(90deg, rgba(11,15,25,.75), rgba(11,15,25,.35) 60%, rgba(11,15,25,.55));
+}
+.reveal .stage.blur { background: none; overflow: hidden; }
+.reveal .stage.blur::after {
+  content: ""; position: absolute; inset: -30px; z-index: -1;
+  background: var(--bg) center / cover; filter: blur(8px) brightness(.45) saturate(1.2);
+}
+
+/* White card laid on the photo */
+.reveal div.card {
+  position: relative; background: #fff; color: var(--ink);
+  border-radius: 18px; padding: 18px 20px;
+  box-shadow: 0 30px 60px -20px rgba(0,0,0,.7), 0 0 0 1px rgba(255,255,255,.08);
+}
+.reveal .stage.full div.card { width: 100%; height: 100%; border-radius: 22px; padding: 20px 26px; box-sizing: border-box; }
+.reveal div.card svg, .reveal .stage > svg { display: block; width: 100%; height: auto; }
+.reveal .stage.full div.card svg { height: 100%; }
+
+/* Big emojis (```emoji block): one per step, stacked in the centre of the stage */
+.reveal .stage .glyphs { display: grid; place-items: center; width: 100%; height: 100%; }
+.reveal .stage .glyphs > * {
+  grid-area: 1 / 1; font-size: calc(220px * var(--text-scale, 1)); line-height: 1;
+  font-family: "Noto Color Emoji", "Apple Color Emoji", "Segoe UI Emoji", var(--font);
+  filter: drop-shadow(0 24px 40px rgba(0,0,0,.55));
+}
+
+/* Image (`![](img/x.png)`): whole in the stage, like a screenshot laid on it */
+.reveal .stage > img.visual {
+  display: block; min-width: 0; min-height: 0; max-width: 100%; max-height: 100%; object-fit: contain;
+  margin: 0; border-radius: 12px; box-shadow: 0 30px 60px -20px rgba(0,0,0,.7), 0 0 0 1px rgba(255,255,255,.08);
+}
+
+/* Strip that scrolls horizontally (frieze) */
+.reveal .pan-viewport { position: absolute; inset: 0 0 var(--footer-h); overflow: hidden; }
+.reveal .pan-track {
+  position: absolute; left: 0; top: 50%; translate: 0 -50%;
+  transition: transform .9s cubic-bezier(.45,.05,.25,1);
+}
+.reveal .pan-track svg { display: block; height: auto; }
+.reveal .pan-step { display: none; }
+
+/* ----- Code window -------------------------------------------------------- */
+.reveal .window {
+  width: 100%; height: 100%; display: flex; flex-direction: column; overflow: hidden;
+  background: var(--win-bg); color: #e6edf3;
+  border: 1px solid var(--win-border); border-radius: 12px;
+  box-shadow: 0 30px 60px -20px rgba(0,0,0,.8);
+  backdrop-filter: blur(6px);
+}
+.reveal .window-title {
+  display: flex; align-items: center; justify-content: center; position: relative;
+  padding: 10px 14px; font: 400 calc(13px * var(--text-scale, 1)) var(--mono); color: var(--text-dim);
+  background: rgba(255,255,255,.03); border-bottom: 1px solid rgba(255,255,255,.07);
+}
+.reveal .window-title::before {               /* window dots */
+  content: ""; position: absolute; left: 14px; top: 50%; translate: 0 -50%;
+  width: 11px; height: 11px; border-radius: 50%; background: #ff5f57;
+  box-shadow: 18px 0 #febc2e, 36px 0 #28c840;
+}
+.reveal .window pre {
+  position: relative; flex: 1; margin: 0; width: 100%; box-shadow: none;
+  font-size: calc(13px * var(--text-scale, 1)); line-height: 1.55;   /* like the window title and the explorer */
+}
+/* The highlight plugin stacks one copy of the block per highlight step.
+   Transparent backdrop required: all the copies are stacked and only the last visible one shows. */
+.reveal .window pre code {
+  position: absolute; inset: 0; width: 100%;
+  max-height: none; padding: 16px 0; box-sizing: border-box; overflow: hidden;
+  background: transparent; font-family: var(--mono); color: #e6edf3;
+  font-variant-ligatures: none;
+  white-space: pre;
+}
+.reveal .window pre code:not(.has-highlights) { padding: 16px 1.2em; }   /* without line numbers */
+.reveal .window pre:has(> code.fragment.visible) > code:not(.fragment),
+.reveal .window pre > code.fragment.visible:has(~ code.fragment.visible) { visibility: hidden; }
+.reveal .window .hljs-ln-numbers {
+  color: #4b5563; text-align: right; padding: 0 1.1em 0 1em !important; user-select: none;
+}
+/* the code keeps away from the neon stroke of the highlighted lines, like the name of the
+   current file in the explorer (.5em); all the lines, to stay aligned */
+.reveal .window .hljs-ln-code { padding-left: .6em !important; padding-right: 1em !important; }
+.reveal .window .hljs-attr, .reveal .window .hljs-bullet { color: #79c0ff; }
+.reveal .window .hljs-string { color: #a5d6ff; }
+.reveal .window .hljs-number, .reveal .window .hljs-literal { color: #ffa657; }
+.reveal .window .hljs-tag, .reveal .window .hljs-name { color: #7ee787; }
+.reveal .window .hljs-comment { color: #8b949e; }
+.reveal .window .hljs.has-highlights tr:not(.highlight-line) { opacity: .3; }
+.reveal .window .hljs.has-highlights tr.highlight-line td { color: #fff; }
+/* Highlighted line: an almost opaque solid backdrop and the neon stroke, drawn by a layer that
+   overflows by 1 px on the neighbouring lines. At a fractional position (scrolling,
+   magnification), two backdrops edge to edge would otherwise leave a visible seam */
+.reveal .window .hljs-ln { width: 100%; }   /* the band goes to the edge of the window */
+/* the column of numbers keeps its natural width: the extra room goes to the code */
+.reveal .window .hljs-ln-numbers { width: 1px; white-space: nowrap; }
+.reveal .window .hljs.has-highlights .hljs-ln-code { position: relative; z-index: 0; }
+.reveal .window .hljs.has-highlights tr.highlight-line .hljs-ln-code::before {
+  content: ""; position: absolute; inset: -1px 0; z-index: -1;
+  background: color-mix(in srgb, var(--accent-2) 11%, var(--win-bg));
+  border-left: 2px solid var(--accent-2);   /* the same stroke as the current file of the explorer */
+}
+/* the neon ends in a discreet bracket, at the top and bottom of a block of highlighted lines */
+.reveal .window .hljs.has-highlights :is(tr.highlight-line:first-child, tr:not(.highlight-line) + tr.highlight-line) .hljs-ln-code::before { border-top-left-radius: 3px; }
+.reveal .window .hljs.has-highlights :is(tr.highlight-line:last-child, tr.highlight-line:has(+ tr:not(.highlight-line))) .hljs-ln-code::before { border-bottom-left-radius: 3px; }
+.reveal .stage .window.fragment { max-height: 100%; }
+
+/* File explorer (`file=` window): the project files seen so far */
+.reveal .window-body { flex: 1; display: flex; min-height: 0; }
+.reveal .explorer {
+  flex: 0 0 auto; min-width: 150px; max-width: 34%; overflow: hidden; padding: 14px 18px 14px 12px;
+  border-right: 1px solid rgba(255,255,255,.07); background: rgba(255,255,255,.02);
+  font: 400 calc(13px * var(--text-scale, 1))/1.9 var(--mono); color: var(--text-dim); white-space: nowrap;
+}
+.reveal .explorer ul { list-style: none; margin: 0; padding: 0; }
+/* Tree: each entry hooks onto the line of its folder (├ ─), the last one ends it (└ ─); half
+   a line of the explorer: .95em (line-height 1.9) */
+.reveal .explorer ul ul { padding-left: 1.25em; margin-left: .25em; }
+.reveal .explorer ul ul > li { position: relative; }
+.reveal .explorer ul ul > li::before,
+.reveal .explorer ul ul > li::after { content: ""; position: absolute; left: -.7em; border: 0 solid rgba(255,255,255,.24); }
+.reveal .explorer ul ul > li::before { top: 0; bottom: 0; border-left-width: 1px; }
+.reveal .explorer ul ul > li:last-child::before { bottom: auto; height: .95em; }
+.reveal .explorer ul ul > li::after { top: .95em; width: .65em; border-top-width: 1px; }
+.reveal .explorer li > span { display: block; padding: 0 .5em; border-radius: 3px; }
+.reveal .explorer li.dir > span { color: #9ca3af; }
+.reveal .explorer li.dir > span::after { content: "/"; opacity: .5; }
+.reveal .explorer li.current > span { color: #fff; background: rgba(34,211,238,.14); box-shadow: inset 2px 0 var(--accent-2); }
+
+/* ----- skemo diagrams (their steps: the engine's sheet, glitu.css) ---------- */
+.reveal .pan-track svg.skemo { height: 540px; width: auto; }
+/* Diagram laid directly on the backdrop (skemo's dark theme, transparent backdrop) */
+.reveal .diagram { width: 100%; height: 100%; }
+.reveal .diagram svg { display: block; width: 100%; height: 100%; }
+.reveal .diagram { min-height: 0; }
+
+/* Caption of a full-width stage: title, then the sentence of the current step */
+.reveal .stage.full:has(> .caption) { flex-direction: column; align-items: stretch; gap: 14px; padding-top: 18px; }
+.reveal .caption { display: flex; align-items: baseline; gap: 22px; flex: none; }
+.reveal .caption h2 { font-family: var(--title-font); font-size: calc(30px * var(--text-scale, 1)); font-weight: var(--title-weight); color: var(--heading); }
+.reveal .caption-steps { display: grid; flex: 1; }
+.reveal .caption-steps > * { grid-area: 1 / 1; font-size: calc(24px * var(--text-scale, 1)); color: var(--accent-2); }
+
+/* ----- Replayed terminal (asciinema plugin) ------------------------------- */
+.reveal .stage .window:has(.cast-stage) { height: auto; }  /* the window fits the terminal */
+.reveal .window .cast-stage { position: relative; padding: 14px 18px 18px; }
+.reveal .cast-stage .ap-wrapper { justify-content: flex-start; background: none; }
+.reveal .cast-stage .ap-player { border-radius: 0; box-shadow: none; }
+/* the terminal takes the backdrop of its window (translucent, specific to the theme);
+   --term-color-background is only used for reverse video */
+.reveal .cast-stage .ap-player { background-color: transparent; }
+.reveal .cast-stage .ap-term { border: 0; }
+.reveal .cast-stage .ap-overlay-start { display: none; }      /* clicks drive it, no play button */
+.reveal .cast-step { position: absolute; width: 0; height: 0; overflow: hidden; }
+.reveal .cast-hl {
+  position: absolute; pointer-events: none; z-index: 5; box-sizing: content-box;
+  margin: 0 -4px; padding: 0 4px; border-radius: 4px;
+  background: rgba(34,211,238,.12); box-shadow: 0 0 0 2px var(--accent-2);
+}
+.reveal .cast-hl[data-note]::after {
+  content: attr(data-note); position: absolute; left: -2px; top: calc(100% + 8px);
+  font: 700 calc(15px * var(--text-scale, 1))/1.2 var(--font); color: var(--base); background: var(--accent-2);
+  padding: 4px 8px; border-radius: 4px; white-space: nowrap;
+}
+.reveal .cast-grid {                         /* G key: grid of the cells */
+  position: absolute; pointer-events: none; z-index: 6;
+  background-image:
+    linear-gradient(to right, rgba(34,211,238,.2) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(34,211,238,.2) 1px, transparent 1px);
+  background-size: var(--cell-w) var(--cell-h);
+  outline: 1px solid rgba(34,211,238,.5);
+}
+.reveal .cast-grid span { position: absolute; font: calc(11px * var(--text-scale, 1))/1 var(--mono); color: var(--accent-2); }
+.reveal .cast-grid-row { left: -22px; width: 18px; text-align: right; }
+.reveal .cast-grid-col { top: -13px; }
+.reveal .cast-stage .ap-player {               /* colours of the code window */
+  --term-color-foreground: #e6edf3;
+  --term-color-background: #0d1117;
+  --term-color-0: #484f58;  --term-color-8: #6e7681;
+  --term-color-1: #ff7b72;  --term-color-9: #ffa198;
+  --term-color-2: #7ee787;  --term-color-10: #a5f0aa;
+  --term-color-3: #ffa657;  --term-color-11: #ffc680;
+  --term-color-4: #79c0ff;  --term-color-12: #a5d6ff;
+  --term-color-5: #d2a8ff;  --term-color-13: #e2c5ff;
+  --term-color-6: #22d3ee;  --term-color-14: #7dd3fc;
+  --term-color-7: #c9d1d9;  --term-color-15: #ffffff;
+}
+
+/* Steps listed on the left: once a click has shown a step, every bullet but the current one is dimmed, those visible from the
+   start too; nothing is dimmed before the first click, nor when printing or in the overview */
+.reveal section:has(.current-fragment) .panel li:not(.current-fragment, :has(.current-fragment)) { opacity: .45; }
+.reveal .panel li:not(.fragment) { transition: opacity .3s ease; }
+
+/* ----- Cover (full screen) ----------------------------------------------- */
+.reveal .cover {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column; justify-content: var(--cover-place); padding: var(--cover-pad);
+}
+.reveal .cover::before {                     /* dark veil on the text side */
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: var(--cover-veil);
+}
+.reveal .cover > * { position: relative; }
+.reveal .cover .eyebrow {
+  align-self: flex-start; padding: var(--eyebrow-pad); border-radius: 999px;
+  font-family: var(--label-font); font-size: calc(15px * var(--text-scale, 1)); font-weight: 700; letter-spacing: .14em; text-transform: uppercase;
+  color: var(--accent-2); background: var(--eyebrow-bg); border: 1px solid var(--eyebrow-line);
+}
+.reveal .cover h1 {
+  font-family: var(--title-font); font-size: calc(var(--cover-size) * var(--text-scale, 1)); font-weight: var(--title-weight); letter-spacing: -.03em; line-height: 1; margin: .3em 0 .2em;
+  background: var(--cover-title); -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.reveal .cover .subtitle { font-size: calc(30px * var(--text-scale, 1)); color: var(--cover-subtitle); max-width: 20em; line-height: 1.35; }
+.reveal .cover .byline {
+  margin-top: 2.4em; font-size: calc(18px * var(--text-scale, 1)); color: var(--text-dim); display: flex; align-items: center; gap: 1em;
+}
+.reveal .cover .byline::before {
+  content: ""; width: 44px; height: 4px; border-radius: 2px; background: var(--gradient);
+}
+.reveal .cover .tpl-logo { position: absolute; right: 48px; bottom: calc(var(--footer-h) + 24px); height: 34px; opacity: .8; }
+
+/* ----- Chapter interlude --------------------------------------------------- */
+.reveal .chapter {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column; justify-content: var(--cover-place); padding: var(--cover-pad);
+  color: var(--heading);
+  background: var(--chapter-bg);
+}
+.reveal .chapter::before {                   /* discreet pattern, fading towards the left */
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background-image:
+    linear-gradient(rgba(255,255,255,.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.05) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: linear-gradient(90deg, transparent 20%, #000);
+}
+.reveal .chapter > * { position: relative; }
+.reveal .chapter .num {
+  font-family: var(--title-font); font-size: calc(var(--chapter-num-size) * var(--text-scale, 1)); font-weight: var(--title-weight); line-height: .9; letter-spacing: -.04em;
+  color: var(--chapter-num); -webkit-text-stroke: var(--chapter-num-stroke);
+}
+.reveal .chapter h2 { font-family: var(--title-font); font-size: calc(88px * var(--text-scale, 1)); font-weight: var(--title-weight); letter-spacing: -.03em; margin-top: .15em; }
+.reveal .chapter h2::after {
+  content: ""; display: block; width: 72px; height: 5px; margin-top: .3em; border-radius: 3px; background: var(--gradient);
+}
+.reveal .chapter p { font-size: calc(30px * var(--text-scale, 1)); color: var(--text-dim); margin-top: .6em; }
+.reveal .chapter .tpl-logo { position: absolute; right: 48px; bottom: calc(var(--footer-h) + 24px); height: 34px; opacity: .8; }
+/* a mention in front of every slide (`global-top`) takes the bottom right corner: the logo goes above it */
+.reveal section:has(> .global-top) :is(.cover, .chapter) .tpl-logo { bottom: calc(var(--footer-h) + 64px); }
+
+/* ----- Animated backdrop ---------------------------------------------------------- */
+/* One backdrop for the whole presentation, under the slides (.tpl-backdrop), the theme's
+   (glitu.json, "backdrop"): data-backdrop="animated" animates it, "still" stops it; the slides let it show */
+.tpl-backdrop { position: absolute; inset: 0; z-index: 0; isolation: isolate; background: var(--backdrop-base); pointer-events: none; }
+.reveal .backdrop-canvas { position: absolute; inset: 0; z-index: -1; width: 100%; height: 100%; pointer-events: none; }
+.reveal [data-backdrop] { background: transparent; }
+/* Overview and printing: the backdrop cannot follow each slide, each one has its own */
+.reveal.overview .tpl-backdrop { display: none; }
+.print-pdf .tpl-backdrop { visibility: hidden; inset: 0 auto auto 0; }
+.reveal.overview .slides section:not(.stack) { background: var(--backdrop-base); }
+.print-pdf .reveal .slides .pdf-page { background: var(--backdrop-base) var(--tpl-backdrop-image) center / cover no-repeat; }
+.reveal .chapter[data-backdrop="animated"]::before {     /* veil on the text side instead of the pattern */
+  mask-image: none; background: var(--chapter-veil);
+}
+
+/* ----- Progress footer ---------------------------------------------------- */
+.tpl-progress {
+  position: absolute; z-index: 30; inset: auto 0 0 0; height: var(--footer-h);
+  display: flex; align-items: center; gap: 22px; padding: 0 28px;
+  background: var(--progress-bg); backdrop-filter: blur(10px);
+  border-top: 1px solid var(--line);
+  font: 700 calc(13px * var(--text-scale, 1)) var(--label-font); color: var(--text-dim); white-space: nowrap;
+}
+.tpl-progress .tpl-chapter { min-width: 190px; letter-spacing: .04em; }
+.tpl-progress .tpl-chapter b { color: var(--accent-2); margin-right: .6em; }
+.tpl-progress .tpl-segments { flex: 1; display: flex; gap: 6px; height: 14px; align-items: center; }
+.tpl-progress .tpl-seg {
+  position: relative; height: 5px; border-radius: 3px; overflow: hidden;
+  background: var(--seg-bg); cursor: pointer;
+}
+.tpl-progress .tpl-seg > i {
+  position: absolute; inset: 0 auto 0 0; width: var(--fill, 0%);
+  background: var(--gradient); border-radius: inherit;
+  transition: width .4s ease;
+}
+.tpl-progress .tpl-seg.current { box-shadow: 0 0 10px var(--glow); }
+.tpl-progress .tpl-count { font-variant-numeric: tabular-nums; color: var(--text); }
+.tpl-progress .tpl-count span { color: var(--text-dim); }
+.reveal.overview .tpl-progress, html.print-pdf .tpl-progress { display: none; }
+
+/* ----- Transitions between layouts ---------------------------------------- */
+/* The engine sets on the incoming slide the layout of the previous one (data-from-layout).
+   Full screen → panel: the full screen fades out, then the panel slides in from the left.
+   Panel → full screen: one fades out, then the other appears (no cross-fade). */
+.reveal .slides section.present[data-from-layout="full"][data-layout="panel"],
+.reveal .slides section.present[data-from-layout="panel"][data-layout="full"] { transition-delay: .4s; }
+.reveal .slides section.present[data-from-layout="full"][data-layout="panel"] .panel {
+  animation: tpl-panel-in .6s cubic-bezier(.2,.75,.25,1) .4s both;
+}
+@keyframes tpl-panel-in { from { transform: translateX(-100%); } }
+
+/* ----- Diagrams: appearance of the SVG elements ----------------------------- */
+.reveal svg .fragment { transition: opacity .45s ease; }
+
+@media print {
+  .reveal .pan-track { transition: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .reveal .pan-track, .reveal .fragment, .tpl-progress .tpl-seg > i { transition: none !important; }
+  .reveal .slides section.present[data-from-layout] { transition-delay: 0s; }
+  .reveal .slides section.present[data-from-layout] .panel { animation: none; }
+}
+
+/* ----- Layouts by slide: {.cols} {.quote} {.fact} {.statement} {.center} {.toc}, {.full},
+   {.cover} {.intro} {.section} {.end}, {.image-left} {.image-right} {.iframe…} ----- */
+.reveal .layout-body, .reveal .cols {
+  position: absolute; left: 0; right: 0; top: var(--header-h); bottom: var(--footer-h);
+  padding: 44px 72px; box-sizing: border-box;
+  background: var(--body-veil);
+}
+.reveal .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 56px; }
+.reveal .col, .reveal .layout-body { min-width: 0; }
+.reveal .col { display: flex; flex-direction: column; min-height: 0; }
+.reveal .col > :is(.window, .diagram, img) { flex: 1; min-height: 0; width: 100%; }
+.reveal .layout-body { display: flex; flex-direction: column; justify-content: center; }
+.reveal :is(.cols, .layout-body) h2 { font-family: var(--title-font); font-size: calc(38px * var(--text-scale, 1)); font-weight: var(--title-weight); color: var(--heading); margin: 0 0 .8em; line-height: 1.1; }
+.reveal :is(.cols, .layout-body) ul { list-style: none; margin: 0; padding: 0; }
+.reveal :is(.cols, .layout-body) li { position: relative; padding-left: 1.1em; margin: 0 0 .7em; font-size: calc(24px * var(--text-scale, 1)); line-height: 1.45; }
+.reveal :is(.cols, .layout-body) li::before {
+  content: ""; position: absolute; left: 0; top: .55em; width: .36em; height: .36em; border-radius: 2px; background: var(--accent-2);
+}
+.reveal :is(.cols, .layout-body) p { font-size: calc(24px * var(--text-scale, 1)); line-height: 1.5; margin: 0 0 .7em; }
+.reveal :is(.layout-center, .layout-statement, .layout-fact) .layout-body { align-items: center; text-align: center; }
+.reveal .layout-statement :is(h2, p) { font-family: var(--title-font); font-size: calc(54px * var(--text-scale, 1)); font-weight: var(--title-weight); line-height: 1.15; color: var(--heading); max-width: 1000px; }
+.reveal .layout-fact h2 {
+  font-family: var(--title-font); font-size: calc(150px * var(--text-scale, 1)); font-weight: var(--title-weight); line-height: 1; margin: 0 0 .15em;
+  background: var(--gradient); -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.reveal .layout-fact p { font-size: calc(30px * var(--text-scale, 1)); color: var(--text-dim); }
+.reveal .layout-quote .layout-body { padding: 44px 140px; }
+.reveal .layout-quote p:first-of-type { font-size: calc(42px * var(--text-scale, 1)); line-height: 1.3; font-style: italic; color: var(--heading); position: relative; }
+.reveal .layout-quote p:first-of-type::before {
+  content: "“"; position: absolute; left: -.75em; top: -.35em; font-size: 2.6em; font-style: normal;
+  background: var(--gradient); -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.reveal .layout-quote p + p { font-size: calc(24px * var(--text-scale, 1)); color: var(--accent-2); font-style: normal; }
+.reveal .layout-toc ul:has(> li:nth-child(7)) { columns: 2; column-gap: 64px; }
+.reveal .layout-toc li { font-size: calc(28px * var(--text-scale, 1)); break-inside: avoid; }
+.reveal .layout-toc a { color: var(--text); text-decoration: none; }
+.reveal .layout-toc a:hover { color: var(--accent-2); }
+.reveal section[data-zoom] > * { zoom: var(--zoom); }
+.reveal .cols:has(> .cols-header) { grid-template-rows: auto 1fr; }
+.reveal .cols-header { grid-column: 1 / -1; }
+.reveal .cols-header > :last-child { margin-bottom: 0; }
+.reveal .layout-full .layout-body { padding: 0; background: none; }
+.reveal .layout-full .layout-body > :is(.window, .diagram, img) { flex: 1; min-height: 0; width: 100%; }
+.reveal .layout-intro .cover h1 { font-size: calc(88px * var(--text-scale, 1)); }
+.reveal .layout-end .chapter { align-items: center; text-align: center; }
+.reveal .layout-end .chapter h2::after { margin-inline: auto; }
+.reveal .layout-beside .layout-media {
+  position: absolute; top: var(--header-h); width: 50%; height: calc(100% - var(--header-h) - var(--footer-h));
+  object-fit: cover; border: 0; background: #fff;
+}
+.reveal .layout-beside img.layout-media { background: none; }
+/* Image next to the text: same slanted separation as the panel */
+.reveal .media-right .layout-media {
+  right: 0; width: calc(50% + var(--slant) / 2);
+  clip-path: polygon(var(--slant) 0, 100% 0, 100% 100%, 0 100%);
+}
+.reveal .media-left .layout-media {
+  left: 0; width: calc(50% + var(--slant) / 2);
+  clip-path: polygon(0 0, 100% 0, calc(100% - var(--slant)) 100%, 0 100%);
+}
+.reveal .media-full .layout-media { left: 0; width: 100%; }
+.reveal .media-right .layout-body { right: 50%; }
+.reveal .media-left .layout-body { left: 50%; }
