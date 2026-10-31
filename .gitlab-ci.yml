@@ -11,6 +11,7 @@
 #
 # Cache: target/ and the cargo registry live in podman volumes kept from one pipeline to the next
 # (gitlab-ci-local --mount-cache, enabled by .gitlab-ci-local-env); a new image starts new ones.
+# To clear the cache: change the -cN suffix of the keys (ci-cleanup removes the old volumes).
 #
 # Secret: GITHUB_TOKEN, a token allowed to push to skemonet/glitu and to create its releases, in
 # the CI's variables of the repository.
@@ -23,9 +24,9 @@ stages:
 default:
   image: localhost/ci/rust:1.99.1-4
   cache:
-    - key: target-rust-1.99.1-4
+    - key: target-rust-1.99.1-4-c2
       paths: [target]
-    - key: cargo-rust-1.99.1-4
+    - key: cargo-rust-1.99.1-4-c2
       paths: [.cargo-home]
 
 variables:
