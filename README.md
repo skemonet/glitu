@@ -53,7 +53,7 @@ project), then ask for a presentation.
 
 ## Releases
 
-The version is the workspace's, in `Cargo.toml` (`0.1.1-rc.3`: a hyphen gives a pre-release). A push
+The version is the workspace's, in `Cargo.toml` (`0.1.1-rc.4`: a hyphen gives a pre-release). A push
 on `main` whose version has no release yet publishes the GitHub release `v<version>`, tag included,
 with the four binaries and their SHA-256. To release: raise the version in `Cargo.toml` and push
 `main`. Pushing a `vX.Y.Z` tag matching `Cargo.toml` does the same.

@@ -437,7 +437,7 @@ dependencies = [
 
 [[package]]
 name = "glitu"
-version = "0.1.1-rc.3"
+version = "0.1.1-rc.4"
 dependencies = [
  "base64",
  "clap",
@@ -452,7 +452,7 @@ dependencies = [
 
 [[package]]
 name = "glitu-core"
-version = "0.1.1-rc.3"
+version = "0.1.1-rc.4"
 dependencies = [
  "pulldown-cmark",
  "pulldown-latex",
@@ -462,7 +462,7 @@ dependencies = [
 
 [[package]]
 name = "glitu-web"
-version = "0.1.1-rc.3"
+version = "0.1.1-rc.4"
 dependencies = [
  "avt",
  "js-sys",
