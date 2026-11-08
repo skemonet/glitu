@@ -1,4 +1,4 @@
-//! Highlights on click (`data-fx="halo:3-4 magnify:5"`, written by the build from `@3-4:halo`):
+//! Highlights on click (`data-highlight="halo:3-4 magnify:5"`, written by the build from `@3-4:halo`):
 //! `halo`, a glow that pulses; `chase`, a light that runs around the element; `magnify`, the
 //! view that grows around it (like Alt + click, see `zoom`).
 //! A text, a code window, a formula or a skemo diagram node, for the time of its clicks.
@@ -9,7 +9,7 @@ use web_sys::Element;
 
 use crate::dom::{self, add, data, has, qsa, remove, style, toggle};
 use crate::engine::{self, Ev};
-use crate::zoom;
+use crate::{focus, zoom};
 
 /// Gap between the element and the light of the chase, in slide px
 const RING_GAP: f64 = 8.0;
@@ -33,7 +33,7 @@ thread_local! {
 
 /// Active effects of the element at click `s`
 fn active(el: &Element, s: u32) -> Vec<String> {
-    data(el, "fx")
+    data(el, "highlight")
         .unwrap_or_default()
         .split_whitespace()
         .filter_map(|fx| {
@@ -66,13 +66,18 @@ fn ring(slide: &Element, el: &Element, on: bool) {
     }
     let r = {
         let k = key.unwrap_or_else(|| {
-            let n = RINGS.with(|c| { c.set(c.get() + 1); c.get() });
+            let n = RINGS.with(|c| {
+                c.set(c.get() + 1);
+                c.get()
+            });
             let _ = el.set_attribute("data-fx-ring", &n.to_string());
             n.to_string()
         });
         let r = dom::create("div");
         r.set_class_name("fx-ring");
-        r.set_inner_html("<svg><rect class=\"chase-trail-2\"/><rect class=\"chase-trail-1\"/><rect class=\"chase-light\"/></svg>");
+        r.set_inner_html(
+            "<svg><rect class=\"chase-trail-2\"/><rect class=\"chase-trail-1\"/><rect class=\"chase-light\"/></svg>",
+        );
         let _ = r.set_attribute("data-for", &k);
         let _ = slide.append_child(&r);
         r
@@ -146,10 +151,15 @@ fn place(slide: &Element, el: &Element, r: &Element) {
     let _ = r.set_attribute("data-perimeter", &format!("{perimeter:.2}"));
 }
 
+/// The magnify of a word keeps its sentence; that of a zone of an image goes closer
+fn magnification(el: &Element) -> f64 {
+    if focus::is_zone(el) { focus::ZONE_MAX } else { MAGNIFY_MAX }
+}
+
 fn update(slide: &Element) {
     let s = engine::current_step(slide);
     let mut magnify = None;
-    for el in qsa(slide, "[data-fx]") {
+    for el in qsa(slide, "[data-highlight]") {
         let fx = active(&el, s);
         let on = |name: &str| fx.iter().any(|f| f == name);
         toggle(&el, "fx-on", !fx.is_empty());
@@ -169,7 +179,7 @@ fn update(slide: &Element) {
     let previous = MAGNIFY.with(|l| l.borrow().clone());
     match magnify {
         Some(el) if previous.as_ref() != Some(&el) => {
-            zoom::zoom_to(&el, MAGNIFY_MAX);
+            zoom::zoom_to(&el, magnification(&el));
             MAGNIFY.with(|l| *l.borrow_mut() = Some(el));
         }
         None if previous.is_some() => {
@@ -211,7 +221,7 @@ pub fn install() {
         Ev::Resize => {
             let slide = engine::current_slide();
             if let Some(el) = MAGNIFY.with(|l| l.borrow().clone()) {
-                zoom::zoom_to(&el, MAGNIFY_MAX);
+                zoom::zoom_to(&el, magnification(&el));
             }
             for el in qsa(&slide, "[data-fx-ring]") {
                 let k = data(&el, "fx-ring").unwrap_or_default();

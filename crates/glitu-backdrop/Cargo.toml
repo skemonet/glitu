@@ -1,0 +1,21 @@
+[package]
+name = "glitu-backdrop"
+description = "The animated backdrops of glitu's themes, drawn on any 2D canvas: the browser's or a native one"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme.workspace = true
+keywords.workspace = true
+categories.workspace = true
+rust-version.workspace = true
+
+# In the browser, the mathematical functions and the random numbers of JavaScript: the same
+# image as the original JavaScript version of crystal, for the same seed
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+js-sys = "0.3.107"
+wasm-bindgen = "=0.2.130"
+
+[lints]
+workspace = true

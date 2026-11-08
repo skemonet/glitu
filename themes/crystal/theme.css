@@ -1,6 +1,6 @@
 /* ==========================================================================
    "crystal" theme: the shared template (glitu/template.css) as is, its default values are
-   those of this theme; "crystal" backdrop (glitu.json). Only the palette is repeated here.
+   those of this theme; "crystal" backdrop (glitu.yaml). Only the palette is repeated here.
    ========================================================================== */
 :root {
   --accent: #3b82f6;

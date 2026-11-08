@@ -22,7 +22,13 @@ pub(super) struct Sheet {
 impl Sheet {
     /// A slide `width` pixels wide over `slide_emu` EMU, its texts in `lang`
     pub(super) fn new(width: u32, slide_emu: u64, lang: &str) -> Sheet {
-        Sheet { emu: slide_emu as f64 / f64::from(width), lang: lang.into(), next_id: 1, rels: Vec::new(), media: Vec::new() }
+        Sheet {
+            emu: slide_emu as f64 / f64::from(width),
+            lang: lang.into(),
+            next_id: 1,
+            rels: Vec::new(),
+            media: Vec::new(),
+        }
     }
 
     /// Its relationships (rId1, rId2…)
@@ -87,7 +93,13 @@ fn fill(f: &Value) -> String {
         .as_array()
         .into_iter()
         .flatten()
-        .filter_map(|s| Some(format!("<a:gs pos=\"{}\">{}</a:gs>", (s[0].as_f64()?.clamp(0.0, 1.0) * 100_000.0).round() as i64, rgba(&s[1])?)))
+        .filter_map(|s| {
+            Some(format!(
+                "<a:gs pos=\"{}\">{}</a:gs>",
+                (s[0].as_f64()?.clamp(0.0, 1.0) * 100_000.0).round() as i64,
+                rgba(&s[1])?
+            ))
+        })
         .collect();
     if stops.is_empty() {
         return "<a:noFill/>".into();
@@ -107,7 +119,11 @@ fn line(sh: &Sheet, l: &Value, head: bool, tail: bool) -> String {
         return "<a:ln><a:noFill/></a:ln>".into();
     }
     let w = num(l, "w");
-    let cap = match l["cap"].as_str() { Some("round") => " cap=\"rnd\"", Some("square") => " cap=\"sq\"", _ => "" };
+    let cap = match l["cap"].as_str() {
+        Some("round") => " cap=\"rnd\"",
+        Some("square") => " cap=\"sq\"",
+        _ => "",
+    };
     let dash = if l["dash"].as_bool() == Some(true) { "<a:prstDash val=\"dash\"/>" } else { "" };
     // Arrow: an SVG marker at the start or the end of the path
     let arrow = |tag: &str| format!("<a:{tag} type=\"triangle\" w=\"med\" len=\"med\"/>");
@@ -132,7 +148,13 @@ fn effects(sh: &Sheet, s: &Value) -> String {
 }
 
 fn xfrm(sh: &Sheet, x: f64, y: f64, w: f64, h: f64) -> String {
-    format!("<a:xfrm><a:off x=\"{}\" y=\"{}\"/><a:ext cx=\"{}\" cy=\"{}\"/></a:xfrm>", sh.e(x), sh.e(y), sh.e(w).max(1), sh.e(h).max(1))
+    format!(
+        "<a:xfrm><a:off x=\"{}\" y=\"{}\"/><a:ext cx=\"{}\" cy=\"{}\"/></a:xfrm>",
+        sh.e(x),
+        sh.e(y),
+        sh.e(w).max(1),
+        sh.e(h).max(1)
+    )
 }
 
 fn nv(id: u32, name: &str, extra: &str) -> String {
@@ -175,9 +197,60 @@ fn preset(name: &str, adjust: &[(&str, i64)]) -> String {
     format!("<a:prstGeom prst=\"{name}\"><a:avLst>{gd}</a:avLst></a:prstGeom>")
 }
 
-/// The objects of a slide, in painting order
-pub(super) fn shapes(sh: &mut Sheet, items: Vec<Value>) -> String {
-    merge(items).iter().map(|it| shape(sh, it)).collect()
+/// The objects of a slide, in painting order, and the animated ones: (shape id, `anim` of
+/// `export.js`)
+pub(super) fn shapes(sh: &mut Sheet, items: Vec<Value>) -> (String, Vec<(u32, Value)>) {
+    let (mut xml, mut anims) = (String::new(), Vec::new());
+    for it in merge(split(items)) {
+        let s = shape(sh, &it);
+        if !it["anim"].is_null()
+            && let Some(id) = first_id(&s)
+        {
+            anims.push((id, it["anim"].clone()));
+        }
+        xml += &s;
+    }
+    (xml, anims)
+}
+
+/// The id of the first `cNvPr` of a shape: its own (a group's comes before its children's)
+fn first_id(xml: &str) -> Option<u32> {
+    let at = xml.find("<p:cNvPr id=\"")? + "<p:cNvPr id=\"".len();
+    xml[at..].split('"').next()?.parse().ok()
+}
+
+/// PowerPoint animates a group as a whole: a group whose parts do not appear together is broken up,
+/// each run of parts animated alike becoming a group (or a shape) of its own, in the same order
+fn split(items: Vec<Value>) -> Vec<Value> {
+    let mut out = Vec::new();
+    for mut it in items {
+        if it["t"] != "group" {
+            out.push(it);
+            continue;
+        }
+        let parts = split(it["items"].take().as_array().cloned().unwrap_or_default());
+        let mut runs: Vec<(Value, Vec<Value>)> = Vec::new();
+        for p in parts {
+            let a = p["anim"].clone();
+            match runs.last_mut() {
+                Some((b, run)) if *b == a => run.push(p),
+                _ => runs.push((a, vec![p])),
+            }
+        }
+        let alone = runs.len() > 1;
+        for (a, mut run) in runs {
+            if alone && run.len() == 1 {
+                out.extend(run.pop());
+                continue;
+            }
+            let mut g = serde_json::json!({ "t": "group", "name": it["name"].clone(), "items": run });
+            if !a.is_null() {
+                g["anim"] = a;
+            }
+            out.push(g);
+        }
+    }
+    out
 }
 
 fn shape(sh: &mut Sheet, it: &Value) -> String {
@@ -201,7 +274,8 @@ fn rect(sh: &mut Sheet, it: &Value) -> String {
     if lw > 0.0 && lw < w && lw < h {
         (x, y, w, h) = (x + lw / 2.0, y + lw / 2.0, w - lw, h - lw);
     }
-    let r: Vec<f64> = it["r"].as_array().map(|a| a.iter().map(|v| v.as_f64().unwrap_or(0.0)).collect()).unwrap_or_default();
+    let r: Vec<f64> =
+        it["r"].as_array().map(|a| a.iter().map(|v| v.as_f64().unwrap_or(0.0)).collect()).unwrap_or_default();
     let r = |i: usize| r.get(i).copied().unwrap_or(0.0);
     let min = w.min(h);
     let adj = |v: f64| ((v / min * 100_000.0).round() as i64).clamp(0, 50_000);
@@ -219,7 +293,8 @@ fn rect(sh: &mut Sheet, it: &Value) -> String {
 
 fn path(sh: &mut Sheet, it: &Value) -> String {
     let cmds: Vec<&Vec<Value>> = it["d"].as_array().into_iter().flatten().filter_map(Value::as_array).collect();
-    let pts = cmds.iter().flat_map(|c| c[1..].chunks(2).filter_map(|p| Some((p.first()?.as_f64()?, p.get(1)?.as_f64()?))));
+    let pts =
+        cmds.iter().flat_map(|c| c[1..].chunks(2).filter_map(|p| Some((p.first()?.as_f64()?, p.get(1)?.as_f64()?))));
     let (mut x0, mut y0, mut x1, mut y1) = (f64::MAX, f64::MAX, f64::MIN, f64::MIN);
     for (x, y) in pts {
         (x0, y0, x1, y1) = (x0.min(x), y0.min(y), x1.max(x), y1.max(y));
@@ -228,13 +303,21 @@ fn path(sh: &mut Sheet, it: &Value) -> String {
         return String::new();
     }
     let (w, h) = ((x1 - x0).max(0.01), (y1 - y0).max(0.01));
-    let pt = |p: &[Value]| format!("<a:pt x=\"{}\" y=\"{}\"/>", sh.e(p[0].as_f64().unwrap_or(0.0) - x0), sh.e(p[1].as_f64().unwrap_or(0.0) - y0));
+    let pt = |p: &[Value]| {
+        format!(
+            "<a:pt x=\"{}\" y=\"{}\"/>",
+            sh.e(p[0].as_f64().unwrap_or(0.0) - x0),
+            sh.e(p[1].as_f64().unwrap_or(0.0) - y0)
+        )
+    };
     let mut d = String::new();
     for c in &cmds {
         match c[0].as_str().unwrap_or("") {
             "M" if c.len() >= 3 => d += &format!("<a:moveTo>{}</a:moveTo>", pt(&c[1..3])),
             "L" if c.len() >= 3 => d += &format!("<a:lnTo>{}</a:lnTo>", pt(&c[1..3])),
-            "C" if c.len() >= 7 => d += &format!("<a:cubicBezTo>{}{}{}</a:cubicBezTo>", pt(&c[1..3]), pt(&c[3..5]), pt(&c[5..7])),
+            "C" if c.len() >= 7 => {
+                d += &format!("<a:cubicBezTo>{}{}{}</a:cubicBezTo>", pt(&c[1..3]), pt(&c[3..5]), pt(&c[5..7]))
+            }
             "Z" => d += "<a:close/>",
             _ => {}
         }
@@ -252,17 +335,33 @@ fn path(sh: &mut Sheet, it: &Value) -> String {
 
 fn run(sh: &mut Sheet, r: &Value) -> String {
     if r["br"].as_bool() == Some(true) {
-        return format!("<a:br><a:rPr lang=\"{}\" sz=\"{}\" dirty=\"0\"/></a:br>", sh.lang, sh.pt100(num(r, "size")).clamp(100, 400_000));
+        return format!(
+            "<a:br><a:rPr lang=\"{}\" sz=\"{}\" dirty=\"0\"/></a:br>",
+            sh.lang,
+            sh.pt100(num(r, "size")).clamp(100, 400_000)
+        );
     }
     let flag = |k: &str| r[k].as_bool() == Some(true);
     let mut attrs = format!(" lang=\"{}\" sz=\"{}\"", sh.lang, sh.pt100(num(r, "size")).clamp(100, 400_000));
-    if flag("b") { attrs += " b=\"1\"" }
-    if flag("i") { attrs += " i=\"1\"" }
-    if flag("u") { attrs += " u=\"sng\"" }
-    if flag("s") { attrs += " strike=\"sngStrike\"" }
-    if let Some(cap) = r["cap"].as_str() { attrs += &format!(" cap=\"{cap}\"") }
+    if flag("b") {
+        attrs += " b=\"1\""
+    }
+    if flag("i") {
+        attrs += " i=\"1\""
+    }
+    if flag("u") {
+        attrs += " u=\"sng\""
+    }
+    if flag("s") {
+        attrs += " strike=\"sngStrike\""
+    }
+    if let Some(cap) = r["cap"].as_str() {
+        attrs += &format!(" cap=\"{cap}\"")
+    }
     let spc = sh.pt100(num(r, "spc"));
-    if spc != 0 { attrs += &format!(" spc=\"{spc}\"") }
+    if spc != 0 {
+        attrs += &format!(" spc=\"{spc}\"")
+    }
     // Gradient text (`background-clip: text`): PowerPoint knows it too
     let mut inner = String::new();
     if r["stroke"].is_object() {
@@ -310,11 +409,28 @@ fn paragraph(sh: &mut Sheet, p: &Para) -> String {
             "decimal" => "<a:buAutoNum type=\"arabicPeriod\"/>".to_string(),
             "lower-alpha" | "lower-latin" => "<a:buAutoNum type=\"alphaLcPeriod\"/>".into(),
             "upper-alpha" | "upper-latin" => "<a:buAutoNum type=\"alphaUcPeriod\"/>".into(),
-            t => format!("<a:buFont typeface=\"Arial\"/><a:buChar char=\"{}\"/>", match t { "circle" => "◦", "square" => "▪", _ => "•" }),
+            t => format!(
+                "<a:buFont typeface=\"Arial\"/><a:buChar char=\"{}\"/>",
+                match t {
+                    "circle" => "◦",
+                    "square" => "▪",
+                    _ => "•",
+                }
+            ),
         };
     }
     let runs: String = p.runs.iter().map(|r| run(sh, r)).collect();
-    let end = p.runs.first().map(|r| format!("<a:endParaRPr lang=\"{}\" sz=\"{}\" dirty=\"0\"/>", sh.lang, sh.pt100(num(r, "size")).clamp(100, 400_000))).unwrap_or_default();
+    let end = p
+        .runs
+        .first()
+        .map(|r| {
+            format!(
+                "<a:endParaRPr lang=\"{}\" sz=\"{}\" dirty=\"0\"/>",
+                sh.lang,
+                sh.pt100(num(r, "size")).clamp(100, 400_000)
+            )
+        })
+        .unwrap_or_default();
     format!("<a:p><a:pPr algn=\"{}\"{margins}>{ppr}</a:pPr>{runs}{end}</a:p>", p.algn)
 }
 
@@ -352,7 +468,8 @@ fn text(sh: &mut Sheet, it: &Value) -> String {
         _ => {}
     }
     w += extra;
-    let indent = it["blocks"].as_array().and_then(|b| b.first()).unwrap_or(it)["bullet"]["indent"].as_f64().unwrap_or(0.0);
+    let indent =
+        it["blocks"].as_array().and_then(|b| b.first()).unwrap_or(it)["bullet"]["indent"].as_f64().unwrap_or(0.0);
     x -= indent;
     w += indent;
     let body: String = paras(it).iter().map(|p| paragraph(sh, p)).collect();
@@ -361,13 +478,30 @@ fn text(sh: &mut Sheet, it: &Value) -> String {
         "<p:txBody><a:bodyPr wrap=\"{wrap}\" lIns=\"0\" tIns=\"0\" rIns=\"0\" bIns=\"0\" anchor=\"ctr\" rtlCol=\"0\"><a:noAutofit/></a:bodyPr>\
 <a:lstStyle/>{body}</p:txBody>"
     );
-    sp(sh, Sp { name: "Text", frame: (x, y, w, h), geometry: preset("rect", &[]), paint: "<a:noFill/>".into(), text: Some(text) })
+    sp(
+        sh,
+        Sp {
+            name: "Text",
+            frame: (x, y, w, h),
+            geometry: preset("rect", &[]),
+            paint: "<a:noFill/>".into(),
+            text: Some(text),
+        },
+    )
 }
 
 /// `data:image/png;base64,…` → content and extension
 fn data_url(src: &str) -> Option<(Vec<u8>, &'static str)> {
     let (head, data) = src.split_once(',')?;
-    let ext = if head.contains("image/png") { "png" } else if head.contains("image/jpeg") { "jpeg" } else if head.contains("image/gif") { "gif" } else { return None };
+    let ext = if head.contains("image/png") {
+        "png"
+    } else if head.contains("image/jpeg") {
+        "jpeg"
+    } else if head.contains("image/gif") {
+        "gif"
+    } else {
+        return None;
+    };
     Some((STANDARD.decode(data).ok()?, ext))
 }
 
@@ -390,13 +524,21 @@ fn picture(sh: &mut Sheet, it: &Value) -> String {
 /// The bounding box of an object, in pixels: (x0, y0, x1, y1)
 fn bounds(it: &Value) -> Option<(f64, f64, f64, f64)> {
     match it["t"].as_str()? {
-        "group" => it["items"].as_array()?.iter().filter_map(bounds).reduce(|a, b| (a.0.min(b.0), a.1.min(b.1), a.2.max(b.2), a.3.max(b.3))),
+        "group" => it["items"]
+            .as_array()?
+            .iter()
+            .filter_map(bounds)
+            .reduce(|a, b| (a.0.min(b.0), a.1.min(b.1), a.2.max(b.2), a.3.max(b.3))),
         "path" => it["d"]
             .as_array()?
             .iter()
             .filter_map(Value::as_array)
-            .flat_map(|c| c[1..].chunks(2).filter_map(|p| Some((p.first()?.as_f64()?, p.get(1)?.as_f64()?))).collect::<Vec<_>>())
-            .fold(None, |acc: Option<(f64, f64, f64, f64)>, (x, y)| Some(acc.map_or((x, y, x, y), |a| (a.0.min(x), a.1.min(y), a.2.max(x), a.3.max(y))))),
+            .flat_map(|c| {
+                c[1..].chunks(2).filter_map(|p| Some((p.first()?.as_f64()?, p.get(1)?.as_f64()?))).collect::<Vec<_>>()
+            })
+            .fold(None, |acc: Option<(f64, f64, f64, f64)>, (x, y)| {
+                Some(acc.map_or((x, y, x, y), |a| (a.0.min(x), a.1.min(y), a.2.max(x), a.3.max(y))))
+            }),
         _ => {
             let (x, y) = (num(it, "x"), num(it, "y"));
             Some((x, y, x + num(it, "w"), y + num(it, "h")))
@@ -427,24 +569,28 @@ fn merge(items: Vec<Value>) -> Vec<Value> {
     let mut out: Vec<Value> = Vec::new();
     for it in items {
         if it["t"] == "text"
-            && let Some(at) = mergeable(&out, &it) {
-                let prev = &mut out[at];
-                let (py, ph) = (num(prev, "y"), num(prev, "h"));
-                let mut block = it.clone();
-                block["gap"] = (num(&it, "y") - (py + ph)).max(0.0).into();
-                if prev["blocks"].is_null() {
-                    let first = prev.clone();
-                    prev["blocks"] = Value::Array(vec![first]);
-                }
-                if let Some(blocks) = prev["blocks"].as_array_mut() {
-                    blocks.push(block);
-                }
-                let (x0, x1) = (num(prev, "x").min(num(&it, "x")), (num(prev, "x") + num(prev, "w")).max(num(&it, "x") + num(&it, "w")));
-                prev["x"] = x0.into();
-                prev["w"] = (x1 - x0).into();
-                prev["h"] = (num(&it, "y") + num(&it, "h") - py).into();
-                continue;
+            && let Some(at) = mergeable(&out, &it)
+        {
+            let prev = &mut out[at];
+            let (py, ph) = (num(prev, "y"), num(prev, "h"));
+            let mut block = it.clone();
+            block["gap"] = (num(&it, "y") - (py + ph)).max(0.0).into();
+            if prev["blocks"].is_null() {
+                let first = prev.clone();
+                prev["blocks"] = Value::Array(vec![first]);
             }
+            if let Some(blocks) = prev["blocks"].as_array_mut() {
+                blocks.push(block);
+            }
+            let (x0, x1) = (
+                num(prev, "x").min(num(&it, "x")),
+                (num(prev, "x") + num(prev, "w")).max(num(&it, "x") + num(&it, "w")),
+            );
+            prev["x"] = x0.into();
+            prev["w"] = (x1 - x0).into();
+            prev["h"] = (num(&it, "y") + num(&it, "h") - py).into();
+            continue;
+        }
         out.push(it);
     }
     out
@@ -462,7 +608,8 @@ fn mergeable(out: &[Value], it: &Value) -> Option<usize> {
         let near = gap > -1.5 && gap < num(it, "lh").max(num(prev, "lh")) * 1.6;
         let width = !it["wrap"].as_bool().unwrap_or(false) || (pw - w).abs() < 2.0;
         let last_bullet = prev["blocks"].as_array().and_then(|b| b.last()).unwrap_or(prev)["bullet"].clone();
-        if same_side && near && width && last_bullet == it["bullet"] {
+        // lines that appear at different clicks stay apart
+        if same_side && near && width && last_bullet == it["bullet"] && prev["anim"] == it["anim"] {
             // Nothing painted between the two may touch the merged box
             let (u0, u1) = (py, y + h);
             let clear = out[i + 1..].iter().all(|o| match bounds(o) {
@@ -475,3 +622,98 @@ fn mergeable(out: &[Value], it: &Value) -> Option<usize> {
     None
 }
 
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    use super::*;
+
+    fn sheet() -> Sheet {
+        Sheet::new(1000, 12_192_000, "en-US")
+    }
+
+    #[test]
+    fn gradients() {
+        let linear = fill(&json!({"grad": {"angle": 180, "stops": [[0, [255, 0, 0]], [1.5, [0, 0, 255, 0.5]]]}}));
+        assert!(linear.contains("<a:gs pos=\"0\"><a:srgbClr val=\"FF0000\"/>"), "{linear}");
+        assert!(linear.contains("<a:gs pos=\"100000\"><a:srgbClr val=\"0000FF\"><a:alpha val=\"50000\"/>"));
+        // CSS 180deg (downwards) → DrawingML 90°
+        assert!(linear.contains("<a:lin ang=\"5400000\""));
+        let radial = fill(&json!({"grad": {"radial": true, "stops": [[0, [0, 0, 0]]]}}));
+        assert!(radial.contains("<a:path path=\"circle\">"));
+        assert_eq!(fill(&json!({"grad": {"stops": []}})), "<a:noFill/>");
+        assert_eq!(fill(&Value::Null), "<a:noFill/>");
+        assert_eq!(fill(&json!({"c": [1, 2, 3]})), "<a:solidFill><a:srgbClr val=\"010203\"/></a:solidFill>");
+    }
+
+    #[test]
+    fn lines_and_shadows() {
+        let sh = sheet();
+        let l = line(&sh, &json!({"w": 2, "cap": "round", "dash": true, "c": [0, 0, 0]}), true, false);
+        assert!(l.contains("cap=\"rnd\"") && l.contains("prstDash") && l.contains("headEnd") && !l.contains("tailEnd"));
+        assert!(line(&sh, &json!({"w": 1, "cap": "square"}), false, true).contains("cap=\"sq\""));
+        assert_eq!(line(&sh, &Value::Null, false, false), "<a:ln><a:noFill/></a:ln>");
+        let e = effects(&sh, &json!({"c": [0, 0, 0, 0.3], "dx": 0, "dy": 4, "blur": 8}));
+        assert!(e.contains("dir=\"5400000\"") && e.contains("<a:alpha val=\"30000\"/>"));
+        assert_eq!(effects(&sh, &json!({})), "");
+    }
+
+    #[test]
+    fn pictures() {
+        assert_eq!(data_url("data:image/png;base64,AAE=").unwrap(), (vec![0, 1], "png"));
+        assert_eq!(data_url("data:image/jpeg;base64,AA==").unwrap().1, "jpeg");
+        assert_eq!(data_url("data:image/gif;base64,AA==").unwrap().1, "gif");
+        assert!(data_url("data:image/webp;base64,AA==").is_none() && data_url("nothing").is_none());
+        let mut sh = sheet();
+        let pic =
+            shape(&mut sh, &json!({"t": "pic", "src": "data:image/png;base64,AAE=", "x": 0, "y": 0, "w": 10, "h": 5}));
+        assert!(pic.contains("<p:pic>") && pic.contains("r:embed=\"rId1\""));
+        assert_eq!(sh.media.len(), 1);
+        // empty, or captured by the browser (no source): nothing here
+        assert_eq!(shape(&mut sh, &json!({"t": "pic", "src": "data:image/png;base64,AAE=", "w": 0, "h": 5})), "");
+        assert_eq!(shape(&mut sh, &json!({"t": "pic", "iso": 3})), "");
+        assert_eq!(shape(&mut sh, &json!({"t": "unknown"})), "");
+    }
+
+    #[test]
+    fn groups_span_their_children() {
+        let path = json!({"t": "path", "d": [["M", 10, 20], ["L", 30, 5], ["Z"]], "line": {"w": 1, "c": [0, 0, 0]}});
+        assert_eq!(bounds(&path), Some((10.0, 5.0, 30.0, 20.0)));
+        let boxed = json!({"t": "box", "x": 0, "y": 0, "w": 50, "h": 40, "fill": {"c": [9, 9, 9]}});
+        let g = json!({"t": "group", "name": "Diagram", "items": [path, boxed]});
+        assert_eq!(bounds(&g), Some((0.0, 0.0, 50.0, 40.0)));
+        let mut sh = sheet();
+        let xml = shape(&mut sh, &g);
+        assert!(
+            xml.starts_with("<p:grpSp>") && xml.contains("name=\"Diagram") && xml.matches("<p:sp>").count() == 2,
+            "{xml}"
+        );
+        assert_eq!(shape(&mut sh, &json!({"t": "group", "items": []})), "");
+    }
+
+    #[test]
+    fn groups_whose_parts_appear_apart_are_broken_up() {
+        let part = |x: u32, anim: Value| {
+            let mut p = json!({"t": "box", "x": x, "y": 0, "w": 5, "h": 5, "fill": {"c": [9, 9, 9]}});
+            if !anim.is_null() {
+                p["anim"] = anim;
+            }
+            p
+        };
+        let (a1, a2) = (json!({"on": 1}), json!({"on": 2}));
+        let card = json!({"t": "group", "name": "card", "items": [part(0, a1.clone()), part(5, a1.clone())]});
+        let g = json!({"t": "group", "name": "svg", "items": [part(0, Value::Null), card, part(9, a2.clone())]});
+        let out = split(vec![g]);
+        // the static part, the card (a group, animated as a whole), the last part
+        assert_eq!(out.len(), 3);
+        assert!(out[0]["anim"].is_null() && out[1]["t"] == "group" && out[1]["anim"] == a1 && out[2]["anim"] == a2);
+        // parts animated alike stay one group
+        let same = json!({"t": "group", "name": "svg", "items": [part(0, a1.clone()), part(5, a1.clone())]});
+        assert_eq!(split(vec![same])[0]["anim"], a1);
+
+        let mut sh = sheet();
+        let (xml, anims) = shapes(&mut sh, out);
+        assert_eq!(anims.iter().map(|(_, a)| a.clone()).collect::<Vec<_>>(), [a1, a2]);
+        assert!(anims.iter().all(|(id, _)| xml.contains(&format!("<p:cNvPr id=\"{id}\""))));
+    }
+}

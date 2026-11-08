@@ -1,0 +1,17 @@
+# Mermaid diagrams (https://mermaid.js.org), rendered by mermaid-cli (Node, installed by the user)
+id: mermaid.mmdc
+fences: [mermaid]
+tool: mmdc
+install: https://github.com/mermaid-js/mermaid-cli
+input: { file: diagram.mmd }
+command: ["{tool}", --quiet, -i, "{input}", -o, "{output}", -e, svg, -c, "{file:config.json}", -b, transparent, "{options}", "{args}"]
+output: { file: diagram.svg }
+version: ["{tool}", --version]
+# the safe mode: strict security, no HTML in labels
+files:
+  config.json: '{"securityLevel":"strict","htmlLabels":false,"flowchart":{"htmlLabels":false}}'
+env: [PUPPETEER_EXECUTABLE_PATH, PUPPETEER_CACHE_DIR, NODE_PATH]
+options:
+  theme: { type: choice, values: [default, neutral, dark, forest, base], flag: -t }
+sandbox: browser
+safe-mode: "securityLevel strict, htmlLabels off (fixed); runs a browser through Node"

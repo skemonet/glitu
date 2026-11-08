@@ -1,7 +1,7 @@
 /* ==========================================================================
    "ascii" theme on the shared template (glitu/template.css): palette, fonts, veils.
    Amber ASCII: a flowing field of characters, in the amber of an old terminal; all monospaced.
-   Animated "ascii" backdrop (glitu.json); text panel in a slight gradient.
+   Animated "ascii" backdrop (glitu.yaml); text panel in a slight gradient.
    ========================================================================== */
 :root {
   --font: "IBM Plex Sans", "Segoe UI", "Noto Color Emoji", "Apple Color Emoji", "Segoe UI Emoji", system-ui, sans-serif;

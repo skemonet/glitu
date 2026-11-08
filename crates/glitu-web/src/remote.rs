@@ -1,5 +1,5 @@
 //! Remote (`?remote` in the address, on a phone): the slide at the top, two big buttons to go
-//! back and forward, the notes below. Under `glitu serve`, all the open windows follow (see the
+//! back and forward, the notes below. Under `glitu server`, all the open windows follow (see the
 //! server): the phone drives the projector.
 
 use crate::dom::{self, add, qs};

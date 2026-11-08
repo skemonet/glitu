@@ -112,7 +112,8 @@ impl Timer {
     pub fn from_json(v: &serde_json::Value, now: f64, away: f64) -> Option<Timer> {
         let running = v["running"].as_bool()?;
         let elapsed = v["elapsed"].as_f64()? + if running { away.max(0.0) } else { 0.0 };
-        let spent = v["spent"].as_array()?.iter().filter_map(|p| Some((p[0].as_u64()? as usize, p[1].as_f64()?))).collect();
+        let spent =
+            v["spent"].as_array()?.iter().filter_map(|p| Some((p[0].as_u64()? as usize, p[1].as_f64()?))).collect();
         let at = (v["at"][0].as_u64()? as usize, v["at"][1].as_f64()?);
         let rehearsal = v["rehearsal"].as_u64().map(|r| r as usize);
         Some(Timer { base: elapsed, since: running.then_some(now), spent, at, rehearsal })
@@ -122,7 +123,11 @@ impl Timer {
 /// `1:05`, `1:02:03`
 pub fn short(ms: f64) -> String {
     let s = (ms.max(0.0) / 1000.0).round() as u64;
-    if s >= 3600 { format!("{}:{:02}:{:02}", s / 3600, s / 60 % 60, s % 60) } else { format!("{}:{:02}", s / 60, s % 60) }
+    if s >= 3600 {
+        format!("{}:{:02}:{:02}", s / 3600, s / 60 % 60, s % 60)
+    } else {
+        format!("{}:{:02}", s / 60, s % 60)
+    }
 }
 
 /// `00:12:34`
@@ -203,6 +208,9 @@ mod tests {
         let back = Timer::from_json(&kept, 500.0 * S, 3.0 * S).unwrap();
         assert_eq!(back.elapsed(500.0 * S), 15.0 * S);
         assert_eq!((back.at, back.rehearsal, back.spent[&1]), ((2, 10.0 * S), Some(1), 10.0 * S));
-        assert_eq!((short(65.0 * S), short(3725.0 * S), clock(3725.0 * S)), ("1:05".into(), "1:02:05".into(), "01:02:05".into()));
+        assert_eq!(
+            (short(65.0 * S), short(3725.0 * S), clock(3725.0 * S)),
+            ("1:05".into(), "1:02:05".into(), "01:02:05".into())
+        );
     }
 }

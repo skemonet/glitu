@@ -1,4 +1,4 @@
-//! Automatic advance, as in reveal.js: `autoSlide` (glitu.json, in ms) for the whole
+//! Automatic advance, as in reveal.js: `autoSlide` (glitu.yaml, in ms) for the whole
 //! presentation, `data-autoslide` on a slide or a step for its own delay (0: wait for the
 //! click). A pauses and resumes; the black screen and the overview stop it.
 

@@ -1,13 +1,12 @@
-//! Shared template of the themes (`"template": true` in glitu.json, styles in glitu/template.css):
+//! Shared template of the themes (`template: true` in glitu.yaml, styles in glitu/template.css):
 //! "SECTION / Topic" header, logos, the theme's backdrop (`"backdrop"`: animated on the cover and
 //! the chapters, still behind the visuals), frieze that centres on the card of the step, footer
 //! of progress by chapter.
 
-
 use web_sys::Element;
 
-use super::crystal::{self, Crystal, Motion};
 use super::backdrops::{self, Animated};
+use super::crystal::{self, Crystal, Motion};
 use crate::dom::{self, add, closest, data, has, qs, qsa, style, toggle};
 use crate::engine::{self, Ev};
 
@@ -28,7 +27,6 @@ fn header(slide: &Element, logo: &str) {
     let _ = slide.prepend_with_node_1(&el);
 }
 
-
 /// Offset that centres the element `[data-id=id]` of the strip in the visible part (right of the panel)
 fn center_on(track: &Element, id: &str) -> f64 {
     let Some(el) = qs(track, &format!("[data-id=\"{id}\"]")) else {
@@ -39,14 +37,19 @@ fn center_on(track: &Element, id: &str) -> f64 {
     let ow = dom::html(track).offset_width() as f64;
     let k = if ow > 0.0 && t.width() > 0.0 { t.width() / ow } else { 1.0 };
     let view = track.parent_element().unwrap();
-    let left = closest(&view, "section").and_then(|s| qs(&s, ".panel")).map_or(0.0, |p| dom::html(&p).offset_width() as f64);
+    let left =
+        closest(&view, "section").and_then(|s| qs(&s, ".panel")).map_or(0.0, |p| dom::html(&p).offset_width() as f64);
     left + (dom::html(&view).offset_width() as f64 - left) / 2.0 - (r.left() + r.width() / 2.0 - t.left()) / k
 }
 
 fn update_pan(slide: &Element) {
     for track in qsa(slide, ".pan-track") {
         let section = closest(&track, "section").unwrap();
-        let current = qsa(&section, ".pan-step").into_iter().filter(|s| has(s, "visible")).last().unwrap_or_else(|| track.clone());
+        let current = qsa(&section, ".pan-step")
+            .into_iter()
+            .filter(|s| has(s, "visible"))
+            .last()
+            .unwrap_or_else(|| track.clone());
         let x = match data(&current, "pan-to") {
             Some(id) => center_on(&track, &id),
             None => data(&current, "pan").and_then(|p| p.parse().ok()).unwrap_or(0.0),
@@ -71,7 +74,13 @@ fn chapters(slides: &[Element]) -> Vec<Chapter> {
     for (i, s) in slides.iter().enumerate() {
         if let Some(num) = qs(s, ".chapter .num") {
             let title = qs(s, ".chapter h2").and_then(|h| h.text_content()).unwrap_or_default().trim().to_string();
-            list.push(Chapter { start: i, at: i, end: 0, num: num.text_content().unwrap_or_default().trim().to_string(), title });
+            list.push(Chapter {
+                start: i,
+                at: i,
+                end: 0,
+                num: num.text_content().unwrap_or_default().trim().to_string(),
+                title,
+            });
         }
     }
     if list.is_empty() {
@@ -98,21 +107,26 @@ fn progress() -> Progress {
     let parts = chapters(&slides);
     let el = dom::create("footer");
     el.set_class_name("tpl-progress");
-    el.set_inner_html("<span class=\"tpl-chapter\"></span><div class=\"tpl-segments\"></div><span class=\"tpl-count\"></span>");
+    el.set_inner_html(
+        "<span class=\"tpl-chapter\"></span><div class=\"tpl-segments\"></div><span class=\"tpl-count\"></span>",
+    );
     let label = qs(&el, ".tpl-chapter").unwrap();
     let count = qs(&el, ".tpl-count").unwrap();
     let box_ = qs(&el, ".tpl-segments").unwrap();
-    let segs = parts.iter().map(|c| {
-        let seg = dom::create("span");
-        seg.set_class_name("tpl-seg");
-        style(&seg, "flex", &(c.end - c.start).to_string());
-        let _ = seg.set_attribute("title", &c.title);
-        seg.set_inner_html("<i></i>");
-        let (h, v, _) = leaves[c.at];
-        dom::on::<web_sys::Event>(&seg, "click", move |_| engine::show(h, v, None, true));
-        let _ = box_.append_child(&seg);
-        seg
-    }).collect();
+    let segs = parts
+        .iter()
+        .map(|c| {
+            let seg = dom::create("span");
+            seg.set_class_name("tpl-seg");
+            style(&seg, "flex", &(c.end - c.start).to_string());
+            let _ = seg.set_attribute("title", &c.title);
+            seg.set_inner_html("<i></i>");
+            let (h, v, _) = leaves[c.at];
+            dom::on::<web_sys::Event>(&seg, "click", move |_| engine::show(h, v, None, true));
+            let _ = box_.append_child(&seg);
+            seg
+        })
+        .collect();
     let _ = engine::slides_element().append_child(&el);
     Progress { parts, segs, label, count, total: slides.len() }
 }
@@ -197,12 +211,17 @@ pub fn install(logo: &str, backdrop: &str) {
     }
     if !logo.is_empty() {
         for c in qsa(&root, ".chapter, .cover") {
-            let _ = c.insert_adjacent_html("beforeend", &format!("<img class=\"tpl-logo\" src=\"{}\" alt=\"\">", dom::esc(logo)));
+            let _ = c.insert_adjacent_html(
+                "beforeend",
+                &format!("<img class=\"tpl-logo\" src=\"{}\" alt=\"\">", dom::esc(logo)),
+            );
         }
     }
     for el in qsa(&root, "[data-bg]") {
         let base = dom::document().base_uri().ok().flatten().unwrap_or_default();
-        let url = web_sys::Url::new_with_base(&data(&el, "bg").unwrap_or_default(), &base).map(|u| u.href()).unwrap_or_default();
+        let url = web_sys::Url::new_with_base(&data(&el, "bg").unwrap_or_default(), &base)
+            .map(|u| u.href())
+            .unwrap_or_default();
         style(&el, "--bg", &format!("url(\"{url}\")"));
         if !has(&el, "blur") {
             style(&el, "background-image", &format!("url(\"{url}\")"));
@@ -221,6 +240,9 @@ pub fn install(logo: &str, backdrop: &str) {
         style(&host, "width", &format!("{}px", c.width));
         style(&host, "height", &format!("{}px", c.height));
     }
+    // for the export (glitu-play draws the same backdrop): its name, then the pace and the
+    // dimming of each slide (`data-motion`, `data-dim`)
+    let _ = host.set_attribute("data-scene", if backdrops::scene(backdrop).is_some() { backdrop } else { "crystal" });
     let backdrop = Backdrop::new(&host, backdrop);
     let motion = || {
         let slide = engine::current_slide();
@@ -251,6 +273,8 @@ pub fn install(logo: &str, backdrop: &str) {
         } else if matches!(ev, Ev::Ready | Ev::SlideChanged { .. }) {
             let (m, d) = motion();
             backdrop.set_motion(m, d);
+            let _ = host.set_attribute("data-motion", m.name());
+            let _ = host.set_attribute("data-dim", &d.to_string());
         }
     });
 }

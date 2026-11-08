@@ -46,7 +46,10 @@ pub fn zoom_on(el: &Element) {
 pub fn zoom_to(el: &Element, max: f64) {
     let r = el.get_bounding_client_rect();
     let win = dom::window();
-    let (iw, ih) = (win.inner_width().ok().and_then(|v| v.as_f64()).unwrap_or(1.0), win.inner_height().ok().and_then(|v| v.as_f64()).unwrap_or(1.0));
+    let (iw, ih) = (
+        win.inner_width().ok().and_then(|v| v.as_f64()).unwrap_or(1.0),
+        win.inner_height().ok().and_then(|v| v.as_f64()).unwrap_or(1.0),
+    );
     let (w, h) = (r.width() + PADDING * 2.0, r.height() + PADDING * 2.0);
     let scale = (iw / w).min(ih / h).min(max).max(1.0);
     // The element, margin included, in the centre of the window
@@ -70,7 +73,9 @@ pub fn install() {
         e.prevent_default();
         if ZOOMED.with(Cell::get) {
             zoom_out();
-        } else if let Some(el) = e.target().and_then(|t| t.dyn_into::<Element>().ok()).filter(|t| closest(t, ".slides").is_some()) {
+        } else if let Some(el) =
+            e.target().and_then(|t| t.dyn_into::<Element>().ok()).filter(|t| closest(t, ".slides").is_some())
+        {
             zoom_on(&el);
         }
     });

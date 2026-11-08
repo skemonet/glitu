@@ -72,6 +72,22 @@ pre.ap-term-text .ap-strike { text-decoration: line-through; }
 .reveal .mark-highlight .mark-svg{z-index:-1;left:0;width:100%}.reveal .mark-highlight .mark-svg path{stroke-width:.75em;stroke-opacity:.32;stroke-linecap:butt}
 .reveal .mark:not(:has(> .mark-on)) .mark-svg,.reveal .mark:has(> .mark-on.visible) .mark-svg{clip-path:inset(-50% -10% -50% -10%)}
 
+/* Focus zones over an image or a video (`focus="x y w h …"`, in % of the picture): the engine lays
+   the layer over the picture shown. A zone holds a mark, a spotlight (`.spot`: the rest darkens) or
+   nothing (a zoom); the zones of a video with a time range show while it is within it (`.on`) */
+.reveal .video-step{position:absolute;width:0;height:0;overflow:hidden}
+.reveal .zones{position:absolute;left:0;top:0;width:0;height:0;pointer-events:none;z-index:2}
+.reveal .zones:has(.spot){overflow:hidden}
+.reveal .zone{position:absolute;left:calc(var(--x)*100%);top:calc(var(--y)*100%);width:calc(var(--w)*100%);height:calc(var(--h)*100%)}
+.reveal .zone>span{position:absolute;inset:0;display:block;white-space:normal}
+.reveal .zone .mark-svg path{stroke-width:4px}
+.reveal .zone .spot{border-radius:12px;box-shadow:0 0 0 200vmax rgba(0,0,0,.62);transition:opacity .5s ease}
+.reveal .zone.timed{opacity:0;transition:opacity .3s ease}.reveal .zone.timed.on{opacity:1}
+.reveal .zone.timed:not(.on) .mark-svg{clip-path:inset(-50% 110% -50% -10%)}
+/* Caption under a visual (`caption="…"`, the title of an image): its source, for example */
+.reveal .visual-caption{margin:.4em 0 0;font-size:.5em;line-height:1.35;opacity:.75}
+.reveal .visual-caption a{color:inherit}
+
 /* ----- Drawing on the slides (D key) ------------------------------------- */
 .reveal svg.drawing{position:absolute;inset:0;width:100%;height:100%;z-index:60;pointer-events:none;overflow:visible}
 .reveal svg.drawing path{fill:none;stroke-width:4;stroke-linecap:round;stroke-linejoin:round}
@@ -178,6 +194,10 @@ body.reveal-viewport { transition: transform .8s cubic-bezier(.45,.05,.25,1); }
 /* The presentation's logo for the themes without the template (`logo:` in the front matter) */
 .reveal > .glitu-logo{position:absolute;right:20px;top:16px;height:36px;z-index:30;opacity:.9;pointer-events:none}
 html.print-pdf .reveal > .glitu-logo,html.scroll-view .reveal > .glitu-logo{display:none}
+
+/* glitu server: a diagram that could not be rendered, its error in its place */
+.reveal pre.diagram-error { margin: 0; padding: .6em .8em; font: 16px/1.4 monospace; white-space: pre-wrap; text-align: left;
+  color: #b00020; background: #fff4f4; border: 2px dashed #b00020; border-radius: 6px; }
 
 /* skemo diagrams step by step, in every theme: what a click has not shown yet stays hidden */
 .reveal svg.skemo [data-step], .reveal svg.skemo [data-until] { transition: opacity .45s ease, transform .45s ease; }

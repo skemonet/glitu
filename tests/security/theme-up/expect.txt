@@ -1,0 +1,1 @@
+theme: ../: outside the presentation's folder

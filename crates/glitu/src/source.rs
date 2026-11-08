@@ -1,4 +1,8 @@
-//! A presentation's markdown, split into several files if needed: a line
+//! A presentation's markdown, split into several files if needed. Given a folder (the current one
+//! by default), glitu reads its `slides.md`, or without one all its `.md` files, merged in natural
+//! order (`2-a.md` before `10-b.md`), leaving out README, CHANGELOG, LICENSE and the names
+//! starting with `_` or `.` (named on the command line, any file is taken). Only the first file's
+//! front matter counts. And a line
 //! `<!-- include: chapters/deployment.md -->` inserts another file (path relative to the file that
 //! includes it), which may include others in turn. The front matter of an included file is
 //! ignored: only the presentation's counts. The paths of images and terminals stay relative to the
@@ -17,7 +21,9 @@ use std::path::{Component, Path, PathBuf};
 
 use serde_json::json;
 
-/// The full markdown and the files read, as written (to be watched by `glitu serve`, to be copied
+use crate::confine::Reads;
+
+/// The full markdown and the files read, as written (to be watched by `glitu server`, to be copied
 /// into the page)
 pub struct Source {
     pub text: String,
@@ -32,10 +38,101 @@ pub struct File {
     pub text: String,
 }
 
+/// A presentation alone, confined to its folder
 pub fn read(main: &Path) -> Result<Source, String> {
-    let mut reader = Reader { stack: Vec::new(), files: Vec::new(), origins: Vec::new() };
-    let text = reader.expand(main)?;
+    let root = main.parent().filter(|p| !p.as_os_str().is_empty()).unwrap_or(Path::new("."));
+    read_all(&[main.to_path_buf()], &Reads::new(root, &[]))
+}
+
+/// Several files one after the other, each starting on a line of its own after a blank one; the
+/// front matter of the first one alone is kept. The files they include or import are read only
+/// inside `reads` (the files named here are the user's choice)
+pub fn read_all(paths: &[PathBuf], reads: &Reads) -> Result<Source, String> {
+    let mut reader = Reader { stack: Vec::new(), files: Vec::new(), origins: Vec::new(), reads };
+    let mut text = String::new();
+    for (i, path) in paths.iter().enumerate() {
+        if i > 0 {
+            if !text.is_empty() && !text.ends_with('\n') {
+                text.push('\n');
+            }
+            text.push('\n');
+            reader.origins.push(None);
+        }
+        text += &reader.expand(path, i > 0)?;
+    }
     Ok(Source { text, files: reader.files, origins: reader.origins })
+}
+
+/// The markdown files of a presentation, from the command line: none (the current folder), one
+/// folder, or files (taken as they are, in this order)
+pub fn inputs(args: &[PathBuf]) -> Result<Vec<PathBuf>, String> {
+    match args {
+        [] => markdown_in(Path::new(".")),
+        [one] if one.is_dir() => markdown_in(one),
+        files => match files.iter().find(|f| f.is_dir()) {
+            Some(dir) => Err(format!("{}: a folder among files; give one folder, or files", dir.display())),
+            None => Ok(files.to_vec()),
+        },
+    }
+}
+
+/// The presentation of a folder: its `slides.md`, otherwise its `.md` files in natural order, but
+/// README, CHANGELOG, LICENSE and the names starting with `_` or `.`
+pub fn markdown_in(dir: &Path) -> Result<Vec<PathBuf>, String> {
+    let at = |name: &std::ffi::OsStr| if dir == Path::new(".") { PathBuf::from(name) } else { dir.join(name) };
+    if dir.join("slides.md").is_file() {
+        return Ok(vec![at("slides.md".as_ref())]);
+    }
+    let entries = fs::read_dir(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
+    let mut names: Vec<String> = entries
+        .flatten()
+        .filter(|e| e.path().is_file())
+        .map(|e| e.file_name().to_string_lossy().into_owned())
+        .filter(|n| n.to_ascii_lowercase().ends_with(".md") && !left_out(n))
+        .collect();
+    names.sort_by(|a, b| natural(a, b));
+    if names.is_empty() {
+        return Err(format!(
+            "no markdown file in {}: create a presentation with `glitu init`, or give the files to use",
+            if dir == Path::new(".") { "this folder".to_string() } else { dir.display().to_string() }
+        ));
+    }
+    Ok(names.iter().map(|n| at(n.as_ref())).collect())
+}
+
+/// A file of the folder that is not part of the presentation, unless named on the command line
+fn left_out(name: &str) -> bool {
+    let lower = name.to_ascii_lowercase();
+    name.starts_with(['_', '.']) || ["readme", "changelog", "license"].iter().any(|p| lower.starts_with(p))
+}
+
+/// Natural order: the numbers by their value (`2` before `10`), the rest without case
+fn natural(a: &str, b: &str) -> std::cmp::Ordering {
+    let chunks = |s: &str| -> Vec<(bool, String)> {
+        let mut out: Vec<(bool, String)> = Vec::new();
+        for c in s.chars() {
+            let digit = c.is_ascii_digit();
+            match out.last_mut() {
+                Some((d, run)) if *d == digit => run.push(c),
+                _ => out.push((digit, c.to_string())),
+            }
+        }
+        out
+    };
+    let (x, y) = (chunks(a), chunks(b));
+    for (p, q) in x.iter().zip(&y) {
+        let order = match (p, q) {
+            ((true, m), (true, n)) => {
+                let (m, n) = (m.trim_start_matches('0'), n.trim_start_matches('0'));
+                m.len().cmp(&n.len()).then_with(|| m.cmp(n))
+            }
+            ((_, m), (_, n)) => m.to_lowercase().cmp(&n.to_lowercase()),
+        };
+        if order.is_ne() {
+            return order;
+        }
+    }
+    x.len().cmp(&y.len()).then_with(|| a.cmp(b))
 }
 
 impl Source {
@@ -104,15 +201,18 @@ impl Fences {
 }
 
 /// The files read so far, and where each line of the result comes from
-struct Reader {
+struct Reader<'a> {
     /// The files being included, to refuse a loop
     stack: Vec<PathBuf>,
     files: Vec<File>,
     origins: Vec<Option<(usize, usize)>>,
+    /// Where the presentation may read
+    reads: &'a Reads,
 }
 
-impl Reader {
-    fn expand(&mut self, path: &Path) -> Result<String, String> {
+impl Reader<'_> {
+    /// `included`: the front matter is left out
+    fn expand(&mut self, path: &Path, included: bool) -> Result<String, String> {
         let key = path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
         if self.stack.contains(&key) {
             let chain: Vec<String> = self.stack.iter().chain([&key]).map(|p| p.display().to_string()).collect();
@@ -120,8 +220,7 @@ impl Reader {
         }
         let text = fs::read_to_string(path).map_err(|e| format!("{}: {e}", path.display()))?;
         // An included file: without its front matter
-        let body =
-            if self.stack.is_empty() { text.as_str() } else { glitu_core::markdown::front_matter(&text).1 }.to_string();
+        let body = if included { glitu_core::markdown::front_matter(&text).1 } else { text.as_str() }.to_string();
         // the lines of the body are counted after those of the removed front matter
         let (me, skipped) = (self.files.len(), text[..text.len() - body.len()].matches('\n').count());
         self.files.push(File { path: path.to_path_buf(), text });
@@ -133,7 +232,8 @@ impl Reader {
             let trimmed = line.trim_start();
             fences.update(trimmed);
             if let Some(target) = include_target(line).filter(|_| fences.outside()) {
-                out += &self.include(&dir.join(target))?;
+                let at = self.reads.open(dir, target).map_err(|e| format!("{}: include: {e}", path.display()))?;
+                out += &self.include(&at)?;
             } else if let Some(spec) = trimmed.strip_prefix("<<< ").filter(|_| fences.imports()) {
                 out += &self.import(path, dir, spec.trim(), &fences)?;
             } else {
@@ -148,7 +248,7 @@ impl Reader {
     /// An included file, expanded, as whole lines
     fn include(&mut self, path: &Path) -> Result<String, String> {
         let before = self.origins.len();
-        let included = self.expand(path)?;
+        let included = self.expand(path, true)?;
         let kept = included.trim_end_matches('\n');
         self.origins.resize(before + kept.matches('\n').count() + 1, None);
         Ok(format!("{kept}\n"))
@@ -156,7 +256,10 @@ impl Reader {
 
     /// Code imported by a `<<<` line of `path`
     fn import(&mut self, path: &Path, dir: &Path, spec: &str, fences: &Fences) -> Result<String, String> {
-        let code = snippet(dir, spec, &mut self.files)?;
+        let code = snippet(dir, spec, &mut self.files, self.reads).map_err(|e| match e.strip_prefix('!') {
+            Some(refused) => format!("{}: <<< {refused}", path.display()),
+            None => e,
+        })?;
         // the version must fit in the animated block: a fence shorter than its own
         if let Some((_, n)) = fences.open
             && code.len() - code.trim_start_matches('`').len() >= n
@@ -172,10 +275,11 @@ impl Reader {
 }
 
 /// `<<< path#part language attributes` → the code block
-fn snippet(dir: &Path, spec: &str, files: &mut Vec<File>) -> Result<String, String> {
+/// (a path refused starts with `!`)
+fn snippet(dir: &Path, spec: &str, files: &mut Vec<File>, reads: &Reads) -> Result<String, String> {
     let (target, rest) = spec.split_once(char::is_whitespace).unwrap_or((spec, ""));
     let (path, part) = target.split_once('#').unwrap_or((target, ""));
-    let file = dir.join(path);
+    let file = reads.open(dir, path).map_err(|e| format!("!{e}"))?;
     let text = fs::read_to_string(&file).map_err(|e| format!("{}: {e}", file.display()))?;
     let code = excerpt(&text, part).ok_or_else(|| format!("{}: part `{part}` not found", file.display()))?;
     files.push(File { path: file.clone(), text });
@@ -206,7 +310,10 @@ fn excerpt(text: &str, part: &str) -> Option<String> {
         return (a <= b).then(|| lines[a - 1..b].join("\n"));
     }
     fn marker<'a>(line: &'a str, word: &str) -> Option<&'a str> {
-        line.trim_start().trim_start_matches(|c: char| !c.is_alphanumeric() && c != '#').strip_prefix(word).map(str::trim)
+        line.trim_start()
+            .trim_start_matches(|c: char| !c.is_alphanumeric() && c != '#')
+            .strip_prefix(word)
+            .map(str::trim)
     }
     let start = lines
         .iter()
@@ -220,7 +327,8 @@ fn excerpt(text: &str, part: &str) -> Option<String> {
 
 /// Lines without their common indentation
 fn dedent(lines: &[&str]) -> String {
-    let indent = lines.iter().filter(|l| !l.trim().is_empty()).map(|l| l.len() - l.trim_start().len()).min().unwrap_or(0);
+    let indent =
+        lines.iter().filter(|l| !l.trim().is_empty()).map(|l| l.len() - l.trim_start().len()).min().unwrap_or(0);
     lines.iter().map(|l| l.get(indent..).unwrap_or("")).collect::<Vec<_>>().join("\n")
 }
 
@@ -261,6 +369,14 @@ fn normalized(path: &Path) -> Option<String> {
 /// does not run. Paths relative to the main file, the first one being that file; a file included
 /// from outside its folder keeps its path as is (`unpack` will report it).
 pub fn embed(src: &Source) -> String {
+    // `<` escaped: the text cannot close the script (`</script>`)
+    let data = copy(src).replace('<', "\\u003c");
+    format!("<script type=\"application/json\" id=\"{EMBED_ID}\">{data}</script>")
+}
+
+/// The copy itself, as JSON: `{ "glitu": 1, "files": [ { "path", "text" } ] }` (also the
+/// `source.json` of a `.glituplay` file)
+pub fn copy(src: &Source) -> String {
     let root = src.files.first().and_then(|f| f.path.parent()).unwrap_or(Path::new(""));
     let files: Vec<_> = src
         .files
@@ -271,9 +387,7 @@ pub fn embed(src: &Source) -> String {
             json!({ "path": path, "text": f.text })
         })
         .collect();
-    // `<` escaped: the text cannot close the script (`</script>`)
-    let data = json!({ "glitu": 1, "files": files }).to_string().replace('<', "\\u003c");
-    format!("<script type=\"application/json\" id=\"{EMBED_ID}\">{data}</script>")
+    json!({ "glitu": 1, "files": files }).to_string()
 }
 
 /// The files taken back out of a page: (relative path, text), the main one first, and those that
@@ -288,8 +402,13 @@ pub fn extract(html: &str) -> Result<Extracted, String> {
     let open = format!("id=\"{EMBED_ID}\">");
     let start = html.find(&open).ok_or("this page does not contain the markdown of its presentation")? + open.len();
     let len = html[start..].find("</script>").ok_or("truncated copy of the markdown")?;
+    files_of(&html[start..start + len])
+}
+
+/// The files of a copy written by `copy`
+pub fn files_of(json: &str) -> Result<Extracted, String> {
     let data: serde_json::Value =
-        serde_json::from_str(&html[start..start + len]).map_err(|e| format!("unreadable copy of the markdown: {e}"))?;
+        serde_json::from_str(json).map_err(|e| format!("unreadable copy of the markdown: {e}"))?;
     let mut out = Extracted { files: Vec::new(), refused: Vec::new() };
     for f in data["files"].as_array().ok_or("copy of the markdown without files")? {
         let path = f["path"].as_str().unwrap_or_default();
@@ -299,7 +418,7 @@ pub fn extract(html: &str) -> Result<Extracted, String> {
         }
     }
     if out.files.is_empty() {
-        return Err("no file to take out of this page".into());
+        return Err("this page contains no source file".into());
     }
     Ok(out)
 }
@@ -313,6 +432,46 @@ mod tests {
         let _ = fs::remove_dir_all(&dir);
         fs::create_dir_all(&dir).unwrap();
         dir
+    }
+
+    #[test]
+    fn a_folder_without_slides_md_merges_its_markdown() {
+        let dir = temp("merge");
+        for (name, text) in [
+            ("10-end.md", "# End\n"),
+            ("2-deploy.md", "---\ntitle: ignored\n---\n# Deploy"),
+            ("01-intro.md", "---\ntitle: T\n---\n# Intro\n"),
+            ("README.md", "# readme\n"),
+            ("_draft.md", "# draft\n"),
+            ("notes.txt", "x"),
+        ] {
+            fs::write(dir.join(name), text).unwrap();
+        }
+        let files = markdown_in(&dir).unwrap();
+        let names: Vec<_> = files.iter().map(|f| f.file_name().unwrap().to_string_lossy().into_owned()).collect();
+        assert_eq!(names, ["01-intro.md", "2-deploy.md", "10-end.md"]);
+        let src = read_all(&files, &Reads::new(&dir, &[])).unwrap();
+        // the first front matter alone, each file on lines of its own (the second ends without one)
+        assert_eq!(src.text, "---\ntitle: T\n---\n# Intro\n\n# Deploy\n\n# End\n");
+        assert_eq!(src.origin(src.text.find("# End").unwrap()), Some((files[2].as_path(), 0)));
+        assert_eq!(src.origin(src.text.find("# Deploy").unwrap()), Some((files[1].as_path(), 3)));
+        // named on the command line, a README counts
+        let named = inputs(&[dir.join("README.md"), dir.join("01-intro.md")]).unwrap();
+        assert_eq!(named.len(), 2);
+        assert_eq!(inputs(std::slice::from_ref(&dir)).unwrap(), files);
+        assert!(inputs(&[dir.clone(), dir.join("README.md")]).unwrap_err().contains("a folder among files"));
+        // a slides.md is the presentation
+        fs::write(dir.join("slides.md"), "# S\n").unwrap();
+        assert_eq!(markdown_in(&dir).unwrap(), [dir.join("slides.md")]);
+        let empty = temp("merge-empty");
+        assert!(markdown_in(&empty).unwrap_err().contains("no markdown file"));
+    }
+
+    #[test]
+    fn natural_order() {
+        let mut v = ["b10.md", "B2.md", "a.md", "b02x.md", "b1.md"];
+        v.sort_by(|a, b| natural(a, b));
+        assert_eq!(v, ["a.md", "b1.md", "B2.md", "b02x.md", "b10.md"]);
     }
 
     #[test]
@@ -383,7 +542,8 @@ mod tests {
     #[test]
     fn unpacking_never_writes_outside_the_folder() {
         for bad in ["../x.md", "/etc/x.md", "a/../../x.md", "a/./b.md"] {
-            let page = format!("<script id=\"{EMBED_ID}\">{}</script>", json!({ "files": [{ "path": bad, "text": "" }] }));
+            let page =
+                format!("<script id=\"{EMBED_ID}\">{}</script>", json!({ "files": [{ "path": bad, "text": "" }] }));
             let page = page.replace("\"files\":[", "\"files\":[{\"path\":\"ok.md\",\"text\":\"\"},");
             assert_eq!(extract(&page).unwrap().refused, [bad], "{bad}");
         }

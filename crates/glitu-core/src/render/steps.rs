@@ -1,4 +1,4 @@
-//! Clicks: how an element appears (`@n` → reveal.js fragments), its highlights (`data-fx`), the
+//! Clicks: how an element appears (`@n` → reveal.js fragments), its highlights (`data-highlight`), the
 //! blocks that replace one another, and the speaker notes split by click.
 
 use std::collections::BTreeSet;
@@ -36,7 +36,7 @@ pub struct Appear {
     pub class: String,
     pub attrs: String,
     pub end: String,
-    /// Highlights: ` data-fx="halo:3-4 magnify:5"`, which the engine applies at the click
+    /// Highlights: ` data-highlight="halo:3-4 magnify:5"`, which the engine applies at the click
     pub fx: String,
 }
 
@@ -53,7 +53,7 @@ pub fn appear(it: &Stepped) -> Appear {
     Appear { class, attrs, end, fx: fx_attr(&it.marks) }
 }
 
-/// ` data-fx="halo:3-4 magnify:5"`: effect, first click and last one (none: until the end)
+/// ` data-highlight="halo:3-4 magnify:5"`: effect, first click and last one (none: until the end)
 pub(super) fn fx_attr(marks: &[Stepped]) -> String {
     let fx: Vec<String> = marks
         .iter()
@@ -62,7 +62,7 @@ pub(super) fn fx_attr(marks: &[Stepped]) -> String {
             Some(format!("{}:{range}", m.effect.as_deref()?))
         })
         .collect();
-    if fx.is_empty() { String::new() } else { format!(" data-fx=\"{}\"", fx.join(" ")) }
+    if fx.is_empty() { String::new() } else { format!(" data-highlight=\"{}\"", fx.join(" ")) }
 }
 
 /// The values of every `name="…"` attribute in `html`
@@ -81,10 +81,10 @@ fn fragment_spans(class: &str, steps: BTreeSet<u32>) -> String {
         .collect()
 }
 
-/// An invisible fragment at the start and after the end of each highlight (`data-fx`)
+/// An invisible fragment at the start and after the end of each highlight (`data-highlight`)
 pub(super) fn fx_steps(html: &str) -> String {
     let mut steps = BTreeSet::new();
-    for value in attr_values(html, "data-fx") {
+    for value in attr_values(html, "data-highlight") {
         for fx in value.split_whitespace() {
             let range = fx.split_once(':').map_or("", |(_, r)| r);
             let (a, b) = range.split_once('-').map_or((range, None), |(a, b)| (a, Some(b)));
@@ -198,7 +198,7 @@ mod tests {
 
     #[test]
     fn each_highlight_gets_its_clicks() {
-        let steps = fx_steps("<li data-fx=\"halo:2-3 magnify:5\">a</li>");
+        let steps = fx_steps("<li data-highlight=\"halo:2-3 magnify:5\">a</li>");
         assert_eq!(steps.matches("fx-step").count(), 3);
         for n in [2, 4, 5] {
             assert!(steps.contains(&format!("data-fragment-index=\"{n}\"")), "{steps}");
@@ -217,9 +217,11 @@ mod tests {
         let a = appear(&step_of("x @2-3:up @4:halo"));
         assert_eq!((a.class.as_str(), a.attrs.as_str()), (" fragment fade-up", " data-fragment-index=\"2\""));
         assert_eq!(a.end, "<span class=\"fragment until\" data-fragment-index=\"4\"></span>");
-        assert_eq!(a.fx, " data-fx=\"halo:4\"");
+        assert_eq!(a.fx, " data-highlight=\"halo:4\"");
         assert_eq!(stepped_html("li", &step_of("y @0:dim")), "<li class=\"semi-fade-out\">y</li>");
-        for (short, class) in [("down", "fade-down"), ("left", "fade-left"), ("right", "fade-right"), ("zoom", "zoom-in")] {
+        for (short, class) in
+            [("down", "fade-down"), ("left", "fade-left"), ("right", "fade-right"), ("zoom", "zoom-in")]
+        {
             assert_eq!(effect_class(short), class);
         }
         assert_eq!(effect_class("fade-in-then-out"), "fade-in-then-out");

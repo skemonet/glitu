@@ -1,11 +1,18 @@
 [workspace]
 resolver = "2"
-members = ["crates/glitu", "crates/glitu-core", "crates/glitu-web"]
+members = ["crates/glitu", "crates/glitu-core", "crates/glitu-web", "crates/glitu-play", "crates/glitu-backdrop"]
 
 [workspace.package]
 version = "0.1.1-rc.4"
 edition = "2024"
 license = "MIT OR Apache-2.0"
+repository = "https://github.com/skemonet/glitu"
+homepage = "https://glitu.net"
+readme = "README.md"
+keywords = ["presentation", "slides", "markdown", "reveal", "wasm"]
+categories = ["command-line-utilities", "text-processing", "wasm"]
+# The oldest compiler that builds it (the layout engine of skemo's diagrams needs 1.90)
+rust-version = "1.90"
 
 [profile.release]
 opt-level = 3
@@ -17,3 +24,7 @@ strip = true
 # The web engine is small and often reloaded: optimise it for size
 [profile.release.package.glitu-web]
 opt-level = "s"
+
+# No unsafe code in the crates of the project
+[workspace.lints.rust]
+unsafe_code = "forbid"

@@ -1,0 +1,33 @@
+# cargo deny check: known vulnerabilities, licences, duplicate crates, where crates come from
+
+[graph]
+all-features = true
+
+[advisories]
+yanked = "deny"
+ignore = [
+  # bincode 1.3.3, unmaintained but complete (its authors' words): syntect only reads with it the
+  # grammars embedded in the binary, never outside data
+  { id = "RUSTSEC-2025-0141", reason = "syntect reads its embedded grammars with it; no untrusted input" },
+]
+
+[licenses]
+# Permissive licences only, compatible with MIT OR Apache-2.0
+allow = [
+  "MIT",
+  "Apache-2.0",
+  "Apache-2.0 WITH LLVM-exception",
+  "ISC",
+  "Zlib",
+  "Unicode-3.0",
+]
+confidence-threshold = 0.9
+
+[bans]
+# a few crates come twice, through dependencies of dependencies: noted, not refused
+multiple-versions = "warn"
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-git = []

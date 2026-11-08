@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Shared template of the glitu themes (`"template": true` in glitu.json): header, text panel
+   Shared template of the glitu themes (`template: true` in glitu.yaml): header, text panel
    on the left, visual on the right (photo, diagram, code), progress footer. Slides of 1280 × 720.
    Each theme only changes its variables (palette, fonts, veils) and a few details; the default
    values are those of the "crystal" theme.
@@ -71,6 +71,21 @@
   /* Code window, dark in all themes */
   --win-bg: rgba(13,17,23,.94);
   --win-border: rgba(255,255,255,.1);
+  /* Colours of the highlighted code, by highlight.js class (GitHub's dark palette) */
+  --hl-text: #e6edf3;
+  --hl-comment: #8b949e;
+  --hl-keyword: #ff7b72;
+  --hl-string: #a5d6ff;
+  --hl-number: #ffa657;
+  --hl-title: #d2a8ff;
+  --hl-type: #79c0ff;
+  --hl-attr: #79c0ff;
+  --hl-variable: #ffa657;
+  --hl-tag: #7ee787;
+  --hl-regexp: #7ee787;
+  --hl-meta: #79c0ff;
+  --hl-addition: #aff5b4;
+  --hl-deletion: #ffa198;
 }
 
 /* ----- Base --------------------------------------------------------------- */
@@ -192,10 +207,19 @@ html, body, .reveal-viewport { background: var(--base); }
 }
 
 /* Image (`![](img/x.png)`): whole in the stage, like a screenshot laid on it */
-.reveal .stage > img.visual {
+.reveal .stage > :is(img, video).visual {
   display: block; min-width: 0; min-height: 0; max-width: 100%; max-height: 100%; object-fit: contain;
   margin: 0; border-radius: 12px; box-shadow: 0 30px 60px -20px rgba(0,0,0,.7), 0 0 0 1px rgba(255,255,255,.08);
 }
+
+/* Caption under the visual (`caption="…"`, the title of an image): the stage stacks them */
+.reveal .visual-caption {
+  flex: none; margin: 12px 0 0; font-size: calc(16px * var(--text-scale, 1)); line-height: 1.35;
+  color: var(--text-dim); text-align: center; opacity: 1;
+}
+.reveal .stage:has(> .visual-caption) { flex-direction: column; }
+.reveal .stage:has(> .visual-caption) > :is(img, video).visual { max-height: calc(100% - 40px * var(--text-scale, 1)); }
+.reveal .stage.full:has(> .caption) > .visual-caption { align-self: center; }
 
 /* Strip that scrolls horizontally (frieze) */
 .reveal .pan-viewport { position: absolute; inset: 0 0 var(--footer-h); overflow: hidden; }
@@ -233,7 +257,7 @@ html, body, .reveal-viewport { background: var(--base); }
 .reveal .window pre code {
   position: absolute; inset: 0; width: 100%;
   max-height: none; padding: 16px 0; box-sizing: border-box; overflow: hidden;
-  background: transparent; font-family: var(--mono); color: #e6edf3;
+  background: transparent; font-family: var(--mono); color: var(--hl-text);
   font-variant-ligatures: none;
   white-space: pre;
 }
@@ -246,11 +270,22 @@ html, body, .reveal-viewport { background: var(--base); }
 /* the code keeps away from the neon stroke of the highlighted lines, like the name of the
    current file in the explorer (.5em); all the lines, to stay aligned */
 .reveal .window .hljs-ln-code { padding-left: .6em !important; padding-right: 1em !important; }
-.reveal .window .hljs-attr, .reveal .window .hljs-bullet { color: #79c0ff; }
-.reveal .window .hljs-string { color: #a5d6ff; }
-.reveal .window .hljs-number, .reveal .window .hljs-literal { color: #ffa657; }
-.reveal .window .hljs-tag, .reveal .window .hljs-name { color: #7ee787; }
-.reveal .window .hljs-comment { color: #8b949e; }
+.reveal .window :is(.hljs-comment, .hljs-quote) { color: var(--hl-comment); }
+.reveal .window :is(.hljs-keyword, .hljs-selector-tag, .hljs-doctag) { color: var(--hl-keyword); }
+.reveal .window :is(.hljs-string, .hljs-code) { color: var(--hl-string); }
+.reveal .window :is(.hljs-number, .hljs-literal) { color: var(--hl-number); }
+.reveal .window :is(.hljs-title, .hljs-section, .hljs-selector-class, .hljs-selector-id, .hljs-selector-pseudo) { color: var(--hl-title); }
+.reveal .window :is(.hljs-type, .hljs-built_in, .hljs-property, .hljs-subst, .hljs-symbol) { color: var(--hl-type); }
+.reveal .window :is(.hljs-attr, .hljs-attribute, .hljs-bullet) { color: var(--hl-attr); }
+.reveal .window :is(.hljs-variable, .hljs-template-variable) { color: var(--hl-variable); }
+.reveal .window :is(.hljs-tag, .hljs-name) { color: var(--hl-tag); }
+.reveal .window .hljs-regexp { color: var(--hl-regexp); }
+.reveal .window .hljs-meta { color: var(--hl-meta); }
+.reveal .window .hljs-addition { color: var(--hl-addition); }
+.reveal .window .hljs-deletion { color: var(--hl-deletion); }
+.reveal .window .hljs-strong { font-weight: 700; }
+.reveal .window .hljs-emphasis { font-style: italic; }
+.reveal .window .hljs-link { text-decoration: underline; }
 .reveal .window .hljs.has-highlights tr:not(.highlight-line) { opacity: .3; }
 .reveal .window .hljs.has-highlights tr.highlight-line td { color: #fff; }
 /* Highlighted line: an almost opaque solid backdrop and the neon stroke, drawn by a layer that
@@ -415,7 +450,7 @@ html, body, .reveal-viewport { background: var(--base); }
 
 /* ----- Animated backdrop ---------------------------------------------------------- */
 /* One backdrop for the whole presentation, under the slides (.tpl-backdrop), the theme's
-   (glitu.json, "backdrop"): data-backdrop="animated" animates it, "still" stops it; the slides let it show */
+   (glitu.yaml, `backdrop`): data-backdrop="animated" animates it, "still" stops it; the slides let it show */
 .tpl-backdrop { position: absolute; inset: 0; z-index: 0; isolation: isolate; background: var(--backdrop-base); pointer-events: none; }
 .reveal .backdrop-canvas { position: absolute; inset: 0; z-index: -1; width: 100%; height: 100%; pointer-events: none; }
 .reveal [data-backdrop] { background: transparent; }
@@ -486,7 +521,7 @@ html, body, .reveal-viewport { background: var(--base); }
 .reveal .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 56px; }
 .reveal .col, .reveal .layout-body { min-width: 0; }
 .reveal .col { display: flex; flex-direction: column; min-height: 0; }
-.reveal .col > :is(.window, .diagram, img) { flex: 1; min-height: 0; width: 100%; }
+.reveal .col > :is(.window, .diagram, img, video) { flex: 1; min-height: 0; width: 100%; }
 .reveal .layout-body { display: flex; flex-direction: column; justify-content: center; }
 .reveal :is(.cols, .layout-body) h2 { font-family: var(--title-font); font-size: calc(38px * var(--text-scale, 1)); font-weight: var(--title-weight); color: var(--heading); margin: 0 0 .8em; line-height: 1.1; }
 .reveal :is(.cols, .layout-body) ul { list-style: none; margin: 0; padding: 0; }
@@ -518,7 +553,7 @@ html, body, .reveal-viewport { background: var(--base); }
 .reveal .cols-header { grid-column: 1 / -1; }
 .reveal .cols-header > :last-child { margin-bottom: 0; }
 .reveal .layout-full .layout-body { padding: 0; background: none; }
-.reveal .layout-full .layout-body > :is(.window, .diagram, img) { flex: 1; min-height: 0; width: 100%; }
+.reveal .layout-full .layout-body > :is(.window, .diagram, img, video) { flex: 1; min-height: 0; width: 100%; }
 .reveal .layout-intro .cover h1 { font-size: calc(88px * var(--text-scale, 1)); }
 .reveal .layout-end .chapter { align-items: center; text-align: center; }
 .reveal .layout-end .chapter h2::after { margin-inline: auto; }
@@ -537,5 +572,14 @@ html, body, .reveal-viewport { background: var(--base); }
   clip-path: polygon(0 0, 100% 0, calc(100% - var(--slant)) 100%, 0 100%);
 }
 .reveal .media-full .layout-media { left: 0; width: 100%; }
+.reveal .layout-beside video.layout-media { background: #000; }
+/* Caption of the image beside the text: laid on its bottom */
+.reveal .layout-beside > .visual-caption {
+  position: absolute; bottom: var(--footer-h); z-index: 2; width: 50%; margin: 0; box-sizing: border-box;
+  padding: 36px 28px 12px; color: #fff; background: linear-gradient(transparent, rgba(0,0,0,.65));
+}
+.reveal .media-right > .visual-caption { right: 0; padding-left: calc(var(--slant) + 28px); }
+.reveal .media-left > .visual-caption { left: 0; }
+.reveal .media-full > .visual-caption { left: 0; width: 100%; }
 .reveal .media-right .layout-body { right: 50%; }
 .reveal .media-left .layout-body { left: 50%; }

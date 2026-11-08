@@ -13,7 +13,8 @@ use crate::engine::{self, Ev};
 use crate::motion::{self, Move, Rect};
 
 /// What can slide from one slide to the other
-const CANDIDATES: &str = "[data-id], h1, h2, h3, h4, h5, h6, p, li, img, pre, blockquote, table, .window, .diagram, .formula, .glyphs";
+const CANDIDATES: &str =
+    "[data-id], h1, h2, h3, h4, h5, h6, p, li, img, pre, blockquote, table, .window, .diagram, .formula, .glyphs";
 
 fn animated(slide: &Element) -> bool {
     slide.has_attribute("data-auto-animate")
@@ -26,7 +27,12 @@ const BOXES: &str = "img, pre, table, .window, .diagram, .formula";
 /// Starting point of a text: its new box, placed on the old one
 fn text_start(el: &Element, old: Rect) -> Rect {
     let new = Rect::of(el);
-    let align = dom::window().get_computed_style(el).ok().flatten().and_then(|c| c.get_property_value("text-align").ok()).unwrap_or_default();
+    let align = dom::window()
+        .get_computed_style(el)
+        .ok()
+        .flatten()
+        .and_then(|c| c.get_property_value("text-align").ok())
+        .unwrap_or_default();
     let shift = match align.as_str() {
         "center" => (old.w - new.w) / 2.0,
         "right" | "end" => old.w - new.w,
@@ -47,7 +53,16 @@ fn key(el: &Element) -> String {
     } else {
         el.text_content().unwrap_or_default().split_whitespace().collect::<Vec<_>>().join(" ")
     };
-    format!("{} {}|{what}", el.tag_name(), el.get_attribute("class").unwrap_or_default().split_whitespace().filter(|c| !matches!(*c, "visible" | "current-fragment")).collect::<Vec<_>>().join("."))
+    format!(
+        "{} {}|{what}",
+        el.tag_name(),
+        el.get_attribute("class")
+            .unwrap_or_default()
+            .split_whitespace()
+            .filter(|c| !matches!(*c, "visible" | "current-fragment"))
+            .collect::<Vec<_>>()
+            .join(".")
+    )
 }
 
 /// The candidate elements of the slide, in document order, outside the notes
@@ -94,6 +109,8 @@ pub fn install() {
         let root = engine::root();
         add(&root, "auto-animating");
         transition(previous, &current);
-        dom::raf(move |_| { dom::raf(move |_| remove(&root, "auto-animating")); });
+        dom::raf(move |_| {
+            dom::raf(move |_| remove(&root, "auto-animating"));
+        });
     });
 }

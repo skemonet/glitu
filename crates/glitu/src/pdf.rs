@@ -1,19 +1,38 @@
-//! A PDF made of screenshots (export `--clicks`): one page per image, at the slide's size, and an
-//! outline with the title of each slide. The PNG data goes into the PDF as is (FlateDecode with
-//! the PNG predictor), without recompression.
+//! A PDF made of screenshots (export `--clicks`): one page per image, at the slide's size, an
+//! outline with the title of each slide, and page labels: the pages of one slide carry its number,
+//! which presentation viewers (pdfpc) read as the overlays of one slide. The PNG data goes into
+//! the PDF as is (FlateDecode with the PNG predictor), without recompression.
 
-/// Pages (PNG, title) of `width` × `height` points
-pub fn from_images(pages: &[(Vec<u8>, String)], width: f64, height: f64, title: &str) -> Result<Vec<u8>, String> {
+/// A page: the image, the title of its slide and the slide's number
+pub struct Page {
+    pub png: Vec<u8>,
+    pub title: String,
+    pub number: usize,
+}
+
+/// Pages of `width` × `height` points
+pub fn from_images(pages: &[Page], width: f64, height: f64, title: &str) -> Result<Vec<u8>, String> {
     let mut objects: Vec<Vec<u8>> = Vec::new();
     // 1: catalog, 2: page tree, 3: outline; then image, content, page for each one
     let n = pages.len();
     let page_id = |i: usize| 4 + 3 * i + 2;
-    objects.push(b"<< /Type /Catalog /Pages 2 0 R /Outlines 3 0 R /PageMode /UseOutlines >>".to_vec());
+    // a label where the slide changes; the following pages keep it (no numbering style)
+    let labels: String = pages
+        .iter()
+        .enumerate()
+        .filter(|(i, p)| *i == 0 || pages[i - 1].number != p.number)
+        .map(|(i, p)| format!("{i} << /P ({}) >> ", p.number))
+        .collect();
+    objects.push(
+        format!("<< /Type /Catalog /Pages 2 0 R /Outlines 3 0 R /PageMode /UseOutlines /PageLabels << /Nums [{labels}] >> >>")
+            .into_bytes(),
+    );
     let kids: String = (0..n).map(|i| format!("{} 0 R ", page_id(i))).collect();
     objects.push(format!("<< /Type /Pages /Kids [{kids}] /Count {n} >>").into_bytes());
     // Outline: one entry per titled slide, the first page of each title
     let mut entries: Vec<(usize, &str)> = Vec::new();
-    for (i, (_, t)) in pages.iter().enumerate() {
+    for (i, p) in pages.iter().enumerate() {
+        let t = p.title.as_str();
         if !t.is_empty() && entries.last().is_none_or(|(_, last)| *last != t) {
             entries.push((i, t));
         }
@@ -22,10 +41,18 @@ pub fn from_images(pages: &[(Vec<u8>, String)], width: f64, height: f64, title: 
     if entries.is_empty() {
         objects.push(b"<< /Type /Outlines /Count 0 >>".to_vec());
     } else {
-        objects.push(format!("<< /Type /Outlines /First {} 0 R /Last {} 0 R /Count {} >>", outline_base, outline_base + entries.len() - 1, entries.len()).into_bytes());
+        objects.push(
+            format!(
+                "<< /Type /Outlines /First {} 0 R /Last {} 0 R /Count {} >>",
+                outline_base,
+                outline_base + entries.len() - 1,
+                entries.len()
+            )
+            .into_bytes(),
+        );
     }
-    for (png, _) in pages {
-        let (w, h, idat) = rgb_idat(png)?;
+    for p in pages {
+        let (w, h, idat) = rgb_idat(&p.png)?;
         let mut img = format!(
             "<< /Type /XObject /Subtype /Image /Width {w} /Height {h} /ColorSpace /DeviceRGB /BitsPerComponent 8 \
 /Filter /FlateDecode /DecodeParms << /Predictor 15 /Colors 3 /BitsPerComponent 8 /Columns {w} >> /Length {} >>\nstream\n",
@@ -48,8 +75,12 @@ pub fn from_images(pages: &[(Vec<u8>, String)], width: f64, height: f64, title: 
     }
     for (k, (page, t)) in entries.iter().enumerate() {
         let mut o = format!("<< /Title {} /Parent 3 0 R /Dest [{} 0 R /Fit]", text(t), page_id(*page));
-        if k > 0 { o += &format!(" /Prev {} 0 R", outline_base + k - 1) }
-        if k + 1 < entries.len() { o += &format!(" /Next {} 0 R", outline_base + k + 1) }
+        if k > 0 {
+            o += &format!(" /Prev {} 0 R", outline_base + k - 1)
+        }
+        if k + 1 < entries.len() {
+            o += &format!(" /Next {} 0 R", outline_base + k + 1)
+        }
         objects.push((o + " >>").into_bytes());
     }
     let info = objects.len() + 1;
@@ -68,7 +99,10 @@ pub fn from_images(pages: &[(Vec<u8>, String)], width: f64, height: f64, title: 
     for o in offsets {
         out.extend(format!("{o:010} 00000 n \n").into_bytes());
     }
-    out.extend(format!("trailer\n<< /Size {} /Root 1 0 R /Info {info} 0 R >>\nstartxref\n{xref}\n%%EOF\n", objects.len() + 1).into_bytes());
+    out.extend(
+        format!("trailer\n<< /Size {} /Root 1 0 R /Info {info} 0 R >>\nstartxref\n{xref}\n%%EOF\n", objects.len() + 1)
+            .into_bytes(),
+    );
     Ok(out)
 }
 
@@ -113,15 +147,19 @@ mod tests {
         let mut enc = png::Encoder::new(&mut png, 2, 1);
         enc.set_color(png::ColorType::Rgba);
         enc.write_header().unwrap().write_image_data(&[255, 0, 0, 255, 0, 255, 0, 255]).unwrap();
-        let pdf = from_images(&[(png.clone(), "Été".into()), (png, "Été".into())], 960.0, 540.0, "T").unwrap();
+        let page = |png: &[u8], title: &str, number| Page { png: png.to_vec(), title: title.into(), number };
+        let pages = [page(&png, "Été", 1), page(&png, "Été", 1), page(&png, "", 2)];
+        let pdf = from_images(&pages, 960.0, 540.0, "T").unwrap();
         let s = String::from_utf8_lossy(&pdf);
         assert!(s.starts_with("%PDF-1.7"));
-        assert_eq!(s.matches("/Type /Page ").count(), 2);
+        assert_eq!(s.matches("/Type /Page ").count(), 3);
         assert!(s.contains("/Count 1 >>") && s.contains("<FEFF00C9007400E9>"));
+        // the two pages of slide 1 share its label
+        assert!(s.contains("/PageLabels << /Nums [0 << /P (1) >> 2 << /P (2) >> ] >>"));
         // without titles, an empty outline
-        let pdf = from_images(&[(png_rgb(), String::new())], 960.0, 540.0, "T").unwrap();
+        let pdf = from_images(&[page(&png_rgb(), "", 1)], 960.0, 540.0, "T").unwrap();
         assert!(String::from_utf8_lossy(&pdf).contains("<< /Type /Outlines /Count 0 >>"));
-        assert!(from_images(&[(b"not a png".to_vec(), String::new())], 1.0, 1.0, "T").is_err());
+        assert!(from_images(&[page(b"not a png", "", 1)], 1.0, 1.0, "T").is_err());
     }
 
     fn png_rgb() -> Vec<u8> {

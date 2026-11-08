@@ -2,11 +2,15 @@
 //! that wants to share its build and its embedded engine (a website that publishes the engine and
 //! the themes for `glitu build --assets <url>` pages, for instance).
 
+pub mod add;
 pub mod browser;
 pub mod build;
 pub mod chromium;
 pub mod chrono;
 pub mod cli;
+pub mod config;
+pub mod confine;
+pub mod engines;
 pub mod export;
 pub mod init;
 pub mod online;
@@ -16,6 +20,7 @@ pub mod pdf;
 pub mod pptx;
 pub mod raster;
 pub mod serve;
+pub mod settings;
 pub mod source;
 pub mod standalone;
 pub mod themes;

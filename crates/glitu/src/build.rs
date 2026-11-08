@@ -4,9 +4,11 @@ use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use glitu_core::skemo::Skemo;
 use glitu_core::{Assets, Header, Theme};
 
+use crate::confine::Reads;
+use crate::engines::{Block, Engines};
+use crate::settings::Settings;
 use crate::source::{self, Source};
 
 /// Version of the embedded engine: a presentation that asks for another one (`glitu:`) is refused.
@@ -24,7 +26,7 @@ pub const ENGINE_WASM: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/pkg/gli
 /// (the minified reveal.css is stored apart, so that searches in the code skip it)
 pub const ENGINE_CSS: &str =
     concat!(include_str!("../assets/vendor/reveal.min.css"), include_str!("../assets/glitu.css"));
-/// The template shared by the themes that ask for it (`"template": true` in glitu.json): header,
+/// The template shared by the themes that ask for it (`"template": true` in glitu.yaml): header,
 /// panel, stage, cover, chapters, progress; the theme only sets its variables
 const TEMPLATE_CSS: &str = include_str!("../assets/template.css");
 /// Formulas: their stylesheet and their font, added to the pages that have some
@@ -34,8 +36,7 @@ const MATH_FONT: &[u8] = include_bytes!("../assets/math/latinmodern-math.woff2")
 /// Where the engine sits in the site, and how the page loads it
 pub const ENGINE_JS_PATH: &str = "glitu/glitu_web.js";
 pub const ENGINE_WASM_PATH: &str = "glitu/glitu_web_bg.wasm";
-pub const ENGINE_BOOT: &str =
-    "  import init, { start } from './glitu/glitu_web.js';\n  await init({ module_or_path: './glitu/glitu_web_bg.wasm' });\n";
+pub const ENGINE_BOOT: &str = "  import init, { start } from './glitu/glitu_web.js';\n  await init({ module_or_path: './glitu/glitu_web_bg.wasm' });\n";
 
 /// The engine files, paths relative to `glitu/`; `math`: with those of the formulas
 fn engine_files(math: bool) -> Vec<Output> {
@@ -52,28 +53,106 @@ fn engine_files(math: bool) -> Vec<Output> {
     files
 }
 
+#[derive(Clone)]
 pub struct Project {
-    /// slides.md
+    /// The first markdown file (slides.md), the one whose front matter counts
     pub slides: PathBuf,
+    /// The files merged after it, if any
+    pub more: Vec<PathBuf>,
+    /// The folder the files were found in (`source::markdown_in`): looked at again on each read,
+    /// so that `glitu server` takes a file added or removed
+    pub dir: Option<PathBuf>,
     /// Root of the project (the markdown's folder): themes/, casts/, images
     pub root: PathBuf,
+    /// What the user's machine decides: folders allowed, diagram tools (see `settings`)
+    pub settings: Settings,
 }
 
 impl Project {
     pub fn new(slides: &Path) -> Self {
         let slides = slides.to_path_buf();
         let root = slides.parent().filter(|p| !p.as_os_str().is_empty()).unwrap_or(Path::new(".")).to_path_buf();
-        Project { slides, root }
+        Project { slides, more: Vec::new(), dir: None, root, settings: Settings::default() }
     }
 
-    /// The presentation's markdown, inclusions expanded (see `source`)
+    /// The presentation given on the command line (see `source::inputs`)
+    pub fn open(args: &[PathBuf], settings: Settings) -> Result<Self, String> {
+        let files = source::inputs(args)?;
+        let mut project = Project::new(&files[0]);
+        project.settings = settings;
+        project.more = files[1..].to_vec();
+        project.dir = match args {
+            [] => Some(PathBuf::from(".")),
+            [one] if one.is_dir() => Some(one.clone()),
+            _ => None,
+        };
+        Ok(project)
+    }
+
+    /// The markdown files, in order (those of the folder now, if it is one)
+    pub fn files(&self) -> Vec<PathBuf> {
+        match self.dir.as_deref().map(source::markdown_in) {
+            Some(Ok(files)) => files,
+            _ => std::iter::once(self.slides.clone()).chain(self.more.iter().cloned()).collect(),
+        }
+    }
+
+    /// The presentation's files, read and merged, inclusions expanded (see `source`)
+    pub fn read(&self) -> Result<Source, String> {
+        source::read_all(&self.files(), &self.reads())
+    }
+
+    /// Where the presentation may read (SEC-16): its folder, the folders of the files named on the
+    /// command line, those the user allowed
+    pub fn reads(&self) -> Reads {
+        let mut allowed = self.settings.allow_read.clone();
+        let parent =
+            |f: &PathBuf| f.parent().filter(|p| !p.as_os_str().is_empty()).unwrap_or(Path::new(".")).to_path_buf();
+        allowed.extend(self.more.iter().map(parent));
+        Reads::new(&self.root, &allowed)
+    }
+
+    /// The presentation's markdown
     pub fn source(&self) -> Result<String, String> {
-        Ok(source::read(&self.slides)?.text)
+        Ok(self.read()?.text)
+    }
+
+    /// What is worth saying before building: the files merged, a front matter that does not count
+    pub fn notes(&self) -> Vec<String> {
+        let files = self.files();
+        let mut notes = Vec::new();
+        if files.len() > 1 {
+            let names: Vec<String> = files.iter().map(|f| f.display().to_string()).collect();
+            notes.push(format!("Merged {}", names.join(", ")));
+        }
+        for f in &files[1.min(files.len())..] {
+            let text = std::fs::read_to_string(f).unwrap_or_default();
+            if !glitu_core::markdown::front_matter(&text).0.is_empty() {
+                notes.push(format!(
+                    "warning: {}: front matter ignored; only the first file's counts ({})",
+                    f.display(),
+                    files[0].display()
+                ));
+            }
+        }
+        notes
+    }
+
+    /// The presentation, for messages: its file, or its folder and its number of files
+    pub fn name(&self) -> String {
+        match (self.files().len(), &self.dir) {
+            (1, _) | (_, None) => self.slides.display().to_string(),
+            (n, Some(dir)) if dir == Path::new(".") => format!("the current folder ({n} files)"),
+            (n, Some(dir)) => format!("{} ({n} files)", dir.display()),
+        }
     }
 
     /// `themes/<name>` next to the markdown, otherwise in the first parent folder that has one,
     /// otherwise the theme embedded in the binary (see `themes`)
     pub fn theme_dir(&self, name: &str) -> Result<PathBuf, String> {
+        if name.is_empty() || name.contains(['/', '\\']) || name.starts_with('.') {
+            return Err(format!("theme `{name}`: a theme's name, or a path starting with ./"));
+        }
         let start = self.root.canonicalize().unwrap_or_else(|_| self.root.clone());
         if let Some(dir) = start.ancestors().map(|d| d.join("themes").join(name)).find(|p| p.is_dir()) {
             return Ok(dir);
@@ -86,9 +165,9 @@ impl Project {
         let dir = match theme {
             Theme::Official { name, .. } => self.theme_dir(name)?,
             Theme::At(at) if at.contains("://") => {
-                return Err(format!("theme {at}: only themes on disk are supported, copy it into themes/"));
+                return Err(format!("theme {at}: only local themes are supported; copy it into themes/"));
             }
-            Theme::At(at) => self.root.join(at),
+            Theme::At(at) => self.reads().open(&self.root, at).map_err(|e| format!("theme: {e}"))?,
         };
         LocalTheme::open(dir, theme)
     }
@@ -97,6 +176,7 @@ impl Project {
     /// one; it is then copied into the page with the markdown
     fn deck_file(&self, name: &str, source: &mut Source) -> Result<Option<String>, String> {
         let path = self.root.join(name);
+        self.reads().check(&path, name)?;
         let Some(text) = read_if_exists(&path)? else { return Ok(None) };
         source.files.push(source::File { path, text: text.clone() });
         Ok(Some(text))
@@ -107,12 +187,12 @@ impl Project {
 pub struct LocalTheme {
     /// The name the engine knows
     pub name: String,
-    /// Version of its `glitu.json`
+    /// Version of its `glitu.yaml`
     pub version: Option<String>,
     /// An official theme, published under `themes/<name>/<version>/`
     pub official: bool,
     pub dir: PathBuf,
-    /// Its `glitu.json`
+    /// Its `glitu.yaml`
     pub config: serde_json::Value,
 }
 
@@ -149,29 +229,42 @@ impl LocalTheme {
 /// Does the presentation ask for another engine than this one?
 fn check_engine(wanted: Option<&str>) -> Result<(), String> {
     match wanted {
-        Some(v) if v != VERSION => Err(format!("this presentation asks for glitu {v}; this one is glitu {VERSION}")),
+        Some(v) if v != VERSION => Err(format!("this presentation requires glitu {v} (this is glitu {VERSION})")),
         _ => Ok(()),
     }
 }
 
-/// The files the compiler asks for: diagrams rendered by skemo, terminal recordings
+/// The files the compiler asks for: diagrams rendered by their engines, terminal recordings
 struct Files<'a> {
     project: &'a Project,
-    skemo: Skemo,
+    engines: Engines,
+    /// `glitu server`: a diagram that fails shows its error in its place, and the terminal says it
+    dev: bool,
 }
 
 impl Assets for Files<'_> {
-    fn skemo(&mut self, source: &str, font_scale: Option<f64>) -> Result<String, String> {
-        let root = self.project.root.clone();
-        let mut load = |name: &str| {
-            let p = root.join(name);
-            fs::read(&p).map_err(|e| format!("skemo: image `{name}` ({}): {e}", p.display()))
-        };
-        self.skemo.render(source, font_scale, &mut load)
+    fn diagram_can(&mut self, lang: &str, capability: &str) -> bool {
+        self.engines.can(lang, capability)
+    }
+
+    fn diagram(
+        &mut self,
+        lang: &str,
+        source: &str,
+        attrs: &BTreeMap<String, String>,
+    ) -> Option<Result<String, String>> {
+        let rendered = self.engines.render(&Block { lang, source, attrs })?;
+        Some(match rendered {
+            Err(e) if self.dev => {
+                eprintln!("error: {}: {e}", self.project.slides.display());
+                Ok(format!("<pre class=\"diagram-error\">{}</pre>", glitu_core::html::esc(&e)))
+            }
+            r => r,
+        })
     }
 
     fn cast(&mut self, src: &str) -> Result<String, String> {
-        let p = self.project.root.join(src);
+        let p = self.project.reads().open(&self.project.root, src)?;
         fs::read_to_string(&p).map_err(|e| format!("{}: {e}", p.display()))
     }
 }
@@ -194,16 +287,16 @@ impl Output {
 /// `@n`) and reveal-md's (slides separated by `---`); default theme `crystal` and `black`
 /// respectively.
 pub fn site(project: &Project, dev: bool) -> Result<Vec<Output>, String> {
-    let mut source = source::read(&project.slides)?;
+    let mut source = project.read()?;
     let header = glitu_core::header(&source.text);
     check_engine(header.glitu.as_deref())?;
     let LocalTheme { name: theme, dir: theme_dir, config, .. } = project.theme(&header.theme)?;
-    // Diagram types: the theme's, then the presentation's own skemo.css
-    let deck_css = project.deck_file("skemo.css", &mut source)?;
-    let css = [read_if_exists(&theme_dir.join("skemo.css"))?, deck_css].into_iter().flatten().reduce(|a, b| format!("{a}\n{b}"));
-    let skemo = Skemo { css, font_scale: config["skemo"]["fontScale"].as_f64() };
+    // the presentation's skemo.css, copied into the page with the markdown (the engine reads it
+    // with the theme's)
+    project.deck_file("skemo.css", &mut source)?;
+    let engines = Engines::new(&project.settings, &project.root, &header.meta, &theme_dir, &config);
     let glitu_core::Compiled { title, sections } =
-        glitu_core::compile(&source.text, &header, &mut Files { project, skemo })?;
+        glitu_core::compile(&source.text, &header, &mut Files { project, engines, dev })?;
 
     let sections = crate::online::icons(&sections)?;
     let fonts = crate::online::fonts(&header.meta)?;
@@ -216,6 +309,7 @@ pub fn site(project: &Project, dev: bool) -> Result<Vec<Output>, String> {
         math,
         template: config["template"].as_bool().unwrap_or(false),
         fonts: !fonts.is_empty(),
+        meta: head_meta(&header.meta, &title),
         title: &title,
         styles: config["styles"].as_array().map(|a| a.iter().filter_map(|s| s.as_str()).collect()).unwrap_or_default(),
         sections: &sections,
@@ -229,11 +323,11 @@ pub fn site(project: &Project, dev: bool) -> Result<Vec<Output>, String> {
     if let Some(text) = deck_style {
         out.push(Output::new("style.css", text));
     }
-    copy_dir(&theme_dir, "theme", &BUILD_ONLY, &mut out)?;
+    copy_dir(&theme_dir, "theme", &BUILD_ONLY, &Reads::only(&theme_dir), &mut out)?;
     for (dir, prefix) in [("img", "img"), ("public", "")] {
         let d = project.root.join(dir);
         if d.is_dir() {
-            copy_dir(&d, prefix, &BUILD_ONLY, &mut out)?;
+            copy_dir(&d, prefix, &BUILD_ONLY, &project.reads(), &mut out)?;
         }
     }
     Ok(out)
@@ -250,11 +344,24 @@ fn read_if_exists(path: &Path) -> Result<Option<String>, String> {
     path.is_file().then(|| fs::read_to_string(path).map_err(|e| format!("{}: {e}", path.display()))).transpose()
 }
 
-/// The theme's settings (`glitu.json`); no file: the engine's default settings
+/// The file of a theme's settings
+pub const THEME_SETTINGS: &str = "glitu.yaml";
+
+/// The theme's settings (`glitu.yaml`; a former theme's `glitu.yaml` is still read); no file: the
+/// engine's default settings
 fn theme_config(theme_dir: &Path) -> Result<serde_json::Value, String> {
-    match fs::read_to_string(theme_dir.join("glitu.json")) {
-        Ok(text) => serde_json::from_str(&text).map_err(|e| format!("{}/glitu.json: {e}", theme_dir.display())),
-        Err(_) => Ok(serde_json::json!({})),
+    let at = |name: &str| theme_dir.join(name);
+    let value = if let Ok(text) = fs::read_to_string(at(THEME_SETTINGS)) {
+        crate::settings::parse(&text).map_err(|e| format!("{}: {e}", at(THEME_SETTINGS).display()))?
+    } else if let Ok(text) = fs::read_to_string(at("glitu.json")) {
+        serde_json::from_str(&text).map_err(|e| format!("{}: {e}", at("glitu.json").display()))?
+    } else {
+        serde_json::Value::Null
+    };
+    match value {
+        serde_json::Value::Null => Ok(serde_json::json!({})),
+        v @ serde_json::Value::Object(_) => Ok(v),
+        _ => Err(format!("{}: keys expected", at(THEME_SETTINGS).display())),
     }
 }
 
@@ -285,6 +392,7 @@ fn deck_logo(project: &Project, meta: &BTreeMap<String, String>) -> Result<Optio
     if logo.starts_with("https://") || logo.starts_with("http://") {
         return Ok(Some(logo.to_string()));
     }
+    project.reads().open(&project.root, logo).map_err(|e| format!("logo: {e}"))?;
     if !project.root.join(logo).is_file() {
         return Err(format!("logo: {} not found", project.root.join(logo).display()));
     }
@@ -295,7 +403,7 @@ fn deck_logo(project: &Project, meta: &BTreeMap<String, String>) -> Result<Optio
     }
 }
 
-/// `glitu serve`: reloads the page when the presentation changes, and keeps the open windows
+/// `glitu server`: reloads the page when the presentation changes, and keeps the open windows
 /// together (see `serve`); the previews of the speaker view follow their own
 const DEV_SCRIPT: &str = "
 <script>
@@ -332,9 +440,31 @@ const DEV_SCRIPT: &str = "
 </script>";
 
 /// The presentation's page
+/// The description (`description:`, otherwise `subtitle:`) and the author of the front matter, as
+/// `<meta>` tags, and the Open Graph tags of a link preview; `title` is already escaped
+fn head_meta(meta: &std::collections::BTreeMap<String, String>, title: &str) -> String {
+    let esc = glitu_core::html::esc;
+    let description = meta.get("description").or_else(|| meta.get("subtitle")).filter(|d| !d.is_empty());
+    let mut tags = format!(
+        "\n  <meta property=\"og:type\" content=\"website\">\n  <meta property=\"og:title\" content=\"{title}\">"
+    );
+    if let Some(d) = description {
+        let d = esc(d);
+        tags = format!(
+            "\n  <meta name=\"description\" content=\"{d}\">{tags}\n  <meta property=\"og:description\" content=\"{d}\">"
+        );
+    }
+    if let Some(a) = meta.get("author").filter(|a| !a.is_empty()) {
+        tags += &format!("\n  <meta name=\"author\" content=\"{}\">", esc(a));
+    }
+    tags
+}
+
 struct Page<'a> {
     lang: &'a str,
     title: &'a str,
+    /// `<meta>` tags for search engines and link previews (see `head_meta`)
+    meta: String,
     /// Formulas: their stylesheet
     math: bool,
     /// The theme relies on the shared template: its stylesheet, before the theme's
@@ -343,13 +473,13 @@ struct Page<'a> {
     deck_style: bool,
     /// Fonts chosen in the front matter: their stylesheet, after the theme's
     fonts: bool,
-    /// The theme's stylesheets, in the order of `glitu.json`
+    /// The theme's stylesheets, in the order of `glitu.yaml`
     styles: Vec<&'a str>,
     sections: &'a str,
     options: serde_json::Value,
     /// Copy of the markdown (see `source::embed`), or nothing
     source: String,
-    /// Automatic reload (`glitu serve`)
+    /// Automatic reload (`glitu server`)
     dev: bool,
 }
 
@@ -376,7 +506,7 @@ impl Page<'_> {
     }
 
     fn html(&self) -> String {
-        let Page { lang, title, sections, options, source, .. } = self;
+        let Page { lang, title, meta, sections, options, source, .. } = self;
         let styles = self.stylesheets();
         let reload = if self.dev { DEV_SCRIPT } else { "" };
         format!(
@@ -385,7 +515,7 @@ impl Page<'_> {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{title}</title>
+  <title>{title}</title>{meta}
   <link rel="stylesheet" href="glitu/glitu.css">{styles}
 </head>
 <body class="reveal-viewport">
@@ -418,7 +548,7 @@ pub struct Published {
 }
 
 /// What is published for the light pages (`--web`), each one at its version: `glitu/<version>/`
-/// (the engine) and `themes/<name>/<version>/` (the version given by its `glitu.json`)
+/// (the engine) and `themes/<name>/<version>/` (the version given by its `glitu.yaml`)
 pub fn runtime(themes: &Path) -> Result<Vec<Published>, String> {
     let mut out = vec![Published { dir: engine_published(), files: engine_files(true) }];
     let mut names: Vec<_> = fs::read_dir(themes)
@@ -430,11 +560,10 @@ pub fn runtime(themes: &Path) -> Result<Vec<Published>, String> {
     for theme in names {
         let name = theme.file_name().to_string_lossy().to_string();
         let at = LocalTheme::open(theme.path(), &Theme::Official { name: name.clone(), version: None })?;
-        let dir = at
-            .published()
-            .ok_or_else(|| format!("theme {name}: no \"version\" in {}/glitu.json", at.dir.display()))?;
+        let dir =
+            at.published().ok_or_else(|| format!("theme {name}: no `version` in {}/glitu.yaml", at.dir.display()))?;
         let mut files = Vec::new();
-        copy_dir(&theme.path(), "", &BUILD_ONLY, &mut files)?;
+        copy_dir(&theme.path(), "", &BUILD_ONLY, &Reads::only(&theme.path()), &mut files)?;
         out.push(Published { dir, files });
     }
     Ok(out)
@@ -447,16 +576,19 @@ pub fn themes_root(start: &Path) -> Option<PathBuf> {
 }
 
 /// Theme files only used by the build: pages do not need them
-const BUILD_ONLY: [&str; 2] = ["skemo.css", "glitu.json"];
+const BUILD_ONLY: [&str; 3] = ["skemo.css", THEME_SETTINGS, "glitu.json"];
 
-fn copy_dir(dir: &Path, prefix: &str, skip: &[&str], out: &mut Vec<Output>) -> Result<(), String> {
+/// The files of `dir`, under `prefix`, but `skip`; a symbolic link that leads outside `within` is
+/// an error (SEC-16: a folder copied into the site cannot bring in a file of the machine)
+fn copy_dir(dir: &Path, prefix: &str, skip: &[&str], within: &Reads, out: &mut Vec<Output>) -> Result<(), String> {
     for entry in fs::read_dir(dir).map_err(|e| format!("{}: {e}", dir.display()))? {
         let entry = entry.map_err(|e| e.to_string())?;
         let name = entry.file_name().to_string_lossy().to_string();
         let rel = if prefix.is_empty() { name.clone() } else { format!("{prefix}/{name}") };
         let path = entry.path();
+        within.check(&path, &path.display().to_string())?;
         if path.is_dir() {
-            copy_dir(&path, &rel, skip, out)?;
+            copy_dir(&path, &rel, skip, within, out)?;
         } else if !skip.contains(&name.as_str()) {
             out.push(Output { path: rel, bytes: fs::read(&path).map_err(|e| format!("{}: {e}", path.display()))? });
         }
@@ -491,7 +623,7 @@ pub fn theme_variables(theme: &LocalTheme) -> Result<Vec<(String, String)>, Stri
         css += TEMPLATE_CSS;
     }
     for style in theme.config["styles"].as_array().into_iter().flatten().filter_map(|s| s.as_str()) {
-        let path = theme.dir.join(style);
+        let path = Reads::only(&theme.dir).open(&theme.dir, style)?;
         css += &fs::read_to_string(&path).map_err(|e| format!("{}: {e}", path.display()))?;
     }
     let mut vars: Vec<(String, String)> = Vec::new();
@@ -532,6 +664,17 @@ fn root_variables(css: &str) -> Vec<(String, String)> {
 mod tests {
     use super::*;
 
+    #[test]
+    fn the_page_describes_itself() {
+        let meta = [("subtitle", "A & B"), ("author", "Ada")].map(|(k, v)| (k.to_string(), v.to_string())).into();
+        let tags = head_meta(&meta, "T");
+        assert!(tags.contains("<meta name=\"description\" content=\"A &amp; B\">"), "{tags}");
+        assert!(tags.contains("<meta property=\"og:description\" content=\"A &amp; B\">"));
+        assert!(tags.contains("<meta name=\"author\" content=\"Ada\">"));
+        let meta = [("subtitle", "S"), ("description", "D")].map(|(k, v)| (k.to_string(), v.to_string())).into();
+        assert!(head_meta(&meta, "T").contains("content=\"D\""));
+    }
+
     /// A throw-away folder, removed when dropped
     struct TempDir(PathBuf);
 
@@ -556,6 +699,22 @@ mod tests {
     }
 
     #[test]
+    fn the_site_replaces_its_folder() {
+        let dir = TempDir::new("write");
+        dir.write("site/old.html", "x").write("themes/demo/theme.css", "x").write("talk/slides.md", "x");
+        let out = [
+            Output { path: "index.html".into(), bytes: b"<p>".to_vec() },
+            Output { path: "a/b.css".into(), bytes: b"x".to_vec() },
+        ];
+        write(&out, &dir.0.join("site")).unwrap();
+        assert!(!dir.0.join("site/old.html").exists());
+        assert_eq!(fs::read(dir.0.join("site/a/b.css")).unwrap(), b"x");
+        let themes = dir.0.canonicalize().unwrap().join("themes");
+        assert_eq!(themes_root(&dir.0.join("talk")), Some(themes));
+        assert_eq!(themes_root(&dir.0.join("absent")), None);
+    }
+
+    #[test]
     fn the_script_of_glitu_serve_has_no_broken_quotes() {
         // a quote doubled by an escape lost in the Rust string: '' or "" inside an expression
         for line in DEV_SCRIPT.lines() {
@@ -567,7 +726,11 @@ mod tests {
     fn variables_of_the_root_blocks() {
         let css = ":root {\n  --a: 1px; /* note */\n  --b:\n    linear-gradient(red,\n blue);\n}\n.x { --c: 2; }\n:root { --a: 3px; color: red }";
         let vars = root_variables(css);
-        assert_eq!(vars, [("--a", "1px"), ("--b", "linear-gradient(red, blue)"), ("--a", "3px")].map(|(n, v)| (n.to_string(), v.to_string())));
+        assert_eq!(
+            vars,
+            [("--a", "1px"), ("--b", "linear-gradient(red, blue)"), ("--a", "3px")]
+                .map(|(n, v)| (n.to_string(), v.to_string()))
+        );
     }
 
     #[test]
@@ -578,7 +741,7 @@ mod tests {
 
         let dir = TempDir::new("logo");
         dir.write("img/max.png", "x").write("max.png", "x").write("public/p.png", "x");
-        let project = Project { slides: dir.0.join("slides.md"), root: dir.0.clone() };
+        let project = Project::new(&dir.0.join("slides.md"));
         let meta = |v: &str| [("logo".to_string(), v.to_string())].into_iter().collect();
         assert_eq!(deck_logo(&project, &meta("img/max.png")).unwrap().as_deref(), Some("img/max.png"));
         assert_eq!(deck_logo(&project, &meta("public/p.png")).unwrap().as_deref(), Some("p.png"));
@@ -595,7 +758,7 @@ mod tests {
         for f in ["demo/skemo.css", "demo/theme.css", "demo/fonts/a.woff2"] {
             dir.write(f, "x");
         }
-        dir.write("demo/glitu.json", r#"{ "version": "1.2.0" }"#);
+        dir.write("demo/glitu.yaml", "version: \"1.2.0\"\n");
         let paths: Vec<String> = runtime(&dir.0)
             .unwrap()
             .into_iter()
@@ -610,30 +773,41 @@ mod tests {
         ] {
             assert!(paths.contains(&p), "{p} missing from the runtime");
         }
-        for p in ["themes/demo/1.2.0/glitu.json", "themes/demo/1.2.0/skemo.css"] {
+        for p in ["themes/demo/1.2.0/glitu.yaml", "themes/demo/1.2.0/skemo.css"] {
             assert!(!paths.iter().any(|x| x == p), "{p} is only used by the build");
         }
         dir.write("bare/theme.css", "x");
-        assert!(runtime(&dir.0).err().unwrap().contains("no \"version\""));
+        assert!(runtime(&dir.0).err().unwrap().contains("no `version`"));
     }
 
     #[test]
     fn a_site_holds_the_page_the_engine_the_theme_and_the_resources() {
         let dir = TempDir::new("site");
         dir.write("slides.md", "---\ntitle: Demo\nlang: fr\nlogo: img/a.png\n---\n\n## One\n\n- a @1\n\n$x$\n")
-            .write("themes/crystal/glitu.json", r#"{ "version": "1.0.0", "styles": ["theme.css"], "template": true }"#)
+            .write("themes/crystal/glitu.yaml", "version: \"1.0.0\"\nstyles: [theme.css]\ntemplate: true\n")
             .write("themes/crystal/theme.css", "body {}")
             .write("style.css", ".x {}")
             .write("img/a.png", "P")
             .write("public/robots.txt", "R");
         let site = site(&Project::new(&dir.0.join("slides.md")), true).unwrap();
         let paths: Vec<&str> = site.iter().map(|f| f.path.as_str()).collect();
-        for p in ["index.html", "glitu/glitu.css", "glitu/math.css", "theme/theme.css", "img/a.png", "robots.txt", "style.css"] {
+        for p in [
+            "index.html",
+            "glitu/glitu.css",
+            "glitu/math.css",
+            "theme/theme.css",
+            "img/a.png",
+            "robots.txt",
+            "style.css",
+        ] {
             assert!(paths.contains(&p), "{p} missing: {paths:?}");
         }
-        assert!(!paths.contains(&"theme/glitu.json"));
+        assert!(!paths.contains(&"theme/glitu.yaml"));
         let index = String::from_utf8_lossy(&site[0].bytes);
         assert!(index.contains("<html lang=\"fr\"") && index.contains("<title>Demo</title>"));
+        assert!(
+            index.contains("<meta property=\"og:title\" content=\"Demo\">") && !index.contains("name=\"description\"")
+        );
         assert!(index.contains("href=\"glitu/template.css\">\n  <link rel=\"stylesheet\" href=\"theme/theme.css\">"));
         assert!(index.contains("<link rel=\"stylesheet\" href=\"style.css\">"));
         assert!(index.contains("\"logo\":\"img/a.png\"") && index.contains("\"theme\":\"crystal\""));
@@ -643,14 +817,14 @@ mod tests {
     #[test]
     fn versions_must_match() {
         assert!(check_engine(None).is_ok() && check_engine(Some(VERSION)).is_ok());
-        assert!(check_engine(Some("0.0.0-old")).unwrap_err().contains("asks for glitu 0.0.0-old"));
+        assert!(check_engine(Some("0.0.0-old")).unwrap_err().contains("requires glitu 0.0.0-old"));
         let dir = TempDir::new("versions");
-        dir.write("themes/t/glitu.json", r#"{ "version": "2.0.0" }"#);
-        let project = Project { slides: dir.0.join("slides.md"), root: dir.0.clone() };
+        dir.write("themes/t/glitu.json", r#"{ "version": "2.0.0" }"#); // a former theme: still read
+        let project = Project::new(&dir.0.join("slides.md"));
         assert!(project.theme(&Theme::parse("t:1.0.0")).err().unwrap().contains("t:1.0.0 requested, 2.0.0 available"));
         assert_eq!(project.theme(&Theme::parse("t")).unwrap().published().as_deref(), Some("themes/t/2.0.0"));
         assert_eq!(project.theme(&Theme::parse("./themes/t")).unwrap().published(), None);
-        assert!(project.theme(&Theme::parse("https://x/t/")).err().unwrap().contains("only themes on disk"));
+        assert!(project.theme(&Theme::parse("https://x/t/")).err().unwrap().contains("only local themes"));
         assert!(project.theme(&Theme::parse("absent")).err().unwrap().contains("theme not found"));
     }
 }

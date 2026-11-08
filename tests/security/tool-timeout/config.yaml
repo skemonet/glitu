@@ -1,0 +1,4 @@
+tools:
+  dot: {tmp}/tools/slow
+limits:
+  timeout: 1

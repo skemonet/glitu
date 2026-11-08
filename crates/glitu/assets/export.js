@@ -1,6 +1,6 @@
 // Survey of the screen for the editable PowerPoint export: each visible element becomes an
 // object (shape, text, path, image) in window pixels, in the order it is painted.
-// Injected by `glitu export`; `__gx.collect()` surveys the state shown, `__gx.isolate(ids)`
+// Injected by `glitu build pptx`; `__gx.collect()` surveys the state shown, `__gx.isolate(ids)`
 // only lets some elements paint (backdrops, images, what does not convert) to capture them,
 // `__gx.clear()` gives the page back as it was.
 window.__gx = (() => {
@@ -396,45 +396,72 @@ window.__gx = (() => {
   }
 
   // ------------------------------------------------------------ SVG
+  // A path's `d` → absolute commands M, L, C and Z (quadratic curves and arcs become cubic ones)
   function pathData(d) {
-    const toks = d.match(/[a-zA-Z]|-?(?:\d*\.\d+|\d+\.?)(?:e[-+]?\d+)?/g) || [];
+    const p = pathReader(d);
     const out = [];
-    let i = 0, cmd = '', x = 0, y = 0, sx = 0, sy = 0, cx = 0, cy = 0, qx = 0, qy = 0, prev = '';
-    const num = () => parseFloat(toks[i++]);
-    const flag = () => {
-      // arc flags stuck together ("0 01"): one digit at a time
-      const t = toks[i];
-      if (t.length > 1 && (t[0] === '0' || t[0] === '1') && !t.includes('.')) { toks[i] = t.slice(1); return +t[0] }
-      i++; return +t;
-    };
-    while (i < toks.length) {
-      if (/[a-zA-Z]/.test(toks[i])) cmd = toks[i++];
-      const rel = cmd === cmd.toLowerCase(), C = cmd.toUpperCase();
-      const ox = rel ? x : 0, oy = rel ? y : 0;
-      if (C === 'Z') { out.push(['Z']); x = sx; y = sy; prev = 'Z'; continue }
-      if (C === 'M') { x = ox + num(); y = oy + num(); sx = x; sy = y; out.push(['M', x, y]); cmd = rel ? 'l' : 'L' }
-      else if (C === 'L') { x = ox + num(); y = oy + num(); out.push(['L', x, y]) }
-      else if (C === 'H') { x = ox + num(); out.push(['L', x, y]) }
-      else if (C === 'V') { y = (rel ? y : 0) + num(); out.push(['L', x, y]) }
-      else if (C === 'C' || C === 'S') {
-        let x1, y1;
-        if (C === 'C') { x1 = ox + num(); y1 = oy + num() } else { x1 = /[CS]/.test(prev) ? 2 * x - cx : x; y1 = /[CS]/.test(prev) ? 2 * y - cy : y }
-        const x2 = ox + num(), y2 = oy + num(), ex = ox + num(), ey = oy + num();
-        out.push(['C', x1, y1, x2, y2, ex, ey]); cx = x2; cy = y2; x = ex; y = ey;
-      } else if (C === 'Q' || C === 'T') {
-        let x1, y1;
-        if (C === 'Q') { x1 = ox + num(); y1 = oy + num() } else { x1 = /[QT]/.test(prev) ? 2 * x - qx : x; y1 = /[QT]/.test(prev) ? 2 * y - qy : y }
-        const ex = ox + num(), ey = oy + num();
-        out.push(['C', x + 2 / 3 * (x1 - x), y + 2 / 3 * (y1 - y), ex + 2 / 3 * (x1 - ex), ey + 2 / 3 * (y1 - ey), ex, ey]);
-        qx = x1; qy = y1; x = ex; y = ey;
-      } else if (C === 'A') {
-        const rx = num(), ry = num(), rot = num(), large = flag(), sweep = flag(), ex = ox + num(), ey = oy + num();
-        out.push(...arc(x, y, rx, ry, rot, large, sweep, ex, ey));
-        x = ex; y = ey;
-      } else { i++; continue }
-      prev = C;
+    let cmd = '';
+    while (!p.done()) {
+      if (p.atCommand()) cmd = p.next();
+      const C = cmd.toUpperCase();
+      p.rel = cmd !== C;
+      if (!PATH[C]) { p.next(); continue }
+      out.push(...PATH[C](p));
+      // coordinates after a moveto are linetos
+      if (C === 'M') cmd = p.rel ? 'l' : 'L';
+      p.prev = C;
     }
     return out;
+  }
+  // The tokens of a path and its state: current point (x, y), start of the subpath (sx, sy), last
+  // control points of the cubic (cx, cy) and quadratic (qx, qy) curves, previous command
+  function pathReader(d) {
+    const toks = d.match(/[a-zA-Z]|-?(?:\d*\.\d+|\d+\.?)(?:e[-+]?\d+)?/g) || [];
+    let i = 0;
+    return {
+      x: 0, y: 0, sx: 0, sy: 0, cx: 0, cy: 0, qx: 0, qy: 0, prev: '', rel: false,
+      done: () => i >= toks.length,
+      atCommand: () => /[a-zA-Z]/.test(toks[i]),
+      next: () => toks[i++],
+      num: () => parseFloat(toks[i++]),
+      flag() {
+        // arc flags stuck together ("0 01"): one digit at a time
+        const t = toks[i];
+        if (t.length > 1 && (t[0] === '0' || t[0] === '1') && !t.includes('.')) { toks[i] = t.slice(1); return +t[0] }
+        i++; return +t;
+      },
+      // a coordinate, relative to the current point for a lowercase command
+      px() { return (this.rel ? this.x : 0) + this.num() },
+      py() { return (this.rel ? this.y : 0) + this.num() },
+    };
+  }
+  const PATH = {
+    Z(p) { p.x = p.sx; p.y = p.sy; return [['Z']] },
+    M(p) { const x = p.px(), y = p.py(); p.x = p.sx = x; p.y = p.sy = y; return [['M', x, y]] },
+    L(p) { const x = p.px(), y = p.py(); p.x = x; p.y = y; return [['L', x, y]] },
+    H(p) { p.x = p.px(); return [['L', p.x, p.y]] },
+    V(p) { p.y = p.py(); return [['L', p.x, p.y]] },
+    C(p) { return cubic(p, p.px(), p.py()) },
+    // smooth curves: the first control point mirrors the last one of the previous curve
+    S(p) { const m = /[CS]/.test(p.prev); return cubic(p, m ? 2 * p.x - p.cx : p.x, m ? 2 * p.y - p.cy : p.y) },
+    Q(p) { return quadratic(p, p.px(), p.py()) },
+    T(p) { const m = /[QT]/.test(p.prev); return quadratic(p, m ? 2 * p.x - p.qx : p.x, m ? 2 * p.y - p.qy : p.y) },
+    A(p) {
+      const rx = p.num(), ry = p.num(), rot = p.num(), large = p.flag(), sweep = p.flag(), ex = p.px(), ey = p.py();
+      const out = arc(p.x, p.y, rx, ry, rot, large, sweep, ex, ey);
+      p.x = ex; p.y = ey;
+      return out;
+    },
+  };
+  function cubic(p, x1, y1) {
+    const x2 = p.px(), y2 = p.py(), ex = p.px(), ey = p.py();
+    p.cx = x2; p.cy = y2; p.x = ex; p.y = ey;
+    return [['C', x1, y1, x2, y2, ex, ey]];
+  }
+  function quadratic(p, x1, y1) {
+    const ex = p.px(), ey = p.py(), x = p.x, y = p.y;
+    p.qx = x1; p.qy = y1; p.x = ex; p.y = ey;
+    return [['C', x + 2 / 3 * (x1 - x), y + 2 / 3 * (y1 - y), ex + 2 / 3 * (x1 - ex), ey + 2 / 3 * (y1 - ey), ex, ey]];
   }
   // Elliptical arc → Bézier curves (SVG 1.1, appendix F.6)
   function arc(x1, y1, rx, ry, phi, fa, fs, x2, y2) {
@@ -561,10 +588,12 @@ window.__gx = (() => {
     }
     if (el.tagName === 'foreignObject') { for (const c of el.children) walk(c, items); return }
     if (s.visibility !== 'visible') return;
+    const n0 = items.length;
     if (sized && !within(clip, r)) items.push(cut(el, clip, r));
     else if (el.tagName === 'text') svgText(el, s, opacity(el), items);
     else if (el.tagName === 'image' || el.tagName === 'use') items.push({ t: 'pic', iso: mark(el, 'all'), x: r.left, y: r.top, w: r.width, h: r.height });
     else { const path = svgShape(el, s, svg); if (path) items.push(path) }
+    for (const it of items.slice(n0)) tag(it, el);
   }
 
   // An SVG shape → a path in window pixels (transforms applied)
@@ -646,6 +675,117 @@ window.__gx = (() => {
     out.push({ t: 'pic', iso: mark(img, 'all'), x: r.left, y: r.top, w: r.width, h: r.height });
   }
 
+  // ------------------------------------------------------------ appearances
+  // The survey sees the slide at its last click. What appears or leaves on the way becomes a
+  // PowerPoint animation: `anim` on the item, the clicks being the fragment indices of the slide:
+  //   { on: click, fx: 'fade'|'move'|'zoom'|'wipe', ms, delay, dx, dy (fraction of the slide), k,
+  //     dir (wipe: 'l' 'r' 't' 'b'), off: click, outMs, dim: click, scale: [click, factor] }
+  // While surveying, what has already left (fade-out, `@2-3`, skemo `-n`) is shown again, at its
+  // place, without transition, so that it is surveyed too (see `reveal`).
+  const anims = new Map();
+  const durations = new Map();
+  let order = [];
+  // a skemo step (the written index, `data-sk-index`) → the click (the fragment index, from 0)
+  let clickOf = (step) => step;
+  const TYPES = ['fade-up', 'fade-down', 'fade-left', 'fade-right', 'zoom-in', 'grow', 'shrink', 'fade-out',
+    'semi-fade-out', 'current-visible', 'fade-in-then-out', 'fade-in-then-semi-out', 'highlight-red', 'highlight-green',
+    'highlight-blue', 'highlight-current-red', 'highlight-current-green', 'highlight-current-blue', 'strike', 'custom'];
+  const stepped = (el) => el.classList.contains('fragment') && !el.classList.contains('until')
+    && !el.classList.contains('mark-on') && !el.classList.contains('sk-step') && !el.classList.contains('video-step') && !el.matches('pre > code.fragment');
+  const SKEMO = 'svg.skemo [data-step], svg.skemo [data-until]';
+  function duration(el) {
+    const v = cs(el).transitionDuration.split(',').map((d) => parseFloat(d) * (d.trim().endsWith('ms') ? 1 : 1000));
+    return Math.round(Math.max(0, ...v.filter((x) => !isNaN(x))));
+  }
+  // The durations before `reveal` (which cuts the transitions), and the clicks of the slide
+  function prepare() {
+    anims.clear(); durations.clear();
+    const slide = [...document.querySelectorAll('.slides section.present')].filter((e) => !e.classList.contains('stack')).pop();
+    if (!slide) { order = []; return null }
+    for (const el of slide.querySelectorAll('.fragment, ' + SKEMO)) durations.set(el, duration(el));
+    const frags = [...slide.querySelectorAll('.fragment[data-fragment-index]')];
+    order = [...new Set(frags.map((f) => +f.dataset.fragmentIndex))].sort((a, b) => a - b);
+    const written = frags.filter((f) => f.dataset.skIndex !== undefined)
+      .map((f) => [+f.dataset.skIndex, +f.dataset.fragmentIndex]).sort((a, b) => a[0] - b[0]);
+    clickOf = (step) => { const w = written.find(([sk]) => sk >= step); return w ? w[1] : undefined };
+    return slide;
+  }
+  const revealSheet = document.createElement('style');
+  revealSheet.textContent = 'html .reveal .slides section.present :is(.fragment.fade-out, .fragment.semi-fade-out, ' +
+    '.fragment.current-visible, .fragment.fade-in-then-out, .fragment.fade-in-then-semi-out)' +
+    '{opacity:1!important;visibility:inherit!important}' +
+    'html .reveal .slides section.present :is(.fragment.grow, .fragment.shrink){transform:none!important}' +
+    'html .reveal .slides section.present :has(> .fragment.until.visible){opacity:1!important;visibility:inherit!important}' +
+    'html .reveal .slides section.present svg.skemo .sk-off{opacity:1!important;transform:none!important}' +
+    'html .reveal .slides section.present :is(.fragment, svg.skemo [data-step], svg.skemo [data-until]){transition:none!important}';
+  const after = (i) => order.find((j) => j > i);
+  function enter(a, on, fx, ms, extra) {
+    if (a.on === undefined || on >= a.on) Object.assign(a, { on, fx, ms }, extra || {});
+  }
+  function leave(a, off, ms) {
+    if (off !== undefined && (a.off === undefined || off < a.off)) Object.assign(a, { off, outMs: ms });
+  }
+  // The arrow's direction, for the wipe that draws it: where it starts
+  function wipeFrom(edge) {
+    const line = edge.querySelector('.line');
+    if (!line || !line.getTotalLength) return 'l';
+    const m = line.getScreenCTM();
+    const n = line.getTotalLength();
+    const p = line.getPointAtLength(0), q = line.getPointAtLength(n);
+    const dx = m.a * (q.x - p.x) + m.c * (q.y - p.y), dy = m.b * (q.x - p.x) + m.d * (q.y - p.y);
+    return Math.abs(dx) >= Math.abs(dy) ? (dx >= 0 ? 'l' : 'r') : (dy >= 0 ? 't' : 'b');
+  }
+  // A card appearing with an arrow drawn towards it from a card already there: after the arrow
+  function waits(card, svg, step) {
+    const id = card.getAttribute('data-id');
+    if (!id || !card.classList.contains('card')) return false;
+    const before = (other) => { const c = svg.querySelector(`.card[data-id="${other}"]`); return c && +(c.getAttribute('data-step') || 0) < step };
+    return [...svg.querySelectorAll('.edge[data-fx="draw"]')].some((e) => +(e.getAttribute('data-step') || 0) === step
+      && ((e.dataset.from === id && before(e.dataset.to)) || (e.dataset.to === id && before(e.dataset.from))));
+  }
+  function anim(el) {
+    if (!el || el.nodeType !== 1 || el === document.body || el === document.documentElement) return null;
+    if (anims.has(el)) return anims.get(el);
+    const up = anim(el.parentElement);
+    const a = up ? { ...up, scale: up.scale && [...up.scale] } : {};
+    const k = scale(el);
+    const d = (x) => durations.get(el) || x;
+    if (el.classList.contains('fragment') && stepped(el) && el.dataset.fragmentIndex !== undefined) {
+      const i = +el.dataset.fragmentIndex;
+      const type = TYPES.find((t) => el.classList.contains(t)) || 'fade-in';
+      const move = { 'fade-up': [0, 40], 'fade-down': [0, -40], 'fade-right': [-40, 0], 'fade-left': [40, 0] }[type];
+      if (move) enter(a, i, 'move', d(200), { dx: move[0] * k / W, dy: move[1] * k / H });
+      else if (type === 'zoom-in') enter(a, i, 'zoom', d(200), { k: 0.1 });
+      else if (type === 'grow' || type === 'shrink') a.scale = [i, type === 'grow' ? 1.3 : 0.7];
+      else if (type === 'fade-out') leave(a, i, d(200));
+      else if (type === 'semi-fade-out') a.dim = i;
+      else if (type === 'current-visible' || type === 'fade-in-then-out') { enter(a, i, 'fade', d(200)); leave(a, after(i), d(200)) }
+      else if (type === 'fade-in-then-semi-out') { enter(a, i, 'fade', d(200)); if (after(i) !== undefined) a.dim = after(i) }
+      else if (!type.startsWith('highlight') && type !== 'strike' && type !== 'custom') enter(a, i, 'fade', d(200));
+    }
+    // `@2-3`: the element leaves when its `.until` child is shown
+    const until = [...el.children].find((c) => c.classList.contains('fragment') && c.classList.contains('until'));
+    if (until) leave(a, +until.dataset.fragmentIndex, durations.get(until) || 200);
+    // skemo: `data-step`, `data-until`, `data-fx` (up, zoom, draw)
+    const svg = el.closest('svg.skemo');
+    if (svg && el.matches(SKEMO)) {
+      const st = el.getAttribute('data-step'), un = el.getAttribute('data-until'), fx = el.getAttribute('data-fx');
+      const i = clickOf(+(st ?? 0));
+      if (st !== null && i !== undefined) {
+        const delay = waits(el, svg, +st) ? 600 : 0;
+        if (fx === 'up') enter(a, i, 'move', d(450), { dx: 0, dy: 12 * k / H, delay });
+        else if (fx === 'zoom') enter(a, i, 'zoom', d(450), { k: 0.92, delay });
+        else if (fx === 'draw' && el.classList.contains('edge')) enter(a, i, 'wipe', 600, { dir: wipeFrom(el) });
+        else enter(a, i, 'fade', d(450), { delay });
+      }
+      if (un !== null) leave(a, clickOf(+un + 1), d(450));
+    }
+    const kept = a.on !== undefined || a.off !== undefined || a.dim !== undefined || a.scale ? a : null;
+    anims.set(el, kept);
+    return kept;
+  }
+  const tag = (it, el) => { const a = anim(el); if (a && it.anim === undefined) it.anim = a };
+
   // ------------------------------------------------------------ walk
   const SKIP = new Set(['SCRIPT', 'STYLE', 'TEMPLATE', 'HEAD', 'LINK', 'META', 'NOSCRIPT', 'ASIDE']);
   let background = [];
@@ -661,30 +801,15 @@ window.__gx = (() => {
     const z = zkey(el);
     const items = [];
     const own = s.visibility === 'visible' && meets(clip, r);
-    const full = r.width >= W * 0.97 && r.height >= H * 0.97;
     const tag = el.tagName.toUpperCase();
-    // Rotated or skewed element: PowerPoint would not reproduce it, it is captured as is
-    const m = /^matrix\(([^)]*)\)/.exec(s.transform);
-    const turned = m && m[1].split(',').map(parseFloat).some((v, i) => (i === 1 || i === 2) && Math.abs(v) > 0.01);
-    if (turned) {
+    if (turned(s)) {
       if (own && r.width > 0 && r.height > 0) items.push(cut(el, clip, r));
     } else if (tag === 'SVG') {
       svgItems(el, clip, items);
-    } else if (['IMG', 'CANVAS', 'VIDEO', 'IFRAME', 'MATH', 'OBJECT', 'EMBED'].includes(tag)) {
-      if (own && r.width > 0 && r.height > 0) {
-        if (full && tag !== 'IFRAME') background.push(mark(el, 'all'));
-        else if (!within(clip, r)) items.push(cut(el, clip, r));
-        else if (tag === 'IMG') picture(el, r, items);
-        else items.push({ t: 'pic', iso: mark(el, 'all'), x: r.left, y: r.top, w: r.width, h: r.height });
-      }
+    } else if (MEDIA.has(tag)) {
+      if (own && r.width > 0 && r.height > 0) media(el, tag, clip, r, items);
     } else {
-      if (own) {
-        if (full) {
-          if (color(s.backgroundColor) || s.backgroundImage !== 'none') background.push(mark(el, 'own'));
-        } else {
-          boxes(el, s, r, o, scale(el), items);
-        }
-      }
+      if (own) block(el, s, r, o, items);
       const escaped = [];
       textItem(el, s, clip, items, escaped);
       // The backdrop and the text of the element under those of its children
@@ -694,10 +819,33 @@ window.__gx = (() => {
     }
     emit(el, z, items, out);
   }
+  const MEDIA = new Set(['IMG', 'CANVAS', 'VIDEO', 'IFRAME', 'MATH', 'OBJECT', 'EMBED']);
+  // Rotated or skewed element: PowerPoint would not reproduce it, it is captured as is
+  function turned(s) {
+    const m = /^matrix\(([^)]*)\)/.exec(s.transform);
+    return !!m && m[1].split(',').map(parseFloat).some((v, i) => (i === 1 || i === 2) && Math.abs(v) > 0.01);
+  }
+  // An element covering the slide is its background
+  function full(r) {
+    return r.width >= W * 0.97 && r.height >= H * 0.97;
+  }
+  // An image, a canvas, a frame…: a picture, captured unless it is a plain image
+  function media(el, tag, clip, r, items) {
+    if (full(r) && tag !== 'IFRAME') background.push(mark(el, 'all'));
+    else if (!within(clip, r)) items.push(cut(el, clip, r));
+    else if (tag === 'IMG') picture(el, r, items);
+    else items.push({ t: 'pic', iso: mark(el, 'all'), x: r.left, y: r.top, w: r.width, h: r.height });
+  }
+  // The box of an element: its fill, borders and shadows, or the slide's background
+  function block(el, s, r, o, items) {
+    if (!full(r)) boxes(el, s, r, o, scale(el), items);
+    else if (color(s.backgroundColor) || s.backgroundImage !== 'none') background.push(mark(el, 'own'));
+  }
   function emit(el, z, items, out) {
     for (const it of items) {
       it.z = z;
       it.seq = seq++;
+      tag(it, el);
       if (DEBUG) it.who = el.tagName + '.' + [...el.classList].join('.');
       out.push(it);
     }
@@ -714,7 +862,9 @@ window.__gx = (() => {
   }
 
   function collectAll() {
+    prepare();
     document.head.appendChild(sheet);
+    document.head.appendChild(revealSheet);
     materialize(document.body);
     opacities.clear(); clips.clear(); scales.clear(); zs.clear(); filterShadows.clear();
     background = [];
@@ -753,6 +903,7 @@ window.__gx = (() => {
     for (const el of document.querySelectorAll('.gx-nop')) el.classList.remove('gx-nop');
     for (const el of document.querySelectorAll('[data-gx-own],[data-gx-all]')) { el.removeAttribute('data-gx-own'); el.removeAttribute('data-gx-all') }
     sheet.remove();
+    revealSheet.remove();
   }
   return { collect: collectAll, isolate, unisolate, clear, gradient, color };
 })();

@@ -6,7 +6,7 @@ crates/glitu/assets/vendor/
 themes/*/fonts/
 themes/black/
 tests/oracle/
-tests/reveal-md/reference/
+tests/compat/reference/
 docs/reference/
 Cargo.lock
 *.cast

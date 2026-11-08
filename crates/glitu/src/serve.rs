@@ -25,8 +25,8 @@ struct State {
     clients: Vec<TcpStream>,
     /// The last position posted, given to the pages that ask for it when they arrive
     position: Option<String>,
-    /// The markdown where the timed durations of the rehearsals are written
-    slides: PathBuf,
+    /// The presentation, whose markdown receives the timed durations of the rehearsals
+    project: Project,
     /// The server has just written the timings: the next change of the sources reloads no page
     own_write: bool,
 }
@@ -97,11 +97,11 @@ impl Range {
 fn listen_error(port: u16, e: &std::io::Error) -> String {
     match e.kind() {
         std::io::ErrorKind::AddrInUse => format!(
-            "port {port} is already in use, maybe by another glitu serve: stop it, or choose another port with -p {}",
+            "port {port} is already in use (another glitu server?); stop it or choose another port with -p {}",
             port.saturating_add(1)
         ),
         std::io::ErrorKind::PermissionDenied => {
-            format!("port {port} needs administrator rights: choose a port above 1023 with -p 8000")
+            format!("port {port} requires administrator privileges; choose a port above 1023, such as -p 8000")
         }
         _ => format!("cannot listen on port {port} ({e})"),
     }
@@ -109,26 +109,36 @@ fn listen_error(port: u16, e: &std::io::Error) -> String {
 
 /// `allow` empty: the machine alone. Otherwise the server listens on every interface, but only
 /// answers the machine and the given ranges (phone, tablet on the same network).
-pub fn serve(project: Project, port: u16, allow: Vec<Range>) -> Result<(), String> {
+pub fn serve(project: Project, port: u16, allow: Vec<Range>, quiet: bool) -> Result<(), String> {
+    if let Some(missing) = project.files().iter().find(|f| !f.is_file()) {
+        return Err(format!("{}: no such file or directory", missing.display()));
+    }
+    // a reload renders again only the diagrams that changed
+    crate::engines::keep();
     let host = if allow.is_empty() { "127.0.0.1" } else { "0.0.0.0" };
     let listener = TcpListener::bind((host, port)).map_err(|e| listen_error(port, &e))?;
-    let slides = project.slides.clone();
     let state = Arc::new(Mutex::new(State {
         site: build::site(&project, true),
         clients: Vec::new(),
         position: None,
-        slides,
+        project: project.clone(),
         own_write: false,
     }));
     if let Err(e) = &lock(&state).site {
-        eprintln!("{e}");
+        eprintln!("error: {e}");
     }
-    println!("http://localhost:{port}/");
-    for ip in local_ips(&allow) {
-        println!("http://{ip}:{port}/");
+    if !quiet {
+        for note in project.notes() {
+            println!("{note}");
+        }
+        println!("Serving {} at http://localhost:{port}/", project.name());
+        for ip in local_ips(&allow) {
+            println!("Also available at http://{ip}:{port}/");
+        }
+        println!("Press Ctrl+C to stop");
     }
     let watched = Arc::clone(&state);
-    thread::spawn(move || watch(&project, &watched));
+    thread::spawn(move || watch(&project, &watched, quiet));
     for stream in listener.incoming().flatten() {
         if !stream.peer_addr().is_ok_and(|a| allowed(&allow, a.ip())) {
             continue;
@@ -143,7 +153,7 @@ pub fn serve(project: Project, port: u16, allow: Vec<Range>) -> Result<(), Strin
 }
 
 /// Rebuilds the site whenever a source changes, and reloads the open pages
-fn watch(project: &Project, state: &Mutex<State>) {
+fn watch(project: &Project, state: &Mutex<State>, quiet: bool) {
     let mut last = stamp(project);
     loop {
         thread::sleep(Duration::from_millis(250));
@@ -154,8 +164,9 @@ fn watch(project: &Project, state: &Mutex<State>) {
         last = now;
         let site = build::site(project, true);
         match &site {
-            Ok(_) => println!("rebuilt"),
-            Err(e) => eprintln!("{e}"),
+            Ok(_) if !quiet => println!("Rebuilt {}", project.name()),
+            Ok(_) => {}
+            Err(e) => eprintln!("error: {e}"),
         }
         let mut s = lock(state);
         s.site = site;
@@ -198,9 +209,13 @@ fn stamp(project: &Project) -> SystemTime {
         }
     };
     // The markdown and the files it includes
-    match crate::source::read(&project.slides) {
+    match project.read() {
         Ok(src) => src.files.iter().for_each(|f| visit(&f.path)),
-        Err(_) => visit(&project.slides),
+        Err(_) => project.files().iter().for_each(|f| visit(f)),
+    }
+    // a folder's markdown: a file added or removed changes the folder's date
+    if let Some(dir) = &project.dir {
+        visit(dir);
     }
     // The presentation's own diagram types and styles
     visit(&project.root.join("skemo.css"));
@@ -224,6 +239,8 @@ struct Request {
     /// Path alone
     path: String,
     length: usize,
+    /// `Range: bytes=…`, which a video asks for to seek and to play
+    range: Option<String>,
 }
 
 /// Reads the request line and the headers
@@ -232,17 +249,20 @@ fn read_request(reader: &mut impl BufRead) -> std::io::Result<Request> {
     reader.read_line(&mut line)?;
     let target = line.split_whitespace().nth(1).unwrap_or("/").to_string();
     let path = target.split(['?', '#']).next().unwrap_or("/").to_string();
-    let mut length = 0;
+    let (mut length, mut range) = (0, None);
     loop {
         let mut h = String::new();
         if reader.read_line(&mut h)? <= 2 {
             break;
         }
-        if let Some(v) = h.to_ascii_lowercase().strip_prefix("content-length:") {
+        let lower = h.to_ascii_lowercase();
+        if let Some(v) = lower.strip_prefix("content-length:") {
             length = v.trim().parse().unwrap_or(0);
+        } else if let Some(v) = lower.strip_prefix("range:") {
+            range = Some(v.trim().to_string());
         }
     }
-    Ok(Request { post: line.starts_with("POST"), target, path, length })
+    Ok(Request { post: line.starts_with("POST"), target, path, length, range })
 }
 
 /// At most `max` bytes of the request body
@@ -265,14 +285,14 @@ fn handle(mut stream: TcpStream, state: &Mutex<State>) -> std::io::Result<()> {
         }
         ("/__glitu/chrono", true) => {
             let body = read_body(&mut reader, &req, 1 << 16)?;
-            let slides = {
+            let project = {
                 let mut s = lock(state);
                 s.own_write = true;
-                s.slides.clone()
+                s.project.clone()
             };
-            let answer = match crate::chrono::record(&slides, &durations(&body)) {
+            let answer = match crate::chrono::record(&project.files(), &project.reads(), &durations(&body)) {
                 Ok(written) => {
-                    println!("rehearsal: {} durations recorded", written.len());
+                    println!("Rehearsal: {} durations written to {}", written.len(), project.name());
                     if written.is_empty() {
                         lock(state).own_write = false;
                     }
@@ -281,7 +301,7 @@ fn handle(mut stream: TcpStream, state: &Mutex<State>) -> std::io::Result<()> {
                     serde_json::to_string(&json).unwrap_or_default()
                 }
                 Err(e) => {
-                    eprintln!("rehearsal: {e}");
+                    eprintln!("error: rehearsal: {e}");
                     lock(state).own_write = false;
                     serde_json::json!({ "error": e }).to_string()
                 }
@@ -294,9 +314,23 @@ fn handle(mut stream: TcpStream, state: &Mutex<State>) -> std::io::Result<()> {
         }
         _ => {
             let (status, kind, body) = file(&req.path, &lock(state));
+            // a part of the file, when asked (a video seeking)
+            let (status, body, part) = match req.range.as_deref().filter(|_| status.starts_with("200")) {
+                Some(range) => match byte_range(range, body.len()) {
+                    Some((a, b)) => (
+                        "206 Partial Content",
+                        body[a..=b].to_vec(),
+                        format!("Content-Range: bytes {a}-{b}/{}\r\n", body.len()),
+                    ),
+                    None => {
+                        ("416 Range Not Satisfiable", Vec::new(), format!("Content-Range: bytes */{}\r\n", body.len()))
+                    }
+                },
+                None => (status, body, String::new()),
+            };
             write!(
                 stream,
-                "HTTP/1.1 {status}\r\nContent-Type: {kind}\r\nContent-Length: {}\r\nCache-Control: no-store\r\nConnection: close\r\n\r\n",
+                "HTTP/1.1 {status}\r\nContent-Type: {kind}\r\nContent-Length: {}\r\n{part}Accept-Ranges: bytes\r\nCache-Control: no-store\r\nConnection: close\r\n\r\n",
                 body.len()
             )?;
             stream.write_all(&body)
@@ -356,8 +390,11 @@ fn file(path: &str, s: &State) -> (&'static str, &'static str, Vec<u8>) {
     match files.iter().find(|f| f.path == rel) {
         // Served: the page knows it, the speaker view offers to record rehearsals
         Some(f) if rel == "index.html" => {
-            let page = String::from_utf8_lossy(&f.bytes)
-                .replacen("</head>", "<meta name=\"glitu-rehearse\" content=\"1\"></head>", 1);
+            let page = String::from_utf8_lossy(&f.bytes).replacen(
+                "</head>",
+                "<meta name=\"glitu-rehearse\" content=\"1\"></head>",
+                1,
+            );
             ("200 OK", mime(&rel), page.into_bytes())
         }
         Some(f) => ("200 OK", mime(&rel), f.bytes.clone()),
@@ -392,6 +429,21 @@ fn percent_decode(s: &str) -> String {
     String::from_utf8_lossy(&out).into_owned()
 }
 
+/// `bytes=0-99`, `bytes=100-`, `bytes=-50` over `len` bytes → first and last byte; `None`: outside
+/// the file, or several ranges (not served)
+fn byte_range(range: &str, len: usize) -> Option<(usize, usize)> {
+    let (a, b) = range.strip_prefix("bytes=")?.trim().split_once('-')?;
+    let num = |v: &str| v.trim().parse::<usize>().ok();
+    let (first, last) = match (a.trim().is_empty(), b.trim().is_empty()) {
+        // the last n bytes
+        (true, false) => (len.checked_sub(num(b)?.min(len))?, len.checked_sub(1)?),
+        (false, true) => (num(a)?, len.checked_sub(1)?),
+        (false, false) => (num(a)?, num(b)?.min(len.checked_sub(1)?)),
+        (true, true) => return None,
+    };
+    (first <= last && last < len).then_some((first, last))
+}
+
 pub fn mime(path: &str) -> &'static str {
     match path.rsplit('.').next().unwrap_or("") {
         "html" => "text/html; charset=utf-8",
@@ -402,6 +454,11 @@ pub fn mime(path: &str) -> &'static str {
         "png" => "image/png",
         "jpg" | "jpeg" => "image/jpeg",
         "webp" => "image/webp",
+        "gif" => "image/gif",
+        "mp4" => "video/mp4",
+        "webm" => "video/webm",
+        "ogv" => "video/ogg",
+        "mp3" => "audio/mpeg",
         "woff2" => "font/woff2",
         "json" => "application/json",
         _ => "application/octet-stream",
@@ -413,7 +470,13 @@ mod tests {
     use super::*;
 
     fn state(site: Result<Vec<Output>, String>) -> State {
-        State { site, clients: Vec::new(), position: None, slides: PathBuf::from("slides.md"), own_write: false }
+        State {
+            site,
+            clients: Vec::new(),
+            position: None,
+            project: Project::new(Path::new("slides.md")),
+            own_write: false,
+        }
     }
 
     #[test]
@@ -426,6 +489,19 @@ mod tests {
         assert_eq!(lock(&s).position, None);
         post_position(r##"{"hash":"#/1"}"##, &s);
         assert_eq!(lock(&s).position.as_deref(), Some(r##"{"hash":"#/1"}"##));
+    }
+
+    #[test]
+    fn parts_of_a_file_for_the_videos() {
+        assert_eq!(byte_range("bytes=0-99", 1000), Some((0, 99)));
+        assert_eq!(byte_range("bytes=900-", 1000), Some((900, 999)));
+        assert_eq!(byte_range("bytes=-100", 1000), Some((900, 999)));
+        assert_eq!(byte_range("bytes=990-2000", 1000), Some((990, 999)));
+        assert_eq!(byte_range("bytes=1000-", 1000), None);
+        assert_eq!(byte_range("bytes=5-1", 1000), None);
+        assert_eq!(byte_range("bytes=0-1, 5-6", 1000), None);
+        assert_eq!(byte_range("bytes=0-", 0), None);
+        assert_eq!(mime("img/demo.webm"), "video/webm");
     }
 
     #[test]
@@ -449,7 +525,16 @@ mod tests {
         let raw = "POST /__glitu/position?x HTTP/1.1\r\nHost: a\r\nContent-Length: 12\r\n\r\n{\"hash\":\"\"}x";
         let mut reader = std::io::Cursor::new(raw);
         let req = read_request(&mut reader).unwrap();
-        assert_eq!(req, Request { post: true, target: "/__glitu/position?x".into(), path: "/__glitu/position".into(), length: 12 });
+        assert_eq!(
+            req,
+            Request {
+                post: true,
+                target: "/__glitu/position?x".into(),
+                path: "/__glitu/position".into(),
+                length: 12,
+                range: None
+            }
+        );
         assert_eq!(read_body(&mut reader, &req, 512).unwrap(), b"{\"hash\":\"\"}x");
         assert_eq!(read_body(&mut std::io::Cursor::new("abc"), &req, 2).unwrap(), b"ab");
     }
@@ -482,5 +567,29 @@ mod tests {
         assert!(String::from_utf8_lossy(&body).contains("line 3: &lt;oops&gt;"));
         assert_eq!(percent_decode("a%2"), "a%2");
         assert_eq!(mime("x.unknown"), "application/octet-stream");
+    }
+
+    #[test]
+    fn listen_errors_say_what_to_do() {
+        let e = |kind| std::io::Error::from(kind);
+        assert!(listen_error(8000, &e(std::io::ErrorKind::AddrInUse)).contains("-p 8001"));
+        assert!(listen_error(80, &e(std::io::ErrorKind::PermissionDenied)).contains("above 1023"));
+        assert!(listen_error(8000, &e(std::io::ErrorKind::Other)).starts_with("cannot listen on port 8000"));
+    }
+
+    #[test]
+    fn the_stamp_follows_the_sources() {
+        let root = std::env::temp_dir().join(format!("glitu-stamp-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(root.join("img/sub")).unwrap();
+        let project = Project::new(&root.join("slides.md"));
+        assert_eq!(stamp(&project), SystemTime::UNIX_EPOCH);
+        fs::write(&project.slides, "# A\n").unwrap();
+        let first = stamp(&project);
+        assert!(first > SystemTime::UNIX_EPOCH);
+        let later = fs::File::create(root.join("img/sub/a.png")).unwrap();
+        later.set_modified(first + Duration::from_secs(60)).unwrap();
+        assert_eq!(stamp(&project), first + Duration::from_secs(60));
+        let _ = fs::remove_dir_all(&root);
     }
 }

@@ -63,12 +63,17 @@ One binary per platform: download it, make it executable, run it.
 | Linux, Intel or AMD | \`glitu-linux-x86_64\` |
 | Linux, ARM (Raspberry Pi 4/5, Graviton…) | \`glitu-linux-arm64\` |
 | Mac with Apple silicon (M1 and later) | \`glitu-macos-arm64\` |
+| Mac with an Intel processor | \`glitu-macos-x86_64\` |
 | Windows, Intel or AMD | \`glitu-windows-x86_64.exe\` |
+
+For a computer too slow for a browser, the native player of \`glitu build play\`:
+\`glitu-play-linux-x86_64\`, \`glitu-play-linux-arm64\` (glibc 2.28 and later),
+\`glitu-play-windows-x86_64.exe\`.
 
 Linux and macOS in one line: \`curl -fsSL https://raw.githubusercontent.com/$repo/main/tools/install.sh | sh\`
 
 Check it against its line below (\`sha256sum -c\`, or \`shasum -a 256 -c\` on macOS).
-Start with \`glitu init talk && glitu serve talk/slides.md\`.
+Start with \`glitu init talk && glitu server talk/slides.md\`.
 
 \`\`\`
 $(cd dist && sha256sum glitu-*)

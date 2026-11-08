@@ -66,7 +66,10 @@ fn save() {
     for (h, v, slide) in engine::all_leaves() {
         let strokes = js_sys::Array::new();
         for p in qsa(&slide, ":scope > svg.drawing path") {
-            let pair = js_sys::Array::of2(&p.get_attribute("stroke").unwrap_or_default().into(), &p.get_attribute("d").unwrap_or_default().into());
+            let pair = js_sys::Array::of2(
+                &p.get_attribute("stroke").unwrap_or_default().into(),
+                &p.get_attribute("d").unwrap_or_default().into(),
+            );
             strokes.push(&pair);
         }
         if strokes.length() > 0 {
@@ -136,7 +139,9 @@ pub fn install() {
             "d" | "D" | "Escape" => set_mode(false),
             "z" | "Z" => undo(),
             "x" | "X" => clear(),
-            k if k.len() == 1 && ("1"..="5").contains(&k) => PEN.with(|p| p.borrow_mut().color = k.parse::<usize>().unwrap_or(1) - 1),
+            k if k.len() == 1 && ("1"..="5").contains(&k) => {
+                PEN.with(|p| p.borrow_mut().color = k.parse::<usize>().unwrap_or(1) - 1)
+            }
             _ => return false,
         }
         true

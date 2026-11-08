@@ -16,8 +16,12 @@ impl Zip {
         let (crc, size, offset) = (crc32(&bytes), bytes.len() as u32, self.data.len() as u32);
         // version 2.0, no flag, stored, dated 1 January 1980
         let common = |v: &mut Vec<u8>| {
-            for x in [20u16, 0, 0, 0, 0x21] { v.extend(x.to_le_bytes()) }
-            for x in [crc, size, size] { v.extend(x.to_le_bytes()) }
+            for x in [20u16, 0, 0, 0, 0x21] {
+                v.extend(x.to_le_bytes())
+            }
+            for x in [crc, size, size] {
+                v.extend(x.to_le_bytes())
+            }
             v.extend((name.len() as u16).to_le_bytes());
             v.extend(0u16.to_le_bytes());
         };
@@ -29,8 +33,12 @@ impl Zip {
         self.central.extend(0x02014b50u32.to_le_bytes());
         self.central.extend(20u16.to_le_bytes());
         common(&mut self.central);
-        for x in [0u16, 0, 0] { self.central.extend(x.to_le_bytes()) }
-        for x in [0u32, offset] { self.central.extend(x.to_le_bytes()) }
+        for x in [0u16, 0, 0] {
+            self.central.extend(x.to_le_bytes())
+        }
+        for x in [0u32, offset] {
+            self.central.extend(x.to_le_bytes())
+        }
         self.central.extend(name.as_bytes());
         self.count += 1;
     }
@@ -56,8 +64,12 @@ impl Zip {
         let (offset, size) = (self.data.len() as u32, self.central.len() as u32);
         self.data.append(&mut self.central);
         self.data.extend(0x06054b50u32.to_le_bytes());
-        for x in [0u16, 0, self.count, self.count] { self.data.extend(x.to_le_bytes()) }
-        for x in [size, offset] { self.data.extend(x.to_le_bytes()) }
+        for x in [0u16, 0, self.count, self.count] {
+            self.data.extend(x.to_le_bytes())
+        }
+        for x in [size, offset] {
+            self.data.extend(x.to_le_bytes())
+        }
         self.data.extend(0u16.to_le_bytes());
         self.data
     }
@@ -79,7 +91,41 @@ fn u16_at(b: &[u8], at: usize) -> Result<usize, String> {
 }
 
 fn u32_at(b: &[u8], at: usize) -> Result<usize, String> {
-    b.get(at..at + 4).map(|x| u32::from_le_bytes([x[0], x[1], x[2], x[3]]) as usize).ok_or_else(|| "truncated zip archive".into())
+    b.get(at..at + 4)
+        .map(|x| u32::from_le_bytes([x[0], x[1], x[2], x[3]]) as usize)
+        .ok_or_else(|| "truncated zip archive".into())
+}
+
+/// The entry `name` of an archive (stored or deflated), `None` if it has none
+pub fn entry(data: &[u8], name: &str) -> Result<Option<Vec<u8>>, String> {
+    let end = (0..data.len().saturating_sub(21))
+        .rev()
+        .find(|&i| data[i..i + 4] == 0x06054b50u32.to_le_bytes())
+        .ok_or("not a zip archive")?;
+    let (count, mut at) = (u16_at(data, end + 10)?, u32_at(data, end + 16)?);
+    for _ in 0..count {
+        if u32_at(data, at)? != 0x02014b50 {
+            return Err("damaged zip archive".into());
+        }
+        let (method, size, full) = (u16_at(data, at + 10)?, u32_at(data, at + 20)?, u32_at(data, at + 24)?);
+        let name_len = u16_at(data, at + 28)?;
+        let local = u32_at(data, at + 42)?;
+        let this = data.get(at + 46..at + 46 + name_len).ok_or("truncated zip archive")?;
+        at += 46 + name_len + u16_at(data, at + 30)? + u16_at(data, at + 32)?;
+        if this != name.as_bytes() {
+            continue;
+        }
+        let start = local + 30 + u16_at(data, local + 26)? + u16_at(data, local + 28)?;
+        let raw = data.get(start..start + size).ok_or("truncated zip archive")?;
+        return match method {
+            0 => Ok(Some(raw.to_vec())),
+            8 => miniz_oxide::inflate::decompress_to_vec_with_limit(raw, full)
+                .map(Some)
+                .map_err(|e| format!("{name}: {e:?}")),
+            m => Err(format!("{name}: compression {m} not supported")),
+        };
+    }
+    Ok(None)
 }
 
 /// Unpacks an archive into `dest`: files, folders, and on Unix the permissions and symbolic links.
@@ -96,12 +142,14 @@ pub fn unpack(data: &[u8], dest: &Path) -> Result<usize, String> {
             return Err("damaged zip archive".into());
         }
         let (method, size, full) = (u16_at(data, at + 10)?, u32_at(data, at + 20)?, u32_at(data, at + 24)?);
-        let (name_len, extra_len, comment_len) = (u16_at(data, at + 28)?, u16_at(data, at + 30)?, u16_at(data, at + 32)?);
+        let (name_len, extra_len, comment_len) =
+            (u16_at(data, at + 28)?, u16_at(data, at + 30)?, u16_at(data, at + 32)?);
         let (mode, local) = (u32_at(data, at + 38)? >> 16, u32_at(data, at + 42)?);
-        let name = String::from_utf8_lossy(data.get(at + 46..at + 46 + name_len).ok_or("truncated zip archive")?).into_owned();
+        let name =
+            String::from_utf8_lossy(data.get(at + 46..at + 46 + name_len).ok_or("truncated zip archive")?).into_owned();
         at += 46 + name_len + extra_len + comment_len;
         if name.starts_with('/') || name.contains('\\') || name.split('/').any(|part| part == "..") {
-            return Err(format!("{name}: outside the folder, refused"));
+            return Err(format!("{name}: outside the presentation directory; refused"));
         }
         let target = dest.join(&name);
         if name.ends_with('/') {
@@ -180,5 +228,12 @@ mod tests {
         assert!(unpack(&bad.finish(), &dest).unwrap_err().contains("refused"));
         let _ = std::fs::remove_dir_all(&dest);
         assert!(unpack(b"nope", &dest).is_err());
+        let mut z = Zip::default();
+        z.add("a.txt", b"first".to_vec());
+        z.add("b.txt", b"second".to_vec());
+        let z = z.finish();
+        assert_eq!(entry(&z, "b.txt").unwrap(), Some(b"second".to_vec()));
+        assert_eq!(entry(&z, "c.txt").unwrap(), None);
+        assert!(entry(b"nope", "a.txt").is_err());
     }
 }

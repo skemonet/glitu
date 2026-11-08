@@ -1,0 +1,15 @@
+# D2 diagrams (https://d2lang.com), rendered by d2
+id: d2.d2
+fences: [d2]
+tool: d2
+install: https://d2lang.com/tour/install
+command: ["{tool}", "{options}", "{args}", "-", "-"]
+version: ["{tool}", --version]
+set-env: { NO_COLOR: "1" }
+options:
+  # --layout runs a d2plugin-<name> program: a choice, never a free text
+  layout: { type: choice, values: [dagre, elk], flag: --layout }
+  theme: { type: number, min: 0, max: 400, integer: true, flag: --theme }
+  sketch: { type: bool, flag: --sketch }
+  pad: { type: number, min: 0, max: 1000, integer: true, flag: --pad }
+safe-mode: "imports read files of the presentation's folder only (glitu's sandbox); no remote imports"

@@ -24,8 +24,11 @@ pub fn run(dir: &Path, theme: &str, css: bool) -> Result<Vec<PathBuf>, String> {
     let write_theme = own.as_ref().is_some_and(|_| !dir.join("themes").join(theme).exists());
     let write_style = css && !style.exists();
     if !write_slides && !write_style && !write_theme {
-        let existing = if css { format!("{} and {}", slides.display(), style.display()) } else { slides.display().to_string() };
-        return Err(format!("{existing} already exist(s): nothing was written"));
+        return Err(if css {
+            format!("{} and {} already exist; nothing was written", slides.display(), style.display())
+        } else {
+            format!("{} already exists; nothing was written", slides.display())
+        });
     }
     fs::create_dir_all(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
     let mut written = Vec::new();
@@ -60,7 +63,7 @@ fn own_theme(theme: &str) -> Result<Option<String>, String> {
     Ok(Some(format!("./themes/{theme}")))
 }
 
-/// A theme of one's own in `dest`, from crystal: its fonts, its diagram colours, its `glitu.json`
+/// A theme of one's own in `dest`, from crystal: its fonts, its diagram colours, its `glitu.yaml`
 /// without a version (it is not published), and a `theme.css` that sets every variable of the
 /// template, to change
 fn new_theme(dest: &Path) -> Result<Vec<PathBuf>, String> {
@@ -73,16 +76,15 @@ fn new_theme(dest: &Path) -> Result<Vec<PathBuf>, String> {
         written.push(path);
         Ok(())
     };
-    let mut config = base.config.clone();
-    if let Some(c) = config.as_object_mut() {
-        c.remove("version");
-    }
-    put("glitu.json", (serde_json::to_string_pretty(&config).map_err(|e| e.to_string())? + "\n").as_bytes())?;
+    // crystal's settings without their version
+    let settings = fs::read_to_string(crystal.join(build::THEME_SETTINGS)).map_err(|e| e.to_string())?;
+    let settings: String = settings.lines().filter(|l| !l.starts_with("version:")).map(|l| format!("{l}\n")).collect();
+    put(build::THEME_SETTINGS, settings.as_bytes())?;
     let width = build::theme_variables(&base)?.iter().map(|(n, _)| n.len()).max().unwrap_or(0);
     let mut css = format!(
         "/* The \"{}\" theme, made from crystal by `glitu init`: the shared template\n   \
-         (glitu/template.css) with these values. Change them, add rules; `glitu serve` reloads at\n   \
-         every save. glitu.json sets the backdrop (\"backdrop\": crystal, constellation, paper,\n   \
+         (glitu/template.css) with these values. Change them, add rules; `glitu server` reloads at\n   \
+         every save. glitu.yaml sets the backdrop (backdrop: crystal, constellation, paper,\n   \
          aurora, ascii, blueprint or iso), the transition and the size of the slides; skemo.css the\n   \
          colours of the diagrams. */\n\n",
         dest.file_name().unwrap_or_default().to_string_lossy()
@@ -93,7 +95,10 @@ fn new_theme(dest: &Path) -> Result<Vec<PathBuf>, String> {
         css += &format!("  {:<width$} {value};\n", format!("{name}:"), width = width + 1);
     }
     css += "}\n";
-    css += &TEMPLATE_RULES.replace("Rules, for what the variables do not reach", "Rules of the theme, for what the variables do not reach");
+    css += &TEMPLATE_RULES.replace(
+        "Rules, for what the variables do not reach",
+        "Rules of the theme, for what the variables do not reach",
+    );
     put("theme.css", css.as_bytes())?;
     for file in ["fonts.css", "skemo.css"] {
         put(file, &fs::read(crystal.join(file)).map_err(|e| format!("{file}: {e}"))?)?;
@@ -114,7 +119,7 @@ fn style_css(project: &Project, theme: &Theme) -> Result<String, String> {
     let mut css = format!(
         "/* style.css: the adjustments of this presentation, loaded after its theme (\"{}\").\n   \
          Nothing is active: every line is commented out, with the theme's value. Uncomment a line\n   \
-         and change its value to adjust the presentation; `glitu serve` reloads at every save. */\n\n",
+         and change its value to adjust the presentation; `glitu server` reloads at every save. */\n\n",
         local.name
     );
     if local.config["template"].as_bool() == Some(true) {
@@ -193,7 +198,9 @@ mod tests {
     #[test]
     fn init_writes_the_markdown_then_the_css() {
         let d = temp("css");
-        let names = |files: Vec<PathBuf>| files.iter().map(|f| f.file_name().unwrap().to_string_lossy().into_owned()).collect::<Vec<_>>();
+        let names = |files: Vec<PathBuf>| {
+            files.iter().map(|f| f.file_name().unwrap().to_string_lossy().into_owned()).collect::<Vec<_>>()
+        };
         assert_eq!(names(run(&d.0, "paper", false).unwrap()), ["slides.md"]);
         assert!(run(&d.0, "paper", false).unwrap_err().contains("nothing was written"));
         // the markdown exists: only the css, for the markdown's theme
@@ -220,13 +227,14 @@ mod tests {
         let written = run(&d.0, "mine", false).unwrap();
         assert!(written.contains(&d.0.join("themes/mine/theme.css")) && written.contains(&d.0.join("slides.md")));
         assert!(fs::read_to_string(d.0.join("slides.md")).unwrap().contains("theme: ./themes/mine\n"));
-        let config = fs::read_to_string(d.0.join("themes/mine/glitu.json")).unwrap();
-        assert!(config.contains("\"backdrop\": \"crystal\"") && !config.contains("version"));
+        let config = fs::read_to_string(d.0.join("themes/mine/glitu.yaml")).unwrap();
+        assert!(config.contains("backdrop: crystal\n") && !config.contains("version"));
         // every variable set, none commented out
         let css = fs::read_to_string(d.0.join("themes/mine/theme.css")).unwrap();
         assert!(css.contains("\n  --accent:") && css.contains("\"mine\" theme"));
-        // the presentation builds with it; a second run creates nothing
-        let site = build::site(&Project::new(&d.0.join("slides.md")), false).unwrap();
+        // the presentation builds with it (as a preview: its diagram may lack the skemo tool); a
+        // second run creates nothing
+        let site = build::site(&Project::new(&d.0.join("slides.md")), true).unwrap();
         assert!(site.iter().any(|f| f.path.starts_with("theme/fonts/")));
         assert!(run(&d.0, "mine", false).unwrap_err().contains("nothing was written"));
         // its style.css lists the variables of the new theme

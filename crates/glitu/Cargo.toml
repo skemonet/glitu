@@ -4,23 +4,42 @@ description = "Presentations written in markdown: build, preview server, renderi
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme.workspace = true
+keywords.workspace = true
+categories.workspace = true
+rust-version.workspace = true
 
 [dependencies]
 # The compiler (markdown → slides, skemo diagrams), shared with the browser
 glitu-core = { path = "../glitu-core" }
-sha2 = "0.10"
+sha2 = "0.11"
 clap = { version = "4", features = ["derive"] }
 tungstenite = { version = "0.30", default-features = false, features = ["handshake"] }
-png = "0.17"
-base64 = "0.22"
+png = "0.18"
+base64 = "0.23"
 serde_json = "1"
+# the user's configuration and the themes' settings (YAML)
+serde-saphyr = "2"
 # inflates the archive of the headless browser (--download-browser)
-miniz_oxide = "0.8"
+miniz_oxide = "0.9"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+# confines the diagram tools (see src/engines/sandbox.rs)
+landlock = "0.4"
 
 [features]
 # `glitu oracle`: the rendering oracle of the engine's tests, for development only (not in the
 # released binary): `cargo build --release --features oracle`
 oracle = []
 
+[dev-dependencies]
+# the documentation of the website (examples/docs.rs)
+pulldown-cmark = { version = "0.13", default-features = false, features = ["html"] }
+
 [build-dependencies]
-wasm-bindgen-cli-support = "=0.2.129"
+wasm-bindgen-cli-support = "=0.2.130"
+
+[lints]
+workspace = true

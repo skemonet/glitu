@@ -4,7 +4,8 @@
 # - other branches: tools/ci.sh --quick (lints and tests);
 # - main: tools/ci.sh (lints, tests, smoke test of the binary); tools/next-version.sh reads the
 #   commits since the last release (conventional commits: feat, fix, perf, `!`); then, if they call
-#   for a release, the four binaries (static Linux x86_64 and ARM, macOS ARM, Windows x86_64);
+#   for a release, the five binaries (static Linux x86_64 and ARM, macOS ARM and Intel, Windows x86_64)
+#   and the three of glitu-play (Linux x86_64 and ARM, Windows x86_64);
 #   tools/github-release.sh pushes main to GitHub, and the tag and the release with the binaries;
 #   last, the website (tools/site.sh), pushed to the gh-pages branch that GitHub Pages serves
 #   (tools/github-pages.sh).
@@ -22,11 +23,11 @@ stages:
   - publish
 
 default:
-  image: localhost/ci/rust:1.99.1-4
+  image: localhost/ci/rust:1.99.1-5
   cache:
-    - key: target-rust-1.99.1-4-c2
+    - key: target-rust-1.99.1-5-c1
       paths: [target]
-    - key: cargo-rust-1.99.1-4-c2
+    - key: cargo-rust-1.99.1-5-c1
       paths: [.cargo-home]
 
 variables:
@@ -78,6 +79,7 @@ binaries:
         x86_64-unknown-linux-musl:glitu:glitu-linux-x86_64 \
         aarch64-unknown-linux-musl:glitu:glitu-linux-arm64 \
         aarch64-apple-darwin:glitu:glitu-macos-arm64 \
+        x86_64-apple-darwin:glitu:glitu-macos-x86_64 \
         x86_64-pc-windows-gnu:glitu.exe:glitu-windows-x86_64.exe
       do
         target=${spec%%:*}; rest=${spec#*:}; exe=${rest%%:*}; asset=${rest#*:}
@@ -85,6 +87,20 @@ binaries:
         cargo zigbuild --release --locked -p glitu --target "$target"
         cp "target/$target/release/$exe" "dist/$asset"
       done
+      # glitu-play, the player for slow computers: glibc on Linux (winit opens X11, Wayland and
+      # OpenGL at run time, which a static musl binary cannot), no macOS (winit links AppKit: the
+      # Apple SDK is not in the image)
+      for spec in \
+        x86_64-unknown-linux-gnu.2.28:x86_64-unknown-linux-gnu:glitu-play:glitu-play-linux-x86_64 \
+        aarch64-unknown-linux-gnu.2.28:aarch64-unknown-linux-gnu:glitu-play:glitu-play-linux-arm64 \
+        x86_64-pc-windows-gnu:x86_64-pc-windows-gnu:glitu-play.exe:glitu-play-windows-x86_64.exe
+      do
+        target=${spec%%:*}; rest=${spec#*:}; dir=${rest%%:*}; rest=${rest#*:}; exe=${rest%%:*}; asset=${rest#*:}
+        echo "== $target → $asset"
+        cargo zigbuild --release --locked -p glitu-play --target "$target"
+        cp "target/$dir/release/$exe" "dist/$asset"
+      done
+      dist/glitu-play-linux-x86_64 --version | grep -qx "glitu-play $NEXT_VERSION"
       # the binary of this machine starts and says the version released
       dist/glitu-linux-x86_64 --version | grep -qx "glitu $NEXT_VERSION"
       ls -l dist

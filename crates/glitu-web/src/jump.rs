@@ -35,7 +35,9 @@ fn open() {
     }
     let box_ = dom::create("div");
     box_.set_class_name("jump-to-slide");
-    box_.set_inner_html("<input type=\"text\" class=\"jump-to-slide-input\" placeholder=\"Go to slide…\" aria-label=\"Go to slide\">");
+    box_.set_inner_html(
+        "<input type=\"text\" class=\"jump-to-slide-input\" placeholder=\"Go to slide…\" aria-label=\"Go to slide\">",
+    );
     let _ = root.append_child(&box_);
     let input: HtmlInputElement = qs(&box_, "input").unwrap().unchecked_into();
     let _ = input.focus();

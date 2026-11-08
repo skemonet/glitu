@@ -82,7 +82,7 @@ glitu · 2026
 
 Without a number nor a change of chapter
 
-## Image on the right {.image-right image="img/desk.jpg"}
+## Image on the right {.image-right image="img/office.jpg"}
 
 ### The text on the left
 

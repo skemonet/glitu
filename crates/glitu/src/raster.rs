@@ -13,10 +13,11 @@ pub fn decode(png: &[u8]) -> Result<Rgb, String> {
     let mut dec = png::Decoder::new(std::io::Cursor::new(png));
     dec.set_transformations(png::Transformations::EXPAND | png::Transformations::STRIP_16);
     let mut reader = dec.read_info().map_err(|e| e.to_string())?;
-    let mut buf = vec![0; reader.output_buffer_size()];
+    let mut buf = vec![0; reader.output_buffer_size().ok_or("image too large")?];
     let info = reader.next_frame(&mut buf).map_err(|e| e.to_string())?;
     let n = info.color_type.samples();
-    let pixels = buf[..info.buffer_size()].chunks(n).flat_map(|p| if n >= 3 { [p[0], p[1], p[2]] } else { [p[0]; 3] }).collect();
+    let pixels =
+        buf[..info.buffer_size()].chunks(n).flat_map(|p| if n >= 3 { [p[0], p[1], p[2]] } else { [p[0]; 3] }).collect();
     Ok(Rgb { width: info.width, height: info.height, pixels })
 }
 
@@ -25,6 +26,27 @@ pub fn encode(img: &Rgb) -> Result<Vec<u8>, String> {
     let mut enc = png::Encoder::new(&mut out, img.width, img.height);
     enc.set_color(png::ColorType::Rgb);
     enc.write_header().and_then(|mut w| w.write_image_data(&img.pixels)).map_err(|e| e.to_string())?;
+    Ok(out)
+}
+
+/// The opacity of each pixel of a PNG (255 where it has no transparency): width, height, values
+pub fn alpha(png: &[u8]) -> Result<(u32, u32, Vec<u8>), String> {
+    let mut dec = png::Decoder::new(std::io::Cursor::new(png));
+    dec.set_transformations(png::Transformations::EXPAND | png::Transformations::STRIP_16);
+    let mut reader = dec.read_info().map_err(|e| e.to_string())?;
+    let mut buf = vec![0; reader.output_buffer_size().ok_or("image too large")?];
+    let info = reader.next_frame(&mut buf).map_err(|e| e.to_string())?;
+    let n = info.color_type.samples();
+    let values = buf[..info.buffer_size()].chunks(n).map(|p| if n == 2 || n == 4 { p[n - 1] } else { 255 }).collect();
+    Ok((info.width, info.height, values))
+}
+
+/// A grey PNG of one byte per pixel
+pub fn encode_gray(width: u32, height: u32, values: &[u8]) -> Result<Vec<u8>, String> {
+    let mut out = Vec::new();
+    let mut enc = png::Encoder::new(&mut out, width, height);
+    enc.set_color(png::ColorType::Grayscale);
+    enc.write_header().and_then(|mut w| w.write_image_data(values)).map_err(|e| e.to_string())?;
     Ok(out)
 }
 

@@ -1,4 +1,4 @@
-//! Rehearsals (`glitu serve`): the speaker view times a rehearsal, and the duration of each slide
+//! Rehearsals (`glitu server`): the speaker view times a rehearsal, and the duration of each slide
 //! gone through is written in the markdown, at the end of its heading: `## Ingress ⏳95🏃3 {.large}`
 //! (95 s, the average of 3 rehearsals). For each slide, the speaker chooses to average the new
 //! measure with the former ones, or to replace them. Included files are modified in place.
@@ -22,8 +22,12 @@ pub enum Mode {
 
 /// Writes the measured durations (rank of the slide in the markdown → seconds and mode); returns
 /// the new timings of the slides updated (rank → seconds, rehearsals)
-pub fn record(slides: &Path, measured: &BTreeMap<usize, (f64, Mode)>) -> Result<BTreeMap<usize, (u32, u32)>, String> {
-    let src = source::read(slides)?;
+pub fn record(
+    files: &[PathBuf],
+    reads: &crate::confine::Reads,
+    measured: &BTreeMap<usize, (f64, Mode)>,
+) -> Result<BTreeMap<usize, (u32, u32)>, String> {
+    let src = source::read_all(files, reads)?;
     if glitu_core::header(&src.text).reveal_md {
         return Err("rehearsal: the reveal-md syntax has no headings to write the durations in".into());
     }
@@ -129,12 +133,17 @@ mod tests {
     fn durations_land_in_included_files() {
         let dir = std::env::temp_dir().join(format!("glitu-chrono-{}", std::process::id()));
         fs::create_dir_all(dir.join("ch")).unwrap();
-        fs::write(dir.join("slides.md"), "---\ntitle: T\n---\n\n## One\n\ntext\n\n<!-- include: ch/a.md -->\n\n## Three {.large}\n")
-            .unwrap();
+        fs::write(
+            dir.join("slides.md"),
+            "---\ntitle: T\n---\n\n## One\n\ntext\n\n<!-- include: ch/a.md -->\n\n## Three {.large}\n",
+        )
+        .unwrap();
         fs::write(dir.join("ch/a.md"), "---\nx: y\n---\n# Chapter\n\n```md\n## not a slide\n```\n\n## Two\n").unwrap();
-        let measured: BTreeMap<usize, (f64, Mode)> =
-            [(0, 12.4), (1, 30.0), (2, 45.0), (3, 61.0), (9, 5.0)].into_iter().map(|(i, s)| (i, (s, Mode::Average))).collect();
-        let written = record(&dir.join("slides.md"), &measured).unwrap();
+        let measured: BTreeMap<usize, (f64, Mode)> = [(0, 12.4), (1, 30.0), (2, 45.0), (3, 61.0), (9, 5.0)]
+            .into_iter()
+            .map(|(i, s)| (i, (s, Mode::Average)))
+            .collect();
+        let written = record(&[dir.join("slides.md")], &crate::confine::Reads::new(&dir, &[]), &measured).unwrap();
         assert_eq!(written.into_iter().collect::<Vec<_>>(), [(0, (12, 1)), (1, (30, 1)), (2, (45, 1)), (3, (61, 1))]);
         let main = fs::read_to_string(dir.join("slides.md")).unwrap();
         let inc = fs::read_to_string(dir.join("ch/a.md")).unwrap();
@@ -144,7 +153,11 @@ mod tests {
         assert!(inc.contains("## Two ⏳45🏃1\n"));
         assert!(inc.contains("## not a slide\n"));
         fs::write(dir.join("slides.md"), "# A\n\n---\n\n# B\n").unwrap();
-        assert!(record(&dir.join("slides.md"), &measured).unwrap_err().contains("reveal-md"));
+        assert!(
+            record(&[dir.join("slides.md")], &crate::confine::Reads::new(&dir, &[]), &measured)
+                .unwrap_err()
+                .contains("reveal-md")
+        );
         fs::remove_dir_all(&dir).unwrap();
     }
 }

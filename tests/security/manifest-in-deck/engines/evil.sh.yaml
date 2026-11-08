@@ -1,0 +1,4 @@
+id: evil.sh
+fences: [evil]
+tool: sh
+command: ["{tool}", "-c", "cat ../secret.txt"]

@@ -13,7 +13,8 @@ use crate::engine::{self, Ev};
 fn rgb(color: &str) -> Option<(f64, f64, f64)> {
     let c = color.trim();
     if let Some(hex) = c.strip_prefix('#') {
-        let hex: String = if hex.len() == 3 { hex.chars().flat_map(|ch| [ch, ch]).collect() } else { hex.chars().take(6).collect() };
+        let hex: String =
+            if hex.len() == 3 { hex.chars().flat_map(|ch| [ch, ch]).collect() } else { hex.chars().take(6).collect() };
         let n = u32::from_str_radix(&hex, 16).ok()?;
         return Some((((n >> 16) & 255) as f64, ((n >> 8) & 255) as f64, (n & 255) as f64));
     }
@@ -50,7 +51,12 @@ fn background_for(slide: &Element) -> Element {
     if let Some(img) = data(slide, "background-image") {
         style(&content, "background-image", &format!("url(\"{img}\")"));
     }
-    for (attr, prop) in [("size", "background-size"), ("position", "background-position"), ("repeat", "background-repeat"), ("opacity", "opacity")] {
+    for (attr, prop) in [
+        ("size", "background-size"),
+        ("position", "background-position"),
+        ("repeat", "background-repeat"),
+        ("opacity", "opacity"),
+    ] {
         if let Some(v) = data(slide, &format!("background-{attr}")) {
             style(&content, prop, &v);
         }
@@ -102,12 +108,27 @@ impl Backgrounds {
     fn update(&self) {
         let (h, v, _) = engine::position();
         for (x, (el, vertical)) in self.horizontal.iter().enumerate() {
-            let st = if x < h { "past" } else if x > h { "future" } else { "present" };
+            let st = if x < h {
+                "past"
+            } else if x > h {
+                "future"
+            } else {
+                "present"
+            };
             set_state(el, st);
             style(el, "display", if x.abs_diff(h) < 3 { "block" } else { "none" });
             for (y, ve) in vertical.iter().enumerate() {
                 if x == h {
-                    set_state(ve, if y < v { "past" } else if y > v { "future" } else { "present" });
+                    set_state(
+                        ve,
+                        if y < v {
+                            "past"
+                        } else if y > v {
+                            "future"
+                        } else {
+                            "present"
+                        },
+                    );
                 }
                 style(ve, "display", if engine::distance(x, y, h, v) < 3 { "block" } else { "none" });
             }
@@ -151,7 +172,12 @@ fn controls() -> Controls {
         });
         b
     };
-    Controls { left: button("left", engine::left), right: button("right", engine::right), up: button("up", engine::up), down: button("down", engine::down) }
+    Controls {
+        left: button("left", engine::left),
+        right: button("right", engine::right),
+        up: button("up", engine::up),
+        down: button("down", engine::down),
+    }
 }
 
 impl Controls {
@@ -160,12 +186,17 @@ impl Controls {
         for (el, on) in [(&self.left, l), (&self.right, r), (&self.up, u), (&self.down, d)] {
             dom::remove(el, "fragmented");
             toggle(el, "enabled", on);
-            if on { let _ = el.remove_attribute("disabled"); } else { let _ = el.set_attribute("disabled", "disabled"); }
+            if on {
+                let _ = el.remove_attribute("disabled");
+            } else {
+                let _ = el.set_attribute("disabled", "disabled");
+            }
         }
         // Steps left: the arrow of the slide's axis carries the "fragmented" mark
         let (prev, next) = engine::fragment_routes();
         let cur = engine::current_slide();
-        let vertical = cur.parent_element().is_some_and(|p| p.tag_name() == "SECTION" && qsa(&p, ":scope > section").len() > 1);
+        let vertical =
+            cur.parent_element().is_some_and(|p| p.tag_name() == "SECTION" && qsa(&p, ":scope > section").len() > 1);
         let (back, forward) = if vertical { (&self.up, &self.down) } else { (&self.left, &self.right) };
         for (el, on) in [(back, prev), (forward, next)] {
             if on {

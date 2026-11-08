@@ -1,7 +1,7 @@
 /* ==========================================================================
    "paper" theme on the shared template (glitu/template.css): palette, fonts, veils.
    Cut paper: wavy layers of paper from aqua to petrol blue, drop shadows, grain.
-   Animated "paper" backdrop (glitu.json); text panel in a slight gradient.
+   Animated "paper" backdrop (glitu.yaml); text panel in a slight gradient.
    ========================================================================== */
 :root {
   --font: "IBM Plex Sans", "Segoe UI", "Noto Color Emoji", "Apple Color Emoji", "Segoe UI Emoji", system-ui, sans-serif;

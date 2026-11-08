@@ -13,7 +13,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use avt::{Color, Vt};
+use avt::{Cell, Color, Pen, Terminal};
 use serde_json::Value;
 use wasm_bindgen::JsCast;
 use web_sys::{CanvasRenderingContext2d, Element, HtmlCanvasElement};
@@ -41,7 +41,7 @@ struct Recording {
 
 fn parse(text: &str, idle_limit: Option<f64>) -> Result<Recording, String> {
     let mut lines = text.lines().filter(|l| !l.trim().is_empty());
-    let header: Value = serde_json::from_str(lines.next().ok_or("enregistrement vide")?).map_err(|e| e.to_string())?;
+    let header: Value = serde_json::from_str(lines.next().ok_or("empty recording")?).map_err(|e| e.to_string())?;
     let v3 = header["version"].as_u64() == Some(3);
     let (cols, rows) = if v3 {
         (header["term"]["cols"].as_u64().unwrap_or(80), header["term"]["rows"].as_u64().unwrap_or(24))
@@ -53,7 +53,8 @@ fn parse(text: &str, idle_limit: Option<f64>) -> Result<Recording, String> {
     let mut events = Vec::new();
     for line in lines {
         let ev: Value = serde_json::from_str(line).map_err(|e| e.to_string())?;
-        let (t, code, payload) = (ev[0].as_f64().unwrap_or(0.0), ev[1].as_str().unwrap_or(""), ev[2].as_str().unwrap_or(""));
+        let (t, code, payload) =
+            (ev[0].as_f64().unwrap_or(0.0), ev[1].as_str().unwrap_or(""), ev[2].as_str().unwrap_or(""));
         // v2: absolute time; v3: interval since the previous event
         let mut delta = if v3 { t } else { t - raw_prev };
         raw_prev = if v3 { raw_prev + t } else { t };
@@ -79,7 +80,7 @@ fn parse(text: &str, idle_limit: Option<f64>) -> Result<Recording, String> {
 
 struct Player {
     rec: Recording,
-    vt: Vt,
+    vt: Terminal,
     /// Next event to apply
     next: usize,
     /// Current time of the playback (s)
@@ -106,11 +107,15 @@ impl Player {
     /// the typing, whose pauses look like a still screen
     fn set_playing(&mut self, on: bool) {
         self.playing = on;
-        let _ = if on { self.view.text.set_attribute("data-playing", "") } else { self.view.text.remove_attribute("data-playing") };
+        let _ = if on {
+            self.view.text.set_attribute("data-playing", "")
+        } else {
+            self.view.text.remove_attribute("data-playing")
+        };
     }
 
     fn reset(&mut self) {
-        self.vt = Vt::builder().size(self.rec.cols, self.rec.rows).build();
+        self.vt = terminal(self.rec.cols, self.rec.rows);
         self.next = 0;
         self.time = 0.0;
     }
@@ -120,10 +125,10 @@ impl Player {
         while self.next < end.min(self.rec.events.len()) {
             match &self.rec.events[self.next].1 {
                 Kind::Output(s) => {
-                    self.vt.feed_str(s);
+                    self.vt.feed(s.as_str());
                 }
                 Kind::Resize(c, r) => {
-                    self.vt.resize(*c, *r);
+                    self.vt.resize((*c).max(1), (*r).max(1));
                 }
                 Kind::Marker => {}
             }
@@ -139,10 +144,14 @@ impl Player {
     fn seek(&mut self, to: Seek) {
         let end = match to {
             Seek::Start => self.rec.events.iter().take_while(|(t, _)| *t <= 0.0).count(),
-            Seek::Marker(i) => if let Some(&m) = self.markers().get(i) { m + 1 } else {
-                dom::warn("[terminal] marker not found in the recording");
-                self.rec.events.len()
-            },
+            Seek::Marker(i) => {
+                if let Some(&m) = self.markers().get(i) {
+                    m + 1
+                } else {
+                    dom::warn("[terminal] marker not found in the recording");
+                    self.rec.events.len()
+                }
+            }
             Seek::End => self.rec.events.len(),
         };
         if end < self.next {
@@ -159,44 +168,35 @@ impl Player {
         let cursor = self.vt.cursor();
         v.ctx.clear_rect(0.0, 0.0, cols as f64 * BLOCK_H, rows as f64 * BLOCK_V);
         let mut html = String::new();
-        for (r, line) in self.vt.view().enumerate() {
+        for (r, line) in self.vt.screen().visible_lines().enumerate() {
             html += &format!("<span class=\"ap-line\" style=\"--row: {r};\">");
-            let cells = line.cells();
-            let mut c = 0;
-            while c < cells.len() {
-                let at_cursor = |k: usize| cursor.visible && cursor.row == r && cursor.col == k;
-                let pen = *cells[c].pen();
-                let cur = at_cursor(c);
-                let mut text = String::new();
-                let start = c;
-                while c < cells.len() && *cells[c].pen() == pen && at_cursor(c) == cur && (c == start || !cur) {
-                    if cells[c].width() > 0 {
-                        text.push(cells[c].char());
-                    }
-                    c += 1;
-                }
-                let (mut fg, mut bg) = (pen.foreground().map(|x| self.color(x)), pen.background().map(|x| self.color(x)));
-                if pen.is_inverse() ^ cur {
-                    let f = fg.take().unwrap_or_else(|| v.fg.clone());
-                    fg = Some(bg.take().unwrap_or_else(|| v.bg.clone()));
-                    bg = Some(f);
-                }
-                if let Some(b) = &bg {
-                    v.ctx.set_fill_style_str(b);
-                    v.ctx.fill_rect(start as f64 * BLOCK_H, r as f64 * BLOCK_V, (c - start) as f64 * BLOCK_H, BLOCK_V);
-                }
-                let mut class = String::new();
-                if pen.is_bold() { class += "ap-bold " } else if pen.is_faint() { class += "ap-faint " }
-                if pen.is_italic() { class += "ap-italic " }
-                if pen.is_underline() { class += "ap-underline " }
-                if pen.is_strikethrough() { class += "ap-strike " }
-                let class = if class.is_empty() { String::new() } else { format!(" class=\"{class}\"") };
-                let color = fg.map(|f| format!(" color: {f};")).unwrap_or_default();
-                html += &format!("<span{class} style=\"--offset: {start};{color}\">{}</span>", dom::esc(&text));
+            let at_cursor = (cursor.visible && cursor.row == r).then_some(cursor.col);
+            for run in runs(line.cells(), at_cursor) {
+                html += &self.paint(r, &run);
             }
             html += "</span>";
         }
         v.text.set_inner_html(&html);
+    }
+
+    /// One run of a line: its background on the canvas, its text as a `<span>`
+    fn paint(&self, row: usize, run: &Run) -> String {
+        let v = &self.view;
+        let pen = &run.pen;
+        let (mut fg, mut bg) = (pen.foreground().map(|x| self.color(x)), pen.background().map(|x| self.color(x)));
+        if pen.is_inverse() ^ run.cursor {
+            let f = fg.take().unwrap_or_else(|| v.fg.clone());
+            fg = Some(bg.take().unwrap_or_else(|| v.bg.clone()));
+            bg = Some(f);
+        }
+        if let Some(b) = &bg {
+            v.ctx.set_fill_style_str(b);
+            v.ctx.fill_rect(run.start as f64 * BLOCK_H, row as f64 * BLOCK_V, run.len as f64 * BLOCK_H, BLOCK_V);
+        }
+        let class = classes(pen);
+        let class = if class.is_empty() { String::new() } else { format!(" class=\"{class}\"") };
+        let color = fg.map(|f| format!(" color: {f};")).unwrap_or_default();
+        format!("<span{class} style=\"--offset: {};{color}\">{}</span>", run.start, dom::esc(&run.text))
     }
 
     fn color(&self, c: Color) -> String {
@@ -208,6 +208,51 @@ impl Player {
     }
 }
 
+/// Cells of a line that look alike: same pen, and the cursor alone in its own run
+struct Run {
+    start: usize,
+    len: usize,
+    text: String,
+    pen: Pen,
+    cursor: bool,
+}
+
+/// The runs of a line of `cells`, the cursor being on column `cursor` if any
+fn runs(cells: &[Cell], cursor: Option<usize>) -> Vec<Run> {
+    let mut runs = Vec::new();
+    let mut c = 0;
+    while c < cells.len() {
+        let (start, pen) = (c, *cells[c].pen());
+        let on_cursor = cursor == Some(c);
+        let mut text = String::new();
+        while c < cells.len() && *cells[c].pen() == pen && (c == start || (!on_cursor && cursor != Some(c))) {
+            if cells[c].width() > 0 {
+                text.push(cells[c].char());
+            }
+            c += 1;
+        }
+        runs.push(Run { start, len: c - start, text, pen, cursor: on_cursor });
+    }
+    runs
+}
+
+/// The classes of a pen's attributes (`ap-bold `…), dressed by the themes
+fn classes(pen: &Pen) -> String {
+    let weight = if pen.is_bold() {
+        Some("ap-bold")
+    } else if pen.is_faint() {
+        Some("ap-faint")
+    } else {
+        None
+    };
+    let styles =
+        [(pen.is_italic(), "ap-italic"), (pen.is_underline(), "ap-underline"), (pen.is_strikethrough(), "ap-strike")];
+    weight
+        .into_iter()
+        .chain(styles.into_iter().filter(|(on, _)| *on).map(|(_, c)| c))
+        .map(|c| format!("{c} "))
+        .collect()
+}
 
 /// Colours 16 to 255 of xterm
 fn xterm(i: u8) -> String {
@@ -296,7 +341,13 @@ fn shown(stage: &Element) -> usize {
 /// Expected screen when n steps are shown
 fn end_of(stage: &Element, n: usize) -> Seek {
     let total = steps(stage).len();
-    if n == 0 { Seek::Start } else if n < total { Seek::Marker(n - 1) } else { Seek::End }
+    if n == 0 {
+        Seek::Start
+    } else if n < total {
+        Seek::Marker(n - 1)
+    } else {
+        Seek::End
+    }
 }
 
 fn start_of(i: usize) -> Seek {
@@ -338,7 +389,10 @@ fn measure(font: &str) -> (f64, f64, f64, f64) {
 fn mount(stage: &Element, theme: &str, font: &str) -> Result<Shared, String> {
     let src = data(stage, "cast").unwrap_or_default();
     let text = match src.strip_prefix('#') {
-        Some(id) => dom::document().get_element_by_id(id).and_then(|e| e.text_content()).ok_or(format!("enregistrement introuvable : {src}"))?,
+        Some(id) => dom::document()
+            .get_element_by_id(id)
+            .and_then(|e| e.text_content())
+            .ok_or(format!("enregistrement introuvable : {src}"))?,
         None => return Err(format!("{src}: only embedded recordings (#id) are read")),
     };
     let idle = data(stage, "idle-time-limit").and_then(|v| v.parse().ok());
@@ -396,16 +450,20 @@ fn mount(stage: &Element, theme: &str, font: &str) -> Result<Shared, String> {
     fit();
 
     let css = dom::window().get_computed_style(&player).ok().flatten();
-    let var = |name: &str| css.as_ref().and_then(|c| c.get_property_value(name).ok()).map(|v| v.trim().to_string()).unwrap_or_default();
+    let var = |name: &str| {
+        css.as_ref().and_then(|c| c.get_property_value(name).ok()).map(|v| v.trim().to_string()).unwrap_or_default()
+    };
     let fg = var("--term-color-foreground");
     let bg = var("--term-color-background");
-    let palette = (0..16).map(|i| {
-        let v = var(&format!("--term-color-{i}"));
-        if v.is_empty() { fg.clone() } else { v }
-    }).collect();
+    let palette = (0..16)
+        .map(|i| {
+            let v = var(&format!("--term-color-{i}"));
+            if v.is_empty() { fg.clone() } else { v }
+        })
+        .collect();
 
     let view = View { text: pre, ctx, palette, fg, bg };
-    let vt = Vt::builder().size(cols, rows).build();
+    let vt = terminal(cols, rows);
     let p = Rc::new(RefCell::new(Player { rec, vt, next: 0, time: 0.0, playing: false, origin: 0.0, timer: 0, view }));
     let observer = {
         let cb = wasm_bindgen::closure::Closure::<dyn FnMut()>::new(fit);
@@ -513,4 +571,75 @@ pub fn install(theme: &str) {
         }),
         Ev::Resize => {}
     });
+}
+
+/// A terminal of this size (at least one cell: a recording may announce none)
+fn terminal(cols: usize, rows: usize) -> Terminal {
+    Terminal::new(cols.max(1), rows.max(1)).expect("a positive size")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn line(input: &str) -> Vec<Cell> {
+        let mut t = terminal(10, 1);
+        t.feed(input);
+        t.screen().line(0).unwrap().cells().to_vec()
+    }
+
+    #[test]
+    fn runs_split_on_pen_and_cursor() {
+        let cells = line("\x1b[1mab\x1b[0mcd");
+        let r = runs(&cells, None);
+        assert_eq!(
+            r.iter().map(|r| (r.start, r.len, r.text.as_str())).collect::<Vec<_>>(),
+            [(0, 2, "ab"), (2, 8, "cd      ")]
+        );
+        assert_eq!(classes(&r[0].pen), "ap-bold ");
+        assert_eq!(classes(&r[1].pen), "");
+        // the cursor stands alone, in the middle of a run
+        let r = runs(&cells, Some(3));
+        assert_eq!(
+            r.iter().map(|r| (r.start, r.len, r.cursor)).collect::<Vec<_>>(),
+            [(0, 2, false), (2, 1, false), (3, 1, true), (4, 6, false)]
+        );
+    }
+
+    #[test]
+    fn pen_classes() {
+        let r = runs(&line("\x1b[2;3;4;9mx"), None);
+        assert_eq!(classes(&r[0].pen), "ap-faint ap-italic ap-underline ap-strike ");
+    }
+
+    #[test]
+    fn xterm_colours() {
+        assert_eq!(xterm(16), "rgb(0,0,0)");
+        assert_eq!(xterm(231), "rgb(255,255,255)");
+        assert_eq!(xterm(196), "rgb(255,0,0)");
+        assert_eq!(xterm(232), "rgb(8,8,8)");
+        assert_eq!(xterm(255), "rgb(238,238,238)");
+    }
+
+    #[test]
+    fn parse_v2_and_v3() {
+        let v2 = "{\"version\": 2, \"width\": 40, \"height\": 10}\n[1.0, \"o\", \"a\"]\n\n[5.0, \"m\", \"\"]\n[6.0, \"r\", \"50x12\"]\n[7.0, \"i\", \"k\"]";
+        let r = parse(v2, Some(2.0)).unwrap();
+        assert_eq!((r.cols, r.rows), (40, 10));
+        // the pause of 4 s is cut down to the idle limit; input events are left out
+        assert_eq!(r.events.iter().map(|e| e.0).collect::<Vec<_>>(), [1.0, 3.0, 4.0]);
+        assert!(matches!(r.events[0].1, Kind::Output(ref s) if s == "a"));
+        assert!(matches!(r.events[1].1, Kind::Marker));
+        assert!(matches!(r.events[2].1, Kind::Resize(50, 12)));
+        let v3 = "{\"version\": 3, \"term\": {\"cols\": 20, \"rows\": 5}, \"idle_time_limit\": 1}\n[0.5, \"o\", \"x\"]\n[3, \"o\", \"y\"]";
+        let r = parse(v3, None).unwrap();
+        assert_eq!((r.cols, r.rows), (20, 5));
+        assert_eq!(r.events.iter().map(|e| e.0).collect::<Vec<_>>(), [0.5, 1.5]);
+        assert!(parse("", None).is_err() && parse("{}\nnot json", None).is_err());
+    }
+
+    #[test]
+    fn empty_size_is_one_cell() {
+        assert_eq!(terminal(0, 0).size(), (1, 1));
+    }
 }

@@ -42,7 +42,10 @@ fn transition(from: &Element, to: &Element) {
 }
 
 fn versions(frags: &[Element]) -> impl Iterator<Item = (&Element, Element)> {
-    frags.iter().filter(|f| closest(f, "pre.magic-move").is_some() && has(f, "fragment")).filter_map(|f| Some((f, f.previous_element_sibling()?)))
+    frags
+        .iter()
+        .filter(|f| closest(f, "pre.magic-move").is_some() && has(f, "fragment"))
+        .filter_map(|f| Some((f, f.previous_element_sibling()?)))
 }
 
 pub fn install() {

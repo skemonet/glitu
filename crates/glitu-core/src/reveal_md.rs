@@ -141,7 +141,8 @@ fn code_block(kind: &CodeBlockKind, events: &[Event]) -> (Event<'static>, usize)
 }
 
 fn markdown(md: &str) -> String {
-    let opts = Options::ENABLE_TABLES | Options::ENABLE_STRIKETHROUGH | Options::ENABLE_TASKLISTS | Options::ENABLE_MATH;
+    let opts =
+        Options::ENABLE_TABLES | Options::ENABLE_STRIKETHROUGH | Options::ENABLE_TASKLISTS | Options::ENABLE_MATH;
     let events: Vec<Event> = Parser::new_ext(md, opts).collect();
     let mut out: Vec<Event> = Vec::with_capacity(events.len());
     let mut i = 0;

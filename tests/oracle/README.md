@@ -6,7 +6,7 @@ It is the reference of the engine.
 `glitu oracle` is a development command: build it with `cargo build --release --features oracle`.
 
 ```sh
-target/release/glitu serve tests/features/slides.md -p 8123 &
+target/release/glitu server tests/features/slides.md -p 8123 &
 target/release/glitu oracle check http://localhost:8123/ tests/oracle
 ```
 

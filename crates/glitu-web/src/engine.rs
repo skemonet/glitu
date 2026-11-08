@@ -15,7 +15,7 @@ use web_sys::{Element, KeyboardEvent};
 
 use crate::dom::{self, add, data, has, qsa, remove, style, toggle};
 
-/// Settings of the theme (glitu.json), passed by the page
+/// Settings of the theme (glitu.yaml), passed by the page
 #[derive(Clone)]
 pub struct Config {
     pub width: f64,
@@ -144,7 +144,8 @@ pub fn init(config: Config) {
     let receiver = search.contains("receiver");
     // Scroll view: asked for (`?view=scroll`), or by default on a phone screen, except for the
     // remote
-    let by_width = !search.contains("view=scroll") && !receiver && !search.contains("remote") && !search.contains("print-pdf");
+    let by_width =
+        !search.contains("view=scroll") && !receiver && !search.contains("remote") && !search.contains("print-pdf");
     let scrolling = search.contains("view=scroll") || (by_width && narrow());
     let printing = search.contains("print-pdf") || scrolling;
     let slides = qsa(&slides_element(), ":scope > section");
@@ -294,10 +295,13 @@ pub fn leaf_index() -> usize {
 /// Slides (h, v) in reading order
 pub fn all_leaves() -> Vec<(usize, usize, Element)> {
     with(|s| {
-        s.leaves.iter().enumerate().flat_map(|(h, l)| l.iter().enumerate().map(move |(v, e)| (h, v, e.clone()))).collect()
+        s.leaves
+            .iter()
+            .enumerate()
+            .flat_map(|(h, l)| l.iter().enumerate().map(move |(v, e)| (h, v, e.clone())))
+            .collect()
     })
 }
-
 
 fn emit(ev: Ev) {
     let listeners = with(|s| s.listeners.clone());
@@ -373,8 +377,10 @@ fn write_hash() {
     } else {
         "#/".into()
     };
-    let _ = dom::window().history().and_then(|hist| hist.replace_state_with_url(&wasm_bindgen::JsValue::NULL, "", Some(&hash)));
-    // For the page: `glitu serve` keeps the open windows in sync this way; not during the
+    let _ = dom::window()
+        .history()
+        .and_then(|hist| hist.replace_state_with_url(&wasm_bindgen::JsValue::NULL, "", Some(&hash)));
+    // For the page: `glitu server` keeps the open windows in sync this way; not during the
     // overview, the other windows only follow the chosen slide, on leaving
     if with(|s| s.overview) {
         return;
@@ -408,36 +414,13 @@ pub fn distance(x: usize, y: usize, h: usize, v: usize) -> usize {
 
 /// Shows the slide (h, v), its steps up to group `f` (None: depending on the direction of arrival)
 pub fn show(h: usize, v: usize, f: Option<i32>, events: bool) {
-    let (previous, slides, leaves, prev, prev_f) = with(|s| (s.leaves[s.h][s.v].clone(), s.slides.clone(), s.leaves.clone(), (s.h, s.v), s.f));
-    let view = with(|s| s.view_distance);
+    let (previous, slides, leaves, prev, prev_f) =
+        with(|s| (s.leaves[s.h][s.v].clone(), s.slides.clone(), s.leaves.clone(), (s.h, s.v), s.f));
     let h = h.min(slides.len().saturating_sub(1));
     let v = v.min(leaves[h].len() - 1);
-    for (x, slide) in slides.iter().enumerate() {
-        set_state(slide, state_of(x, h));
-        let _ = slide.set_attribute("aria-hidden", if x == h { "false" } else { "true" });
-        style(slide, "display", if x.abs_diff(h) < view { "block" } else { "none" });
-        let stack = leaves[x].len() > 1;
-        for (y, leaf) in leaves[x].iter().enumerate() {
-            if stack {
-                if x == h {
-                    set_state(leaf, state_of(y, v));
-                }
-                style(leaf, "display", if distance(x, y, h, v) < view { "block" } else { "none" });
-            }
-            // Steps: all visible before the current slide, hidden after
-            if (x, y) < (h, v) {
-                set_fragments(x, y, i32::MAX);
-            } else if (x, y) > (h, v) {
-                set_fragments(x, y, -1);
-            }
-        }
-    }
+    set_states(&slides, &leaves, h, v);
     let count = with(|s| s.groups[h][v].len() as i32);
-    let f = match f {
-        Some(f) => f.clamp(-1, count - 1),
-        None if (h, v) < prev && events => count - 1,
-        None => -1,
-    };
+    let f = arrival_step(f, count, (h, v) < prev && events);
     with(|s| {
         s.h = h;
         s.v = v;
@@ -454,14 +437,53 @@ pub fn show(h: usize, v: usize, f: Option<i32>, events: bool) {
     if events && (h, v) != prev {
         emit(Ev::SlideChanged { previous: Some(&previous) });
     } else if events && f != prev_f {
-        // same slide, another step (synchronised window, address): as so many clicks, one group at a
-        // time (terminal, animated code, diagrams)
-        let groups = with(|s| s.groups[h][v].clone());
-        if f > prev_f {
-            ((prev_f + 1)..=f).for_each(|i| emit(Ev::FragmentShown(&groups[i as usize])));
-        } else {
-            ((f + 1)..=prev_f).rev().for_each(|i| emit(Ev::FragmentHidden(&groups[i as usize])));
+        announce_steps(h, v, prev_f, f);
+    }
+}
+
+/// Past, present or future, hidden beyond the view distance: every slide and vertical slide once
+/// (h, v) is the current one; the steps of the slides before it all visible, after it hidden
+fn set_states(slides: &[Element], leaves: &[Vec<Element>], h: usize, v: usize) {
+    let view = with(|s| s.view_distance);
+    for (x, slide) in slides.iter().enumerate() {
+        set_state(slide, state_of(x, h));
+        let _ = slide.set_attribute("aria-hidden", if x == h { "false" } else { "true" });
+        style(slide, "display", if x.abs_diff(h) < view { "block" } else { "none" });
+        let stack = leaves[x].len() > 1;
+        for (y, leaf) in leaves[x].iter().enumerate() {
+            if stack {
+                if x == h {
+                    set_state(leaf, state_of(y, v));
+                }
+                style(leaf, "display", if distance(x, y, h, v) < view { "block" } else { "none" });
+            }
+            if (x, y) < (h, v) {
+                set_fragments(x, y, i32::MAX);
+            } else if (x, y) > (h, v) {
+                set_fragments(x, y, -1);
+            }
         }
+    }
+}
+
+/// The step shown on arrival on a slide of `count` groups: the one asked for, kept within the
+/// slide; otherwise the last one coming `back` from a later slide, none coming forward
+pub fn arrival_step(f: Option<i32>, count: i32, back: bool) -> i32 {
+    match f {
+        Some(f) => f.clamp(-1, count - 1),
+        None if back => count - 1,
+        None => -1,
+    }
+}
+
+/// Same slide, another step (synchronised window, address): as so many clicks, one group at a
+/// time (terminal, animated code, diagrams)
+fn announce_steps(h: usize, v: usize, from: i32, to: i32) {
+    let groups = with(|s| s.groups[h][v].clone());
+    if to > from {
+        ((from + 1)..=to).for_each(|i| emit(Ev::FragmentShown(&groups[i as usize])));
+    } else {
+        ((to + 1)..=from).rev().for_each(|i| emit(Ev::FragmentHidden(&groups[i as usize])));
     }
 }
 
@@ -722,12 +744,7 @@ fn bind_window() {
 /// Keyboard: plugins first (interceptions, shortcuts), then navigation
 fn bind_keys() {
     dom::on::<KeyboardEvent>(&dom::document(), "keydown", |e| {
-        if e.alt_key() || e.ctrl_key() || e.meta_key() {
-            return;
-        }
-        if let Some(t) = e.target().and_then(|t| t.dyn_into::<Element>().ok())
-            && (matches!(t.tag_name().as_str(), "INPUT" | "TEXTAREA") || t.has_attribute("contenteditable"))
-        {
+        if e.alt_key() || e.ctrl_key() || e.meta_key() || typing(&e) {
             return;
         }
         let interceptors = with(|s| s.interceptors.clone());
@@ -737,40 +754,93 @@ fn bind_keys() {
         }
         let key = e.key();
         // Scroll view: the arrows, Space and the page keys scroll the page
-        if scrolling() && matches!(key.as_str(), " " | "PageDown" | "PageUp" | "ArrowRight" | "ArrowLeft" | "ArrowDown" | "ArrowUp" | "Home" | "End") {
+        if scrolling() && SCROLL_KEYS.contains(&key.as_str()) {
             return;
         }
-        match key.as_str() {
-            // the arrows follow reading order; Page↓ Page↑ jump from one column to another
-            // (a chapter in 2D navigation); H J K L: left, down, up, right
-            " " if e.shift_key() => prev(),
-            "ArrowRight" | " " | "n" | "N" => next(),
-            "ArrowLeft" | "p" | "P" => prev(),
-            "PageDown" => next_column(),
-            "PageUp" => previous_column(),
-            "l" | "L" => right(),
-            "h" | "H" => left(),
-            "ArrowDown" | "j" | "J" => down(),
-            "ArrowUp" | "k" | "K" => up(),
-            "Home" => goto(0),
-            "End" => goto(with(|s| s.slides.len()) - 1),
-            "f" | "F" => fullscreen(),
-            _ => {
+        let handled = match key_move(&key, e.shift_key()) {
+            Some(m) => {
+                m.run();
+                true
+            }
+            None => {
                 let handlers: Vec<KeyHandler> =
                     with(|s| s.keys.iter().filter(|(k, _)| *k == key.to_lowercase()).map(|(_, f)| f.clone()).collect());
-                if handlers.is_empty() {
-                    return;
-                }
-                for f in handlers {
-                    f();
-                }
+                handlers.iter().for_each(|f| f());
+                !handlers.is_empty()
             }
+        };
+        if handled {
+            e.prevent_default();
         }
-        e.prevent_default();
     });
 }
 
-/// The wheel moves forward and back (`"mouseWheel": true`)
+/// The keys the scroll view leaves to the browser, to scroll the page
+const SCROLL_KEYS: [&str; 9] =
+    [" ", "PageDown", "PageUp", "ArrowRight", "ArrowLeft", "ArrowDown", "ArrowUp", "Home", "End"];
+
+/// A key typed in a field (input, textarea, contenteditable) is the field's
+fn typing(e: &KeyboardEvent) -> bool {
+    e.target()
+        .and_then(|t| t.dyn_into::<Element>().ok())
+        .is_some_and(|t| matches!(t.tag_name().as_str(), "INPUT" | "TEXTAREA") || t.has_attribute("contenteditable"))
+}
+
+/// What a navigation key does
+#[derive(Debug, PartialEq)]
+pub enum Move {
+    Next,
+    Prev,
+    NextColumn,
+    PreviousColumn,
+    Right,
+    Left,
+    Down,
+    Up,
+    First,
+    Last,
+    Fullscreen,
+}
+
+/// The move of a key: the arrows follow reading order; Page↓ Page↑ jump from one column to
+/// another (a chapter in 2D navigation); H J K L: left, down, up, right
+pub fn key_move(key: &str, shift: bool) -> Option<Move> {
+    Some(match key {
+        " " if shift => Move::Prev,
+        "ArrowRight" | " " | "n" | "N" => Move::Next,
+        "ArrowLeft" | "p" | "P" => Move::Prev,
+        "PageDown" => Move::NextColumn,
+        "PageUp" => Move::PreviousColumn,
+        "l" | "L" => Move::Right,
+        "h" | "H" => Move::Left,
+        "ArrowDown" | "j" | "J" => Move::Down,
+        "ArrowUp" | "k" | "K" => Move::Up,
+        "Home" => Move::First,
+        "End" => Move::Last,
+        "f" | "F" => Move::Fullscreen,
+        _ => return None,
+    })
+}
+
+impl Move {
+    fn run(&self) {
+        match self {
+            Move::Next => next(),
+            Move::Prev => prev(),
+            Move::NextColumn => next_column(),
+            Move::PreviousColumn => previous_column(),
+            Move::Right => right(),
+            Move::Left => left(),
+            Move::Down => down(),
+            Move::Up => up(),
+            Move::First => goto(0),
+            Move::Last => goto(with(|s| s.slides.len()) - 1),
+            Move::Fullscreen => fullscreen(),
+        }
+    }
+}
+
+/// The wheel moves forward and back (`mouseWheel: true`)
 fn bind_wheel() {
     let last = Rc::new(RefCell::new(0.0));
     dom::on::<web_sys::WheelEvent>(&dom::document(), "wheel", move |e| {
@@ -863,4 +933,44 @@ pub fn fragment_counts(slide: &Element) -> (usize, usize) {
     });
     let shown = groups.iter().filter(|g| g.first().is_some_and(|f| has(f, "visible"))).count();
     (groups.len(), shown)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn keys() {
+        assert_eq!(key_move(" ", false), Some(Move::Next));
+        assert_eq!(key_move(" ", true), Some(Move::Prev));
+        assert_eq!(key_move("ArrowRight", true), Some(Move::Next));
+        assert_eq!(key_move("PageDown", false), Some(Move::NextColumn));
+        assert_eq!(key_move("PageUp", false), Some(Move::PreviousColumn));
+        assert_eq!(key_move("H", false), Some(Move::Left));
+        assert_eq!(key_move("l", false), Some(Move::Right));
+        assert_eq!(key_move("j", false), Some(Move::Down));
+        assert_eq!(key_move("ArrowUp", false), Some(Move::Up));
+        assert_eq!(key_move("Home", false), Some(Move::First));
+        assert_eq!(key_move("End", false), Some(Move::Last));
+        assert_eq!(key_move("f", false), Some(Move::Fullscreen));
+        assert_eq!(key_move("s", false), None);
+        assert!(SCROLL_KEYS.contains(&"End") && !SCROLL_KEYS.contains(&"f"));
+    }
+
+    #[test]
+    fn arrival() {
+        assert_eq!(arrival_step(Some(7), 3, false), 2);
+        assert_eq!(arrival_step(Some(-5), 3, true), -1);
+        assert_eq!(arrival_step(None, 3, true), 2);
+        assert_eq!(arrival_step(None, 3, false), -1);
+        assert_eq!(arrival_step(None, 0, true), -1);
+    }
+
+    #[test]
+    fn states_and_distance() {
+        assert_eq!([0, 1, 2].map(|i| state_of(i, 1)), ["past", "present", "future"]);
+        assert_eq!(distance(2, 3, 2, 1), 2);
+        // another column: its own vertical position counts from the top
+        assert_eq!(distance(4, 3, 2, 1), 5);
+    }
 }

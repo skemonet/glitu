@@ -11,10 +11,16 @@ use serde_json::json;
 use crate::browser::{self, Browser};
 use crate::raster;
 
-/// Goes through the presentation click by click; writes NN_<slide>-<click>.png and index.json
+/// Goes through the presentation click by click; writes `NN_<slide>-<click>.png` and `index.json`
 pub fn capture(url: &str, out: &Path) -> Result<Vec<String>, String> {
     clear_captures(out)?;
-    let mut b = Browser::launch(&crate::chromium::browser(false, false)?, 9343 + (std::process::id() % 200) as u16, 1280, 720, 1.0)?;
+    let mut b = Browser::launch(
+        &crate::chromium::browser(false, false)?,
+        9343 + (std::process::id() % 200) as u16,
+        1280,
+        720,
+        1.0,
+    )?;
     let base = url.split('#').next().unwrap_or(url);
     b.send("Page.navigate", json!({ "url": format!("{base}#/0") }))?;
     sleep(Duration::from_millis(2500));
@@ -80,11 +86,7 @@ fn diff(a: &raster::Rgb, b: &raster::Rgb) -> Diff {
     for (p, q) in a.pixels.chunks(3).zip(b.pixels.chunks(3)) {
         let off = p.iter().zip(q).any(|(u, v)| u.abs_diff(*v) > TOLERANCE);
         n += off as usize;
-        if off {
-            image.extend([255, 0, 0])
-        } else {
-            image.extend(p.iter().map(|c| c / 4))
-        }
+        if off { image.extend([255, 0, 0]) } else { image.extend(p.iter().map(|c| c / 4)) }
     }
     Diff { percent: 100.0 * n as f64 / (width * height) as f64, image, width, height }
 }
@@ -93,7 +95,8 @@ fn diff(a: &raster::Rgb, b: &raster::Rgb) -> Diff {
 pub fn check(url: &str, reference: &Path, limit: f64) -> Result<bool, String> {
     let cur = std::env::temp_dir().join("glitu-oracle-render");
     let names = capture(url, &cur)?;
-    let index = fs::read_to_string(reference.join("index.json")).map_err(|e| format!("{}: {e}", reference.display()))?;
+    let index =
+        fs::read_to_string(reference.join("index.json")).map_err(|e| format!("{}: {e}", reference.display()))?;
     let refs: Vec<String> = serde_json::from_str(&index).map_err(|e| e.to_string())?;
     let mut ok = refs.len() == names.len();
     if !ok {

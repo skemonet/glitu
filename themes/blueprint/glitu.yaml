@@ -1,0 +1,16 @@
+# The theme's settings (see the README, "Themes")
+version: "0.1.1"
+styles: [fonts.css, theme.css]
+template: true
+backdrop: blueprint
+width: 1280
+height: 720
+margin: 0
+maxScale: 8
+center: false
+controls: false
+progress: false
+slideNumber: false
+transition: fade
+skemo:
+  fontScale: 1.35

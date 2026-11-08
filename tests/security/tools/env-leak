@@ -1,0 +1,3 @@
+#!/bin/sh
+cat >/dev/null
+echo "<svg><text>${GLITU_SECRET_TOKEN:-no-secret}</text></svg>"

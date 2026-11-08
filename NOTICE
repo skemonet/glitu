@@ -1,0 +1,56 @@
+glitu
+Copyright the glitu contributors.
+Licensed under the MIT license or the Apache License 2.0, at your option (LICENSE-MIT,
+LICENSE-APACHE).
+
+glitu includes, or is built with, the following third-party works. Each one keeps its own licence;
+the full texts are next to the files, or in the source of the dependency.
+
+Files in this repository
+------------------------
+
+reveal.js 5.1.0 — styles (crates/glitu/assets/vendor/reveal.min.css) and the "black" and "white"
+themes (themes/black, themes/white)
+  Copyright (C) 2011-2024 Hakim El Hattab, https://hakim.se
+  MIT license: themes/black/LICENSE-reveal.js
+
+highlight.js — the Zenburn colour scheme (themes/black/zenburn.css, themes/white/zenburn.css)
+  BSD 3-Clause license: themes/black/LICENSE-highlight.js
+
+Fonts of the themes (themes/*/fonts/), each under the SIL Open Font License 1.1, its text next to
+the font files:
+  Inter                 themes/crystal/fonts/LICENSE-inter
+  JetBrains Mono        themes/crystal/fonts/LICENSE-jetbrains-mono
+  Lato                  themes/crystal/fonts/LICENSE-lato
+  IBM Plex Sans         themes/*/fonts/LICENSE-ibm-plex-sans
+  IBM Plex Mono         themes/*/fonts/LICENSE-ibm-plex-mono
+  Familjen Grotesk      themes/*/fonts/LICENSE-familjen-grotesk
+
+Lato (crates/glitu-play/fonts/Lato-Regular.ttf), the text of glitu-play's speaker view, and
+IBM Plex Mono (crates/glitu-play/fonts/IBMPlexMono-Regular.ttf), the text of its backdrops
+  SIL Open Font License 1.1: crates/glitu-play/fonts/LICENSE-lato, LICENSE-ibm-plex-mono
+
+Latin Modern Math (crates/glitu/assets/math/latinmodern-math.woff2), the font of the formulas
+  GUST Font License: crates/glitu/assets/math/LICENSE-latin-modern-math.txt
+
+The images of the demonstrations (tests/features/img/office.jpg, tests/compat/img/skyline.jpg)
+were drawn for glitu and are under its licence.
+
+Dependencies built into the binary
+----------------------------------
+
+syntect (https://github.com/trishume/syntect), the code highlighter — MIT; two-face
+(https://codeberg.org/CosmicHarper/two-face), the grammars it reads — MIT OR Apache-2.0. The
+grammars come from the bat project, each under its own licence (MIT or Apache-2.0): their texts
+are in NOTICE-grammars.md.
+
+The other Rust crates (listed in Cargo.lock) are under permissive licences: MIT, Apache-2.0,
+BSD, ISC, Zlib or Unicode-3.0; `cargo deny check licenses` verifies it (deny.toml).
+
+Programs used, not included
+---------------------------
+
+The diagrams are rendered by programs of the user's machine, which glitu runs and does not
+include: skemo (https://skemo.net, MIT OR Apache-2.0), Graphviz, D2, mermaid-cli. For the
+mermaid.chromium engine, glitu downloads mermaid.js (https://github.com/mermaid-js/mermaid, MIT
+license), a pinned version checked by its SHA-256, into the user's cache.

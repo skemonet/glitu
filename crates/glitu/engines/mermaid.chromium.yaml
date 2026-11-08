@@ -1,0 +1,9 @@
+# Mermaid diagrams, rendered by mermaid.js in the browser glitu drives for the exports (no Node)
+id: mermaid.chromium
+fences: [mermaid]
+tool: chromium
+install: https://glitu.net/docs/export
+runner: chromium
+options:
+  theme: { type: choice, values: [default, neutral, dark, forest, base] }
+safe-mode: "pinned mermaid.js (SHA-256), securityLevel strict, htmlLabels off, network blocked"

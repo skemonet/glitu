@@ -15,7 +15,7 @@ diagram(dir="right")
 
   zone#glitu Repository glitu                                       @1
     card#cli.crate(icon="terminal") glitu                           @1
-      | build · serve · export
+      | build · server
       to(core)
       to(files).dashed exports                                      @4
     card#core.crate(icon="cpu") glitu-core                          @2

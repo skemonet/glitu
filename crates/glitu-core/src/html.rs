@@ -2,8 +2,8 @@
 
 use pulldown_cmark::{Event, Options, Parser, html::push_html};
 
-use crate::math;
 use crate::markdown::{Stepped, marker};
+use crate::math;
 use crate::render::appear;
 
 pub fn esc(s: &str) -> String {
@@ -57,7 +57,7 @@ pub fn inline(md: &str) -> String {
 }
 
 /// Hand-drawn marks around a text (`[text]{.circle}`), like Slidev's `v-mark`
-const MARKS: [&str; 5] = ["underline", "circle", "box", "highlight", "strike"];
+pub(crate) const MARKS: [&str; 5] = ["underline", "circle", "box", "highlight", "strike"];
 
 /// `[text]{.class @2}` → `<span>`: the text appears at click 2; with a mark (`.circle`,
 /// `.underline`, `.box`, `.highlight`, `.strike`), the text is there from the start and the mark
@@ -96,7 +96,7 @@ fn brackets(md: &str) -> String {
             continue;
         };
         out += &rest[..open];
-        out += &span_html(text, attrs);
+        out += &span_html(text, attrs, text);
         rest = &rest[len..];
     }
     out + rest
@@ -129,7 +129,9 @@ fn icons(md: &str) -> String {
     out
 }
 
-fn span_html(text: &str, attrs: &str) -> String {
+/// `text` with the attributes of a `[text]{…}`; `seed`: what the hand-drawn stroke of its mark
+/// is drawn from (the same seed, the same stroke)
+pub(crate) fn span_html(text: &str, attrs: &str, seed: &str) -> String {
     let mut classes: Vec<&str> = Vec::new();
     let mut step = Stepped::default();
     let mut id = String::new();
@@ -153,7 +155,7 @@ fn span_html(text: &str, attrs: &str) -> String {
     let trigger =
         if step.step > 0 { format!("<span class=\"fragment mark-on\"{}></span>", a.attrs) } else { String::new() };
     let others: String = classes.iter().filter(|c| **c != mark).map(|c| format!(" {c}")).collect();
-    format!("<span class=\"mark mark-{mark}{others}\"{id}{}>{trigger}{text}{}</span>", a.fx, mark_svg(mark, text))
+    format!("<span class=\"mark mark-{mark}{others}\"{id}{}>{trigger}{text}{}</span>", a.fx, mark_svg(mark, seed))
 }
 
 /// A small deterministic random generator seeded by a text, so that the same text always gets
@@ -259,7 +261,10 @@ mod tests {
             "see <i class=\"icon\" data-icon=\"mdi:github\"></i> or <code>:a:b:</code>"
         );
         assert_eq!(inline("at 10:30:45 : end"), "at 10:30:45\u{a0}: end");
-        assert_eq!(inline("a [word]{@2} here"), "a <span class=\"fragment\" data-fragment-index=\"2\">word</span> here");
+        assert_eq!(
+            inline("a [word]{@2} here"),
+            "a <span class=\"fragment\" data-fragment-index=\"2\">word</span> here"
+        );
         assert_eq!(inline("`[a]{@1}` and [link](x)"), "<code>[a]{@1}</code> and <a href=\"x\">link</a>");
         assert_eq!(inline("[a]{#k .big}"), "<span class=\"big\" data-id=\"k\">a</span>");
         assert_eq!(inline("[plain]{}"), "<span>plain</span>");

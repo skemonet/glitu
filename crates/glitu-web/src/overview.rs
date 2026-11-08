@@ -47,12 +47,19 @@ fn backgrounds() -> Option<Element> {
 /// Centres the mosaic on the current slide, at a readable scale
 fn update() {
     let win = dom::window();
-    let (iw, ih) = (win.inner_width().ok().and_then(|v| v.as_f64()).unwrap_or(1.0), win.inner_height().ok().and_then(|v| v.as_f64()).unwrap_or(1.0));
+    let (iw, ih) = (
+        win.inner_width().ok().and_then(|v| v.as_f64()).unwrap_or(1.0),
+        win.inner_height().ok().and_then(|v| v.as_f64()).unwrap_or(1.0),
+    );
     let vmin = iw.min(ih).max(1.0);
     let scale = (vmin / 5.0).max(150.0) / vmin;
     let (h, v, _) = engine::position();
     let (w, hh) = cell();
-    engine::set_extra_transform(&format!("scale({scale}) translateX({}px) translateY({}px)", -(h as f64) * w, -(v as f64) * hh));
+    engine::set_extra_transform(&format!(
+        "scale({scale}) translateX({}px) translateY({}px)",
+        -(h as f64) * w,
+        -(v as f64) * hh
+    ));
 }
 
 fn activate() {
@@ -165,7 +172,13 @@ pub fn install() {
         if !active() {
             return;
         }
-        let Some(section) = e.target().and_then(|t| wasm_bindgen::JsCast::dyn_into::<Element>(t).ok()).and_then(|t| closest(&t, "section:not(.stack)")) else { return };
+        let Some(section) = e
+            .target()
+            .and_then(|t| wasm_bindgen::JsCast::dyn_into::<Element>(t).ok())
+            .and_then(|t| closest(&t, "section:not(.stack)"))
+        else {
+            return;
+        };
         e.prevent_default();
         let index = |k: &str| data(&section, k).and_then(|v| v.parse().ok()).unwrap_or(0);
         engine::show(index("index-h"), index("index-v"), Some(-1), true);

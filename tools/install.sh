@@ -19,6 +19,7 @@ case "$(uname -s)-$(uname -m)" in
   Linux-x86_64) asset=glitu-linux-x86_64 ;;
   Linux-aarch64 | Linux-arm64) asset=glitu-linux-arm64 ;;
   Darwin-arm64) asset=glitu-macos-arm64 ;;
+  Darwin-x86_64) asset=glitu-macos-x86_64 ;;
   *) die "no binary for $(uname -s) $(uname -m) (Windows: download glitu-windows-x86_64.exe from the releases page)" ;;
 esac
 

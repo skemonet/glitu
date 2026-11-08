@@ -1,0 +1,20 @@
+# skemo diagrams, rendered by the skemo command line (https://skemo.net)
+id: skemo.skemo
+fences: [skemo]
+tool: skemo
+install: https://skemo.net/install
+command: ["{tool}", render, "-", -o, "-", --format, svg, --transparent, --deny-warnings, "{features}", "{stylesheets}", "{options}", "{args}"]
+version: ["{tool}", --version]
+# what this skemo can do (requirements SK-2 to SK-6): its files read only in the presentation's
+# folder, its messages in JSON; with `highlights`, glitu leaves @3:halo to skemo
+probe: ["{tool}", capabilities, --format, json]
+when:
+  root: [--root, "{root}"]
+  diagnostics-json: [--diagnostics, json]
+# the theme's skemo.css, then the presentation's, given with --css
+stylesheet: { file: skemo.css, flag: --css }
+set-env: { SKEMO_LANG: en, NO_COLOR: "1" }
+options:
+  font-scale: { type: number, min: 0.05, max: 4, flag: --font-scale }
+capabilities: [steps, ids, frieze]
+safe-mode: reads only the images the diagram names, inside the presentation's folder

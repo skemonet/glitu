@@ -12,14 +12,21 @@ use std::collections::BTreeMap;
 pub use steps::{Appear, appear, effect_class};
 
 use crate::html::{esc, inline};
-use crate::markdown::{Block, Deck, Head, Slide, Stepped};
+use crate::markdown::{Block, Deck, Head, Media, Slide, Stepped};
 use steps::{fx_steps, notes_html, replacing, skemo_steps, stepped_html};
 use visual::{Seen, visual_html};
 
 /// What rendering asks of the rest of the pipeline
 pub trait Assets {
-    /// skemo source → SVG; `font_scale`: the diagram's own size factor
-    fn skemo(&mut self, source: &str, font_scale: Option<f64>) -> Result<String, String>;
+    /// The SVG of a diagram block (` ```skemo `, ` ```mermaid `…), rendered by the engine of its
+    /// language with the block's attributes; `None`: no engine renders this fence (a code block)
+    fn diagram(&mut self, lang: &str, source: &str, attrs: &BTreeMap<String, String>)
+    -> Option<Result<String, String>>;
+    /// Can the engine of `lang` do this itself? (`highlights`: skemo writes `@3:halo` into its
+    /// SVG, glitu then leaves the markers in the source)
+    fn diagram_can(&mut self, _lang: &str, _capability: &str) -> bool {
+        false
+    }
     /// asciicast recording (path relative to the markdown) → text
     fn cast(&mut self, src: &str) -> Result<String, String>;
 }
@@ -57,7 +64,7 @@ pub fn render(deck: &Deck, assets: &mut dyn Assets) -> Result<Rendered, String> 
 }
 
 /// Timing marks on the `<section>` of a slide: its rank in the markdown (`data-slide`, for the
-/// rehearsals of `glitu serve`), its planned duration in seconds and the number of rehearsals it
+/// rehearsals of `glitu server`), its planned duration in seconds and the number of rehearsals it
 /// averages, if it was timed (`## Title ⏳95🏃3`)
 fn timed(html: &str, i: usize, head: &Head) -> String {
     let mut attrs = format!(" data-slide=\"{i}\"");
@@ -200,8 +207,11 @@ impl Renderer<'_> {
             Some(l) if l < right => (&blocks[..l], &blocks[l + 1..right]),
             _ => (&blocks[..0], &blocks[..right]),
         };
-        let top =
-            if top.is_empty() { String::new() } else { format!("<div class=\"cols-header\">{}</div>", self.column(top)?) };
+        let top = if top.is_empty() {
+            String::new()
+        } else {
+            format!("<div class=\"cols-header\">{}</div>", self.column(top)?)
+        };
         let left = self.column(left)?;
         let right = self.column(blocks.get(right + 1..).unwrap_or(&[]))?;
         let steps = skemo_steps(&format!("{left}{right}"));
@@ -214,24 +224,32 @@ impl Renderer<'_> {
     /// `{.image-left}`, `{.image-right}`: an image on one half of the slide (`image="…"`,
     /// otherwise the first one of the slide), the text on the other; `{.iframe url="…"}`: a web
     /// page, over the whole slide, or beside the text (`{.iframe-left}`, `{.iframe-right}`)
-    fn beside(&mut self, layout: &str, header: &str, slide: &Slide, blocks: &[&Block], aside: &str) -> Result<String, String> {
+    fn beside(
+        &mut self,
+        layout: &str,
+        header: &str,
+        slide: &Slide,
+        blocks: &[&Block],
+        aside: &str,
+    ) -> Result<String, String> {
         let attr = |k: &str| slide.head.attrs.get(k).cloned();
         let iframe = layout.starts_with("iframe");
         let media = if iframe {
-            let url = attr("url").ok_or_else(|| format!("slide \"{}\": {{.{layout}}} needs url=\"…\"", slide.head.text))?;
+            let url =
+                attr("url").ok_or_else(|| format!("slide \"{}\": {{.{layout}}} needs url=\"…\"", slide.head.text))?;
             format!("<iframe class=\"layout-media\" data-src=\"{}\" allowfullscreen></iframe>", esc(&url))
         } else {
             let image = || {
                 blocks.iter().find_map(|b| match b {
-                    Block::Image { src, alt } => Some((src.clone(), alt.clone())),
+                    Block::Image(m) => Some(m.clone()),
                     _ => None,
                 })
             };
-            let (src, alt) = attr("image")
-                .map(|s| (s, String::new()))
+            let m = attr("image")
+                .map(|s| Media::at(s, ""))
                 .or_else(image)
                 .ok_or_else(|| format!("slide \"{}\": {{.{layout}}} needs an image", slide.head.text))?;
-            format!("<img class=\"layout-media\" src=\"{}\" alt=\"{}\">", esc(&src), esc(&alt))
+            visual::media_html(&m, "layout-media")?
         };
         // The image taken from the slide is not repeated in the text
         let from_slide = !iframe && attr("image").is_none();
@@ -327,7 +345,11 @@ fn with_settings(section: &str, head: &Head) -> String {
             || bg.starts_with("rgb")
             || bg.starts_with("hsl")
             || bg.chars().all(|c| c.is_ascii_alphabetic());
-        style.push(if color { format!("background:{bg}") } else { format!("background:url('{bg}') center/cover no-repeat") });
+        style.push(if color {
+            format!("background:{bg}")
+        } else {
+            format!("background:url('{bg}') center/cover no-repeat")
+        });
     }
     if let Some(z) = head.attrs.get("zoom").and_then(|z| z.parse::<f64>().ok()) {
         attrs += " data-zoom";
@@ -360,7 +382,8 @@ fn title_slide_html(layout: &str, title: &str, blocks: &[&Block], aside: &str) -
         .collect();
     let inner = match layout {
         "cover" | "intro" => {
-            let mut s = format!("<div class=\"cover\" data-backdrop=\"{BACKDROP_ANIMATED}\"><h1>{}</h1>", inline(title));
+            let mut s =
+                format!("<div class=\"cover\" data-backdrop=\"{BACKDROP_ANIMATED}\"><h1>{}</h1>", inline(title));
             for (i, p) in paras.iter().enumerate() {
                 s += &format!("<p class=\"{}\">{p}</p>", if i == 0 { "subtitle" } else { "byline" });
             }
@@ -529,8 +552,8 @@ mod tests {
     struct NoAssets;
 
     impl Assets for NoAssets {
-        fn skemo(&mut self, _: &str, _: Option<f64>) -> Result<String, String> {
-            Ok("<svg data-step=\"2\"></svg>".into())
+        fn diagram(&mut self, lang: &str, _: &str, _: &BTreeMap<String, String>) -> Option<Result<String, String>> {
+            (lang == "skemo").then(|| Ok("<svg data-step=\"2\"></svg>".into()))
         }
         fn cast(&mut self, _: &str) -> Result<String, String> {
             unreachable!()
@@ -546,11 +569,10 @@ mod tests {
         let slides = [(false, "intro"), (true, "ch1"), (false, "a"), (false, "b"), (true, "ch2")]
             .map(|(c, s)| (c, s.to_string()))
             .to_vec();
-        assert_eq!(arrange(Some("cover".to_string()), slides, true), [
-            vec!["cover", "intro"],
-            vec!["ch1", "a", "b"],
-            vec!["ch2"]
-        ]);
+        assert_eq!(
+            arrange(Some("cover".to_string()), slides, true),
+            [vec!["cover", "intro"], vec!["ch1", "a", "b"], vec!["ch2"]]
+        );
         let deck = html("---\ntitle: T\nnavigation: 2d\n---\n\n# C\n\n## S\n\n- a\n");
         assert_eq!(deck.matches("<section>\n").count(), 1, "{deck}");
     }
@@ -571,7 +593,11 @@ mod tests {
         assert!(deck.contains("<div class=\"cols-header\"><p>top</p></div><div class=\"col\"><p>left</p></div><div class=\"col\"><p>right</p></div>"), "{deck}");
         let deck = html("## T {.cover}\n\nsub\n\nby\n\n## E {.end}\n\nbye\n");
         assert!(deck.contains("<h1>T</h1><p class=\"subtitle\">sub</p><p class=\"byline\">by</p>"));
-        assert!(deck.contains("class=\"layout-end\"><div class=\"chapter\" data-backdrop=\"animated\"><h2>E</h2><p>bye</p>"));
+        assert!(
+            deck.contains(
+                "class=\"layout-end\"><div class=\"chapter\" data-backdrop=\"animated\"><h2>E</h2><p>bye</p>"
+            )
+        );
     }
 
     #[test]
@@ -600,9 +626,15 @@ mod tests {
 
     #[test]
     fn text_panel_steps_and_captions() {
-        let deck = html("## S\n\n### A\n\n- a\n\n### B @1\n\n- b\n\n```skemo\ncard#a A\n```\n\nNote: say [click] more\n");
-        assert!(deck.contains("<div class=\"panel-steps\"><div class=\"fragment fade-out\" data-fragment-index=\"1\"><h2>A</h2>"));
-        assert!(deck.contains("<span class=\"fragment sk-step\" data-fragment-index=\"2\"></span><aside class=\"notes\">"), "{deck}");
+        let deck =
+            html("## S\n\n### A\n\n- a\n\n### B @1\n\n- b\n\n```skemo\ncard#a A\n```\n\nNote: say [click] more\n");
+        assert!(deck.contains(
+            "<div class=\"panel-steps\"><div class=\"fragment fade-out\" data-fragment-index=\"1\"><h2>A</h2>"
+        ));
+        assert!(
+            deck.contains("<span class=\"fragment sk-step\" data-fragment-index=\"2\"></span><aside class=\"notes\">"),
+            "{deck}"
+        );
         let deck = html("## L {.large}\n\n- one\n- two @1\n\n![x](x.png)\n");
         assert!(deck.contains("<div class=\"caption\"><div class=\"caption-steps\"><p class=\"fragment fade-out\""));
         let deck = html("## F\n\n![x](x.png)\n");

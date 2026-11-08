@@ -1,0 +1,10 @@
+# Graphviz diagrams (https://graphviz.org), rendered by dot
+id: graphviz.dot
+fences: [dot, graphviz]
+tool: dot
+install: https://graphviz.org/download/
+command: ["{tool}", -Tsvg, -Gbgcolor=transparent, "{options}", "{args}"]
+version: ["{tool}", -V]
+options:
+  layout: { type: choice, values: [dot, neato, fdp, sfdp, circo, twopi, osage, patchwork], flag: -K, attached: true }
+safe-mode: "no safe mode: image= and shapefile= read files (confined by glitu's sandbox)"

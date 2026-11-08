@@ -7,7 +7,7 @@ description: Write a presentation (talk, course, demo, pitch) as a glitu markdow
 
 glitu turns one markdown file, `slides.md`, into a presentation: a Rust/WebAssembly engine, themes
 with an animated backdrop, diagrams drawn by skemo, code windows, terminals, formulas. The deck is
-plain text: write it, check it with `glitu build`, preview it with `glitu serve`.
+plain text: write it, check it with `glitu build`, preview it with `glitu server`.
 
 ## Workflow
 
@@ -18,14 +18,15 @@ plain text: write it, check it with `glitu build`, preview it with `glitu serve`
    before writing every slide when the talk is long or the brief is vague.
 3. **Start from the sample** when there is no deck yet: `glitu init <dir>` writes `<dir>/slides.md`
    (overwrites nothing); keep its front matter, replace its content. `--theme <name>` picks a theme
-   (`glitu themes` lists them).
+   (`glitu init --list-themes` lists them).
 4. **Write the slides** (syntax below): one idea per slide, a visual on most of them, the clicks of
    the bullets in step with the clicks of the visual, notes for what is said rather than shown.
 5. **Check**: `glitu build slides.md -o /tmp/check.html` must succeed. It compiles every skemo
    diagram and reports errors with their line; fix them all. Then suggest
-   `glitu serve slides.md` (http://localhost:8000, reloads at every save; `S` opens the speaker view).
-6. **Deliver**: `glitu build` (one page, works offline), `glitu export -o talk.pdf` / `talk.pptx`
-   (needs a Chromium-based browser; `--download-browser` fetches one), `glitu export --format site`.
+   `glitu server slides.md` (http://localhost:8000, reloads at every save; `S` opens the speaker view).
+6. **Deliver**: `glitu build` (one page, works offline), `glitu build pdf -o talk.pdf`,
+   `glitu build pptx -o talk.pptx` (need a Chromium-based browser; `--download-browser` fetches
+   one), `glitu build site` (a static website).
 
 Always write in the user's language; the slides, notes and diagram labels too.
 
@@ -37,7 +38,7 @@ title: Kubernetes in practice        # the cover slide
 subtitle: Deploy and expose an application
 author: Ada Lovelace
 date: October 2026
-theme: crystal                       # glitu themes: crystal (default), constellation, paper, aurora, ascii, blueprint, iso, black, white
+theme: crystal                       # glitu init --list-themes: crystal (default), constellation, paper, aurora, ascii, blueprint, iso, black, white
 logo: img/logo.svg                   # optional: an image of img/ or public/, or an https:// URL
 ---
 
@@ -111,6 +112,16 @@ in the diagram or the code.
 
 ### Other content
 
+- Image: `![alt](img/x.png)`; attributes after it: `{@2}` (its click), `{caption="…"}`.
+- Caption or source under any visual: the title of an image `![](img/x.png "Source: [INSEE](https://insee.fr)")`,
+  or `caption="…"` on a block (` ```skemo caption="After the K8s docs" `).
+- Video: `![](img/demo.mp4){muted}` (`autoplay`, `loop`, `nocontrols`, `poster="img/x.jpg"`).
+  `pauses="0:12 1:05"`: plays when shown, stops at each time, the next click resumes it; each
+  pause takes one click (align the bullets: the 1st pause click is the video's click + 1).
+- Focus on a zone of an image or a video: `{focus="x y w h …; …"}`, x y w h in % of the picture
+  from its top-left corner; then a mark (`.circle` by default, `.box`, `.underline`, `.highlight`,
+  `.strike`, a colour), or `.spot` (the rest darkens), and clicks `@2`, `@2-3`, `@3:magnify`
+  (zoom). On a video, a time range instead of clicks: `0:12-0:18` (`magnify` to zoom).
 - Terminal: `![window title](casts/demo.cast)` (asciicast; one command per click).
 - Formula: `$E = mc^2$` inline, `$$…$$` as a block, a ` ```math ` block as the visual.
 - Big emojis: an ` ```emoji ` block, one per line, `😱 @1`.
@@ -134,7 +145,7 @@ diagram(dir="right")
     | text, code, diagrams
     to(tool)
   card#tool.tool(icon="terminal") glitu           @2
-    | build · serve · export
+    | build · server
     to(page) renders                              @3
   card#page.output(icon="presentation") Slides    @3
 ```

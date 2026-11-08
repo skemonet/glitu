@@ -36,7 +36,11 @@ fn draw(edge: &Element) {
     let Some(line) = dom::qs(edge, ".line") else { return };
     let Ok(geom) = line.clone().dyn_into::<SvgGeometryElement>() else { return };
     let len = geom.get_total_length();
-    let dashes = dom::window().get_computed_style(&line).ok().flatten().and_then(|c| c.get_property_value("stroke-dasharray").ok());
+    let dashes = dom::window()
+        .get_computed_style(&line)
+        .ok()
+        .flatten()
+        .and_then(|c| c.get_property_value("stroke-dasharray").ok());
     // a dashed or dotted line: a mask is drawn in its place, the pattern stays
     let target = match dashes.filter(|d| !d.is_empty() && d != "none") {
         Some(_) => match reveal_mask(&line) {
@@ -90,7 +94,10 @@ thread_local! {
 /// in place of the line (which keeps its dashes this way)
 fn reveal_mask(line: &Element) -> Option<Element> {
     let svg = line.closest("svg").ok().flatten()?;
-    let n = MASKS.with(|c| { c.set(c.get() + 1); c.get() });
+    let n = MASKS.with(|c| {
+        c.set(c.get() + 1);
+        c.get()
+    });
     let id = format!("sk-reveal-{n}");
     let ns = Some("http://www.w3.org/2000/svg");
     let mask = dom::document().create_element_ns(ns, "mask").ok()?;
@@ -181,7 +188,9 @@ fn glyph(t: &Element, i: usize, c: char) -> Option<(Element, f64, f64)> {
 
 /// The line `old` becomes `new`: a layer of characters laid in the card during the change
 fn morph(old: &Element, new: &Element) {
-    let (Some(ta), Some(tb), Some(card)) = (dom::qs(old, "text"), dom::qs(new, "text"), old.parent_element()) else { return };
+    let (Some(ta), Some(tb), Some(card)) = (dom::qs(old, "text"), dom::qs(new, "text"), old.parent_element()) else {
+        return;
+    };
     let a: Vec<char> = ta.text_content().unwrap_or_default().chars().collect();
     let b: Vec<char> = tb.text_content().unwrap_or_default().chars().collect();
     let pairs = kept(&a, &b);
@@ -220,7 +229,11 @@ fn morph(old: &Element, new: &Element) {
     let fading = gone.clone();
     dom::raf(move |_| {
         for g in &moves {
-            dom::style(g, "transition", &format!("transform {}ms ease, opacity {}ms ease {}ms", MORPH * 0.8, MORPH * 0.5, MORPH * 0.4));
+            dom::style(
+                g,
+                "transition",
+                &format!("transform {}ms ease, opacity {}ms ease {}ms", MORPH * 0.8, MORPH * 0.5, MORPH * 0.4),
+            );
             dom::style(g, "transform", "none");
             dom::style(g, "opacity", "1");
         }
@@ -270,7 +283,11 @@ fn update(slide: &Element, animate: bool) {
         if before != Some(s) {
             unmorph(&svg);
         }
-        let morphing = if animate && before.is_some_and(|b| b < s) && !crate::motion::reduced() { replaced(&svg, s) } else { Vec::new() };
+        let morphing = if animate && before.is_some_and(|b| b < s) && !crate::motion::reduced() {
+            replaced(&svg, s)
+        } else {
+            Vec::new()
+        };
         let after_arrow = if animate && !crate::motion::reduced() { cards_after_arrows(&svg, s) } else { Vec::new() };
         let mut any = false;
         for el in qsa(&svg, STEPPED) {
@@ -306,9 +323,7 @@ const DRAW_MS: f64 = 600.0;
 /// The cards appearing at step `s` with an arrow drawn between them and a card already shown:
 /// they wait for the arrow
 fn cards_after_arrows(svg: &Element, s: u32) -> Vec<Element> {
-    let shown = |id: &str| {
-        dom::qs(svg, &format!(".card[data-id=\"{id}\"]")).is_some_and(|c| !has(&c, "sk-off"))
-    };
+    let shown = |id: &str| dom::qs(svg, &format!(".card[data-id=\"{id}\"]")).is_some_and(|c| !has(&c, "sk-off"));
     let mut ids = Vec::new();
     for edge in qsa(svg, ".edge.sk-off[data-fx=\"draw\"]").into_iter().filter(|e| visible_at(e, s)) {
         let (Some(from), Some(to)) = (data(&edge, "from"), data(&edge, "to")) else { continue };

@@ -3,7 +3,7 @@
 //! The page (produced by `glitu build`) holds the slides in HTML; `start` animates them:
 //! navigation and steps (engine), theme (themes), skemo diagrams (skemo), replayed terminal
 //! (terminal), animated code (magic), animated slides (animate), speaker view (notes), remote (remote), drawing (draw), and what
-//! reveal.js offers when presenting: overview, black screen, go to a slide, help, media,
+//! reveal.js offers when presenting: overview, videos and focus zones (focus), black screen, go to a slide, help, media,
 //! automatic advance, zoom, PDF export.
 
 mod animate;
@@ -14,6 +14,7 @@ mod code;
 mod dom;
 mod draw;
 mod engine;
+mod focus;
 mod fx;
 mod help;
 mod jump;
@@ -33,7 +34,7 @@ mod zoom;
 
 use wasm_bindgen::prelude::*;
 
-/// Options passed by the page: settings of the theme (glitu.json), its name and its logo
+/// Options passed by the page: settings of the theme (glitu.yaml), its name and its logo
 #[wasm_bindgen]
 pub fn start(options: JsValue) {
     let get = |k: &str| js_sys::Reflect::get(&options, &JsValue::from_str(k)).ok().filter(|v| !v.is_undefined());
@@ -74,6 +75,7 @@ pub fn start(options: JsValue) {
     notes::install();
     terminal::install(&theme);
     media::install();
+    focus::install();
     autoslide::install();
     jump::install();
     zoom::install();

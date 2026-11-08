@@ -13,7 +13,6 @@ pub mod markdown;
 pub mod math;
 pub mod render;
 pub mod reveal_md;
-pub mod skemo;
 
 use std::collections::BTreeMap;
 
@@ -52,7 +51,7 @@ impl Theme {
     }
 
     /// The name the engine knows: the official theme's, otherwise the last segment of the address
-    /// (a third-party theme may give its own in its `glitu.json`)
+    /// (a third-party theme may give its own in its `glitu.yaml`)
     pub fn name(&self) -> &str {
         match self {
             Theme::Official { name, .. } => name,
@@ -106,12 +105,17 @@ mod tests {
 
     #[test]
     fn versions_are_pinned_or_left_to_the_latest() {
-        let official =
-            |name: &str, version: Option<&str>| Theme::Official { name: name.into(), version: version.map(String::from) };
+        let official = |name: &str, version: Option<&str>| Theme::Official {
+            name: name.into(),
+            version: version.map(String::from),
+        };
         assert_eq!(Theme::parse("crystal"), official("crystal", None));
         assert_eq!(Theme::parse("crystal:latest"), official("crystal", None));
         assert_eq!(Theme::parse("crystal:1.2.0"), official("crystal", Some("1.2.0")));
-        assert_eq!(Theme::parse("https://example.net/home/1.2.0/"), Theme::At("https://example.net/home/1.2.0/".into()));
+        assert_eq!(
+            Theme::parse("https://example.net/home/1.2.0/"),
+            Theme::At("https://example.net/home/1.2.0/".into())
+        );
         assert_eq!(Theme::parse("./home").name(), "home");
         assert_eq!(header("---\nglitu: 0.1.0\n---\n\n# A\n").glitu.as_deref(), Some("0.1.0"));
         assert_eq!(header("---\nglitu: latest\n---\n\n# A\n").glitu, None);
@@ -121,8 +125,13 @@ mod tests {
     fn compile_follows_the_syntax_of_the_presentation() {
         struct NoAssets;
         impl Assets for NoAssets {
-            fn skemo(&mut self, _: &str, _: Option<f64>) -> Result<String, String> {
-                unreachable!()
+            fn diagram(
+                &mut self,
+                _: &str,
+                _: &str,
+                _: &std::collections::BTreeMap<String, String>,
+            ) -> Option<Result<String, String>> {
+                None
             }
             fn cast(&mut self, _: &str) -> Result<String, String> {
                 unreachable!()

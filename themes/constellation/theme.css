@@ -1,7 +1,7 @@
 /* ==========================================================================
    "constellation" theme on the shared template (glitu/template.css): palette, fonts, veils.
    Constellation: drifting points, very thin links, a few twinkling stars, on night blue.
-   Animated "constellation" backdrop (glitu.json); text panel in a slight gradient.
+   Animated "constellation" backdrop (glitu.yaml); text panel in a slight gradient.
    ========================================================================== */
 :root {
   --font: "IBM Plex Sans", "Segoe UI", "Noto Color Emoji", "Apple Color Emoji", "Segoe UI Emoji", system-ui, sans-serif;

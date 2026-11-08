@@ -26,6 +26,8 @@ logo: img/glitu-logo.svg
 
 <!-- include: chapters/code.md -->
 
+<!-- include: chapters/media.md -->
+
 ## Thank you {.end}
 
 github.com/skemonet/glitu

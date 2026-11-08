@@ -3,7 +3,7 @@
 //! of every slide. The keys of the presentation work there too.
 //!
 //! The timer (see `timing`) is started and stopped by hand; on timed slides (`## Title ⏳95🏃3`)
-//! it gives the lead or the delay on the schedule. Under `glitu serve`, it times rehearsals: from
+//! it gives the lead or the delay on the schedule. Under `glitu server`, it times rehearsals: from
 //! the start or from the current slide, a slide started again after a false start, and at the
 //! end the measure of each slide is averaged with the former ones, replaces them or is skipped;
 //! the server writes them in the markdown. The timer survives a reload of the page and the
@@ -17,7 +17,9 @@ use std::cell::RefCell;
 use std::collections::BTreeMap;
 
 use wasm_bindgen::{JsCast, JsValue};
-use web_sys::{Document, Element, HtmlIFrameElement, KeyboardEvent, KeyboardEventInit, MouseEvent, PointerEvent, Window};
+use web_sys::{
+    Document, Element, HtmlIFrameElement, KeyboardEvent, KeyboardEventInit, MouseEvent, PointerEvent, Window,
+};
 
 use crate::dom::{self, qs, qsa};
 use crate::engine::{self, Ev};
@@ -104,7 +106,7 @@ fn save(p: &Presenter, now: f64) {
     }
 }
 
-/// Rehearsals are recorded under `glitu serve` only (it writes the markdown)
+/// Rehearsals are recorded under `glitu server` only (it writes the markdown)
 fn served() -> bool {
     dom::document().query_selector("meta[name=glitu-rehearse]").ok().flatten().is_some()
 }
@@ -247,7 +249,9 @@ fn send(doc: &Document, id: &str, ahead: bool) {
     let Some(target) = frame.content_window() else { return };
     let (h, v, f) = engine::position();
     let msg = js_sys::Object::new();
-    for (k, val) in [("glitu", JsValue::from("show")), ("h", h.into()), ("v", v.into()), ("f", f.into()), ("ahead", ahead.into())] {
+    for (k, val) in
+        [("glitu", JsValue::from("show")), ("h", h.into()), ("v", v.into()), ("f", f.into()), ("ahead", ahead.into())]
+    {
         let _ = js_sys::Reflect::set(&msg, &k.into(), &val);
     }
     let _ = target.post_message(&msg, "*");
@@ -350,23 +354,8 @@ fn update(move_previews: bool) {
         let Some(doc) = pr.win.as_ref().and_then(Window::document) else { return };
         let cur = engine::current_slide();
         let (total, shown) = engine::fragment_counts(&cur);
-        let leaf = engine::leaf_index();
-        let step = if total > 0 { format!(" · step <b>{shown}/{total}</b>") } else { String::new() };
-        set(&doc, "where", &format!("slide <b>{}/{}</b>{step}", leaf + 1, engine::all_leaves().len()));
-        set(&doc, "elapsed", &timing::clock(pr.timer.elapsed(now)));
-        set(&doc, "play", if pr.timer.running() { "⏸" } else { "▶" });
-        if let Some(dock) = by_id(&doc, "dock") {
-            dom::toggle(&dock, "stopped", !pr.timer.running());
-            dom::toggle(&dock, "rehearsing", pr.timer.rehearsal.is_some());
-        }
-        let planned = planned();
-        set(&doc, "delta", &pr.timer.delta(now, &planned).map_or(String::new(), delta_html));
-        if pr.timer.rehearsal.is_some() {
-            set(&doc, "reh-label", if pr.timer.running() { "⏱ Timing a rehearsal" } else { "⏸ Rehearsal paused" });
-            let spent = timing::short(pr.timer.spent_on(now, leaf));
-            let plan = planned.get(leaf).copied().flatten().map_or(String::new(), |d| format!(" / ⏳{}", timing::short(d)));
-            set(&doc, "reh-slide", &format!("this slide {spent}{plan}"));
-        }
+        set(&doc, "where", &where_html(engine::leaf_index(), engine::all_leaves().len(), shown, total));
+        update_timer(&doc, pr, now);
         let date = js_sys::Date::new_0();
         set(&doc, "clock", &format!("{:02}:{:02}", date.get_hours(), date.get_minutes()));
         set(&doc, "timing", &timing_html(pr, now));
@@ -379,6 +368,32 @@ fn update(move_previews: bool) {
             send(&doc, "upcoming", true);
         }
     });
+}
+
+/// "slide 3/12 · step 1/2": where the presentation is, the step only on a slide that has some
+fn where_html(leaf: usize, leaves: usize, shown: usize, steps: usize) -> String {
+    let step = if steps > 0 { format!(" · step <b>{shown}/{steps}</b>") } else { String::new() };
+    format!("slide <b>{}/{leaves}</b>{step}", leaf + 1)
+}
+
+/// The dock: time elapsed, play or pause, the delta with the plan, and while rehearsing the time
+/// spent on this slide
+fn update_timer(doc: &Document, pr: &Presenter, now: f64) {
+    set(doc, "elapsed", &timing::clock(pr.timer.elapsed(now)));
+    set(doc, "play", if pr.timer.running() { "⏸" } else { "▶" });
+    if let Some(dock) = by_id(doc, "dock") {
+        dom::toggle(&dock, "stopped", !pr.timer.running());
+        dom::toggle(&dock, "rehearsing", pr.timer.rehearsal.is_some());
+    }
+    let planned = planned();
+    set(doc, "delta", &pr.timer.delta(now, &planned).map_or(String::new(), delta_html));
+    if pr.timer.rehearsal.is_some() {
+        let leaf = engine::leaf_index();
+        set(doc, "reh-label", if pr.timer.running() { "⏱ Timing a rehearsal" } else { "⏸ Rehearsal paused" });
+        let spent = timing::short(pr.timer.spent_on(now, leaf));
+        let plan = planned.get(leaf).copied().flatten().map_or(String::new(), |d| format!(" / ⏳{}", timing::short(d)));
+        set(doc, "reh-slide", &format!("this slide {spent}{plan}"));
+    }
 }
 
 /// Acts on the presenter, then updates the window
@@ -433,7 +448,8 @@ struct Layout {
 const LAYOUT: Layout = Layout { left: 62.0, slide: 60.0, next: 38.0, notes: 22.0 };
 
 fn layout() -> Layout {
-    let v: Option<serde_json::Value> = storage().and_then(|s| s.get_item(LAYOUT_KEY).ok().flatten()).and_then(|t| serde_json::from_str(&t).ok());
+    let v: Option<serde_json::Value> =
+        storage().and_then(|s| s.get_item(LAYOUT_KEY).ok().flatten()).and_then(|t| serde_json::from_str(&t).ok());
     let get = |k: &str, d: f64| v.as_ref().and_then(|v| v[k].as_f64()).unwrap_or(d);
     Layout {
         left: get("left", LAYOUT.left),
@@ -451,7 +467,10 @@ fn apply_layout(doc: &Document, l: Layout) {
         dom::style(&pv, "--notes", &format!("{:.0}px", l.notes));
     }
     if let Some(s) = storage() {
-        let _ = s.set_item(LAYOUT_KEY, &serde_json::json!({ "left": l.left, "slide": l.slide, "next": l.next, "notes": l.notes }).to_string());
+        let _ = s.set_item(
+            LAYOUT_KEY,
+            &serde_json::json!({ "left": l.left, "slide": l.slide, "next": l.next, "notes": l.notes }).to_string(),
+        );
     }
 }
 
@@ -599,14 +618,24 @@ fn finish_html(pr: &Presenter, now: f64) -> String {
     // the choice of "All": the one of every slide but those only gone through
     let kept = |k: Keep| rows.iter().filter(|(_, s)| *s >= GONE_THROUGH).all(|(i, _)| pr.keep.get(i) == Some(&k));
     let all = |k: Keep| {
-        let checked = if kept(k) && (k != Keep::Skip || pr.keep.values().all(|v| *v == Keep::Skip)) { " checked" } else { "" };
-        format!("<label><input type=\"radio\" name=\"all\" data-all=\"{}\"{checked}> {} {}</label>", k.key(), k.name(), k.icon())
+        let checked =
+            if kept(k) && (k != Keep::Skip || pr.keep.values().all(|v| *v == Keep::Skip)) { " checked" } else { "" };
+        format!(
+            "<label><input type=\"radio\" name=\"all\" data-all=\"{}\"{checked}> {} {}</label>",
+            k.key(),
+            k.name(),
+            k.icon()
+        )
     };
     let mut html_rows = String::new();
     for &(i, spent) in &rows {
         let Some((_, _, leaf)) = leaves.get(i) else { continue };
         let plan = planned[i].map_or("–".into(), |d| {
-            format!("{}{}", timing::short(d), runs(leaf).map_or(String::new(), |r| format!(" <span class=\"runs\">🏃{r}</span>")))
+            format!(
+                "{}{}",
+                timing::short(d),
+                runs(leaf).map_or(String::new(), |r| format!(" <span class=\"runs\">🏃{r}</span>"))
+            )
         });
         let keep = pr.keep.get(&i).copied().unwrap_or(Keep::Skip);
         let buttons: String = Keep::ALL
@@ -646,7 +675,7 @@ fn refresh_finish() {
     dialog(&html);
 }
 
-/// Sends what to keep to the server (`glitu serve` receives it through the page, see `build`)
+/// Sends what to keep to the server (`glitu server` receives it through the page, see `build`)
 fn save_rehearsal() {
     let Some(entries) = PRESENTER.with(|p| {
         let p = p.borrow();
@@ -775,7 +804,10 @@ fn open() {
         let _ = w.focus();
         return;
     }
-    let Ok(Some(win)) = dom::window().open_with_url_and_target_and_features("", "glitu-notes", "width=1280,height=800") else { return };
+    let Ok(Some(win)) = dom::window().open_with_url_and_target_and_features("", "glitu-notes", "width=1280,height=800")
+    else {
+        return;
+    };
     let Some(doc) = win.document() else { return };
     doc.set_title("Speaker view");
     if let Some(body) = doc.body() {
@@ -798,7 +830,9 @@ fn open() {
         let mut p = p.borrow_mut();
         match p.as_mut() {
             Some(pr) => pr.win = Some(win),
-            None => *p = Some(Presenter { win: Some(win), timer: Timer::new(engine::leaf_index()), keep: BTreeMap::new() }),
+            None => {
+                *p = Some(Presenter { win: Some(win), timer: Timer::new(engine::leaf_index()), keep: BTreeMap::new() })
+            }
         }
     });
     update(true);
@@ -835,4 +869,15 @@ pub fn install() {
         }
     });
     tick();
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn where_it_is() {
+        assert_eq!(where_html(0, 12, 0, 0), "slide <b>1/12</b>");
+        assert_eq!(where_html(2, 12, 1, 2), "slide <b>3/12</b> · step <b>1/2</b>");
+    }
 }

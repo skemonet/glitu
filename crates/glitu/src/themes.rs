@@ -76,6 +76,21 @@ mod tests {
         for theme in ["crystal", "black", "paper", "blueprint"] {
             assert!(names.contains(&theme), "{names:?}");
         }
-        assert!(THEMES.iter().any(|(p, _)| *p == "crystal/glitu.json"));
+        assert!(THEMES.iter().any(|(p, _)| *p == "crystal/glitu.yaml"));
+    }
+
+    #[test]
+    fn extracting_writes_every_file_once() {
+        let root = std::env::temp_dir().join(format!("glitu-themes-test-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        extract(&root).unwrap();
+        for (path, bytes) in THEMES {
+            assert_eq!(&fs::read(root.join(path)).unwrap(), bytes, "{path}");
+        }
+        // a second extraction finds the folder written: no error, no temporary folder left
+        extract(&root).unwrap();
+        assert!(!root.with_extension(format!("tmp-{}", std::process::id())).exists());
+        fs::remove_dir_all(&root).unwrap();
+        assert_eq!(hash().len(), 16);
     }
 }

@@ -6,7 +6,7 @@ date: 2026
 theme: crystal
 ---
 
-<!-- Preview: `glitu serve`, then open http://localhost:8000 (it reloads at every save).
+<!-- Preview: `glitu server`, then open http://localhost:8000 (it reloads at every save).
      Present: → or Space to advance, S for the speaker view, ? for every key.
      Publish: `glitu build -o talk.html` (one page, no network needed). -->
 

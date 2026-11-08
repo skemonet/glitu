@@ -77,8 +77,8 @@ impl<'a> Site<'a> {
 
     /// The engine: written in the page, or imported from the address
     fn engine(&self) -> Result<String, String> {
-        let js = self.file(ENGINE_JS_PATH).ok_or("engine glitu_web.js missing")?;
-        let wasm = self.file(ENGINE_WASM_PATH).ok_or("engine glitu_web_bg.wasm missing")?;
+        let js = self.file(ENGINE_JS_PATH).ok_or("the engine (glitu_web.js) is missing from the site")?;
+        let wasm = self.file(ENGINE_WASM_PATH).ok_or("the engine (glitu_web_bg.wasm) is missing from the site")?;
         Ok(match self.published(ENGINE_JS_PATH).zip(self.published(ENGINE_WASM_PATH)) {
             None => format!(
                 "{MODULE}{}\n  initSync({{ module: Uint8Array.from(atob('{}'), c => c.charCodeAt(0)) }});\n",
@@ -185,6 +185,7 @@ fn mime(path: &str) -> Option<&'static str> {
         "avif" => "image/avif",
         "mp4" => "video/mp4",
         "webm" => "video/webm",
+        "ogv" => "video/ogg",
         "mp3" => "audio/mpeg",
         _ => return None,
     })
@@ -213,7 +214,10 @@ mod tests {
     fn everything_inline() {
         let site = vec![
             out("index.html", page().as_bytes()),
-            out("theme/t.css", b"@font-face{src:url('fonts/f.woff2')} .x{background:url(../img/a.png)} .y{background:url(data:x)}"),
+            out(
+                "theme/t.css",
+                b"@font-face{src:url('fonts/f.woff2')} .x{background:url(../img/a.png)} .y{background:url(data:x)}",
+            ),
             out("theme/fonts/f.woff2", b"F"),
             out("theme/logo.svg", b"<svg/>"),
             out("img/a.png", b"P"),

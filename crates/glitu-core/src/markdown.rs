@@ -22,7 +22,7 @@ pub struct Slide {
     pub head: Head,
     pub blocks: Vec<Block>,
     /// Start of its heading line in the source (bytes, front matter included): the rehearsals of
-    /// `glitu serve` write the measured duration there
+    /// `glitu server` write the measured duration there
     pub at: usize,
 }
 
@@ -39,8 +39,40 @@ pub enum Block {
     Title(Stepped),
     List(Vec<Stepped>),
     Fence(Fence),
-    Image { src: String, alt: String },
+    Image(Media),
     Para(Stepped),
+}
+
+/// An image, a video or a terminal recording: `![alt](src "caption"){attributes}`
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct Media {
+    pub src: String,
+    pub alt: String,
+    /// Line shown under it (its source, for example): the title of the image, or `caption="…"`
+    pub caption: Option<String>,
+    /// `{…}` after it: `key="value"`, or a lone word (`muted`), without a value
+    pub attrs: BTreeMap<String, String>,
+    /// Appearance click (`@n` in the attributes)
+    pub appear: Stepped,
+}
+
+/// Extensions of the files shown as a video (`![](img/demo.mp4)`)
+pub const VIDEOS: [&str; 3] = ["mp4", "webm", "ogv"];
+
+impl Media {
+    pub fn at(src: impl Into<String>, alt: impl Into<String>) -> Media {
+        Media { src: src.into(), alt: alt.into(), ..Media::default() }
+    }
+
+    pub fn is_video(&self) -> bool {
+        let path = self.src.split(['?', '#']).next().unwrap_or("");
+        path.rsplit_once('.').is_some_and(|(_, ext)| VIDEOS.contains(&ext.to_ascii_lowercase().as_str()))
+    }
+
+    /// The `pauses="0:12 1:05"` of a video: one click each, to resume after the pause
+    pub fn pauses(&self) -> usize {
+        self.attrs.get("pauses").map_or(0, |p| p.split([' ', ',']).filter(|t| !t.is_empty()).count())
+    }
 }
 
 /// A text (inline markdown) and the click where it appears (0: from the start), written at the
@@ -137,7 +169,7 @@ pub fn marker(tok: &str) -> Option<Stepped> {
     })
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct Fence {
     pub lang: String,
     /// `key="value"` pairs of the block's info string; a lone word (`magic-move`) is there, without a value
@@ -410,27 +442,103 @@ impl Reader<'_> {
         self.push(Block::Fence(fence));
     }
 
-    /// A paragraph made of a single image is an image (`![alt](src)`); otherwise text
+    /// A paragraph made of a single image is an image (`![alt](src "caption")`), possibly followed
+    /// by its attributes (`{@2 muted pauses="0:12"}`); otherwise text
     fn paragraph(&mut self, range: Range<usize>, events: &mut Events) {
         let raw = self.body[range].trim().to_string();
-        let (mut image, mut alt, mut in_image, mut others) = (None, String::new(), false, 0);
+        let (mut media, mut in_image, mut others) = (None::<Media>, false, 0);
         for (e, _) in events.by_ref() {
             match e {
                 Event::End(TagEnd::Paragraph) => break,
-                Event::Start(Tag::Image { dest_url, .. }) => (image, in_image) = (Some(dest_url.to_string()), true),
+                Event::Start(Tag::Image { dest_url, title, .. }) if media.is_none() => {
+                    let caption = Some(title.to_string()).filter(|t| !t.trim().is_empty());
+                    media = Some(Media { caption, ..Media::at(dest_url.to_string(), "") });
+                    in_image = true;
+                }
                 Event::End(TagEnd::Image) => in_image = false,
-                Event::Text(t) if in_image => alt.push_str(&t),
+                Event::Text(t) if in_image => media.as_mut().expect("inside an image").alt.push_str(&t),
                 _ => others += 1,
             }
         }
-        match image {
-            Some(src) if others == 0 => self.push(Block::Image { src, alt }),
-            _ => {
+        let media = match media {
+            Some(m) if others == 0 => Some(m),
+            Some(m) => with_attrs(m, &raw),
+            None => None,
+        };
+        match media {
+            Some(m) => {
+                let m = self.media(m);
+                self.push(Block::Image(m));
+            }
+            None => {
                 let para = self.clicks.resolve(step_of(&raw));
                 self.push(Block::Para(para));
             }
         }
     }
+
+    /// The clicks of a medium: its appearance, the pauses of a video (one click each, after its
+    /// appearance), then the clicks of its focus zones, made absolute
+    fn media(&mut self, mut m: Media) -> Media {
+        m.appear = self.clicks.resolve(std::mem::take(&mut m.appear));
+        let pauses = m.pauses() as u32;
+        if pauses > 0 {
+            self.clicks.0 = self.clicks.0.max(m.appear.step + pauses);
+        }
+        if let Some(focus) = m.attrs.get("focus") {
+            let zones: Vec<String> = focus
+                .split(';')
+                .map(|zone| {
+                    let toks: Vec<String> = zone
+                        .split_whitespace()
+                        .map(|tok| match marker(tok) {
+                            Some(mk) => absolute(&self.clicks.resolve(mk)),
+                            None => tok.to_string(),
+                        })
+                        .collect();
+                    toks.join(" ")
+                })
+                .collect();
+            m.attrs.insert("focus".into(), zones.join("; "));
+        }
+        m
+    }
+}
+
+/// A resolved marker, written back: `@3-4:halo`
+fn absolute(m: &Stepped) -> String {
+    let until = m.until.map(|u| format!("-{u}")).unwrap_or_default();
+    let effect = m.effect.as_deref().map(|e| format!(":{e}")).unwrap_or_default();
+    format!("@{}{until}{effect}", m.step)
+}
+
+/// `![alt](src){…}`: the image of the paragraph, read again without its attributes, and these
+/// (`.class`, `@n`, `key="value"`, `word`); `None` if the paragraph holds anything else
+fn with_attrs(media: Media, raw: &str) -> Option<Media> {
+    let open = raw.strip_suffix('}')?.find("){")? + 1;
+    let alone = parse(&format!("## x\n\n{}\n", &raw[..open]));
+    let Some(Block::Image(mut m)) = alone.slides.into_iter().next()?.blocks.pop() else { return None };
+    if m.src != media.src {
+        return None;
+    }
+    for tok in tokens(&raw[open + 1..raw.len() - 1]) {
+        if let Some(mk) = marker(&tok) {
+            m.appear.add(mk);
+        } else if let Some(c) = tok.strip_prefix('.') {
+            let classes = m.attrs.entry("class".into()).or_default();
+            if !classes.is_empty() {
+                classes.push(' ');
+            }
+            classes.push_str(c);
+        } else {
+            let (k, v) = tok.split_once('=').unwrap_or((&tok, ""));
+            m.attrs.insert(k.to_string(), v.trim_matches('"').to_string());
+        }
+    }
+    if let Some(c) = m.attrs.remove("caption") {
+        m.caption = Some(c);
+    }
+    Some(m)
 }
 
 #[cfg(test)]
@@ -504,8 +612,34 @@ mod tests {
         assert!(
             matches!(&b[2], Block::Fence(f) if f.lang == "yaml" && f.step() == 1 && f.attrs["title"] == "f.yml" && f.content == "a: b")
         );
-        assert!(matches!(&b[3], Block::Image { src, alt } if src == "x.cast" && alt == "t"));
+        assert!(matches!(&b[3], Block::Image(m) if m.src == "x.cast" && m.alt == "t" && m.caption.is_none()));
         assert!(matches!(&b[4], Block::Para(p) if p.text == "Note: n"));
+    }
+
+    #[test]
+    fn media_with_a_caption_attributes_and_clicks() {
+        let d = parse(
+            "## S\n\n- a @1\n\n![Map](img/map.png \"Source: IGN\"){@2 .wide focus=\"10 20 30 40 @+1; 50 50 10 10 @+1:magnify\"}\n\n\
+             ![](img/demo.mp4){muted pauses=\"0:12 1:05\" caption=\"Demo\"}\n\n- b @+1\n",
+        );
+        let b = &d.slides[0].blocks;
+        let Block::Image(map) = &b[1] else { panic!("{:?}", b[1]) };
+        assert_eq!(
+            (map.src.as_str(), map.alt.as_str(), map.caption.as_deref()),
+            ("img/map.png", "Map", Some("Source: IGN"))
+        );
+        assert_eq!(map.appear.step, 2);
+        assert_eq!(map.attrs["class"], "wide");
+        assert_eq!(map.attrs["focus"], "10 20 30 40 @3; 50 50 10 10 @4:magnify");
+        let Block::Image(video) = &b[2] else { panic!("{:?}", b[2]) };
+        assert!(video.is_video() && !map.is_video());
+        assert_eq!((video.caption.as_deref(), video.pauses()), (Some("Demo"), 2));
+        assert!(video.attrs.contains_key("muted"));
+        // the two pauses take clicks 1 and 2 after its appearance (0): the next bullet comes after the zones
+        assert!(matches!(&b[3], Block::List(l) if l[0].step == 5));
+        // text after the image: a paragraph
+        let d = parse("## S\n\n![](a.png) and text\n");
+        assert!(matches!(&d.slides[0].blocks[0], Block::Para(_)));
     }
 
     #[test]

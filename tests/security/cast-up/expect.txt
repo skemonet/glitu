@@ -1,0 +1,1 @@
+../secret.cast: outside the presentation's folder

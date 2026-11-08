@@ -1,14 +1,22 @@
 [package]
 name = "glitu-core"
-description = "The presentation compiler: markdown → HTML slides, code highlighting, skemo diagrams"
+description = "The presentation compiler: markdown → HTML slides, code highlighting, diagrams"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme.workspace = true
+keywords.workspace = true
+categories.workspace = true
+rust-version.workspace = true
 
 [dependencies]
-# The skemo engine itself (https://github.com/skemonet/skemo): diagrams are rendered on the fly.
-# Pinned to a revision until skemo publishes tags.
-skemo-engine = { git = "https://github.com/skemonet/skemo", rev = "28d0a4347545c0218e08e10295f0016fd945b7c5", default-features = false }
-skemo-lang = { git = "https://github.com/skemonet/skemo", rev = "28d0a4347545c0218e08e10295f0016fd945b7c5" }
 pulldown-cmark = { version = "0.13", default-features = false, features = ["html"] }
 pulldown-latex = "0.8"
+# Code highlighting: Sublime Text grammars (bat's set, about 200 languages), pure Rust regexes
+syntect = { version = "5.3", default-features = false, features = ["parsing", "regex-fancy"] }
+two-face = { version = "0.5", default-features = false, features = ["syntect-fancy"] }
+
+[lints]
+workspace = true

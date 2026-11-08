@@ -24,6 +24,8 @@ pub struct Browser {
     ws: WebSocket<MaybeTlsStream<TcpStream>>,
     id: u64,
     profile: PathBuf,
+    /// Events received while waiting for a response, kept during a recording (`film`)
+    events: Option<Vec<Value>>,
 }
 
 impl Browser {
@@ -31,29 +33,47 @@ impl Browser {
     /// `scale` screen pixels per px
     pub fn launch(bin: &Path, port: u16, width: u32, height: u32, scale: f64) -> Result<Self, String> {
         let profile = std::env::temp_dir().join(format!("glitu-browser-{}-{port}", std::process::id()));
-        let child = Command::new(bin)
+        // what the browser writes goes to a file (a pipe nobody reads would block it), read if it fails
+        fs::create_dir_all(&profile).map_err(|e| format!("{}: {e}", profile.display()))?;
+        let log = profile.join("glitu-stderr.log");
+        let stderr = fs::File::create(&log).map(Stdio::from).unwrap_or_else(|_| Stdio::null());
+        let mut child = Command::new(bin)
             .args(["--headless", "--no-sandbox", "--disable-gpu", "--hide-scrollbars"])
             .arg(format!("--remote-debugging-port={port}"))
             .arg(format!("--user-data-dir={}", profile.display()))
             .arg("about:blank")
             .stdout(Stdio::null())
-            .stderr(Stdio::null())
+            .stderr(stderr)
             .spawn()
             .map_err(|e| format!("{}: {e} (set CHROMIUM to use another browser)", bin.display()))?;
-        let url = debugger_url(port).ok_or("the browser does not answer")?;
+        let url = match debugger_url(port, &mut child) {
+            Ok(url) => url,
+            Err(exit) => {
+                let _ = child.kill();
+                let _ = child.wait();
+                let said = fs::read_to_string(&log).unwrap_or_default();
+                let _ = fs::remove_dir_all(&profile);
+                return Err(crate::chromium::launch_failure(bin, exit.map(|s| s.to_string()), &said));
+            }
+        };
         let (ws, _) = tungstenite::connect(url.as_str()).map_err(|e| e.to_string())?;
-        let mut b = Browser { child, ws, id: 0, profile };
+        let mut b = Browser { child, ws, id: 0, profile, events: None };
         b.send("Page.enable", json!({}))?;
         b.send(
             "Emulation.setDeviceMetricsOverride",
             json!({ "width": width, "height": height, "deviceScaleFactor": scale, "mobile": false }),
         )?;
-        b.send(
-            "Emulation.setEmulatedMedia",
-            json!({ "features": [{ "name": "prefers-reduced-motion", "value": "reduce" }] }),
-        )?;
+        b.reduce_motion(true)?;
         b.send("Page.addScriptToEvaluateOnNewDocument", json!({ "source": SEEDED_RANDOM }))?;
         Ok(b)
+    }
+
+    /// `prefers-reduced-motion: reduce`, for reproducible pictures; off while an animation is
+    /// recorded (the backdrops read it once, at the start: they stay still)
+    pub fn reduce_motion(&mut self, on: bool) -> Result<(), String> {
+        let value = if on { "reduce" } else { "no-preference" };
+        self.send("Emulation.setEmulatedMedia", json!({ "features": [{ "name": "prefers-reduced-motion", "value": value }] }))
+            .map(drop)
     }
 
     pub fn send(&mut self, method: &str, params: Value) -> Result<Value, String> {
@@ -66,6 +86,10 @@ impl Browser {
             let msg = self.ws.read().map_err(|e| e.to_string())?;
             let Message::Text(t) = msg else { continue };
             let v: Value = serde_json::from_str(&t).map_err(|e| e.to_string())?;
+            if let (Some(events), true) = (&mut self.events, v.get("method").is_some()) {
+                events.push(v);
+                continue;
+            }
             if v["id"].as_u64() == Some(id) {
                 if let Some(err) = v.get("error") {
                     return Err(format!("{method}: {err}"));
@@ -76,7 +100,8 @@ impl Browser {
     }
 
     pub fn eval(&mut self, expr: &str) -> Result<Value, String> {
-        let r = self.send("Runtime.evaluate", json!({ "expression": expr, "awaitPromise": true, "returnByValue": true }))?;
+        let r =
+            self.send("Runtime.evaluate", json!({ "expression": expr, "awaitPromise": true, "returnByValue": true }))?;
         Ok(r["result"]["value"].clone())
     }
 
@@ -106,6 +131,49 @@ impl Browser {
         Ok(prev)
     }
 
+    /// Starts recording the screen (`Page.startScreencast`), in images of `width` × `height`
+    pub fn film_start(&mut self, width: u32, height: u32) -> Result<(), String> {
+        self.events = Some(Vec::new());
+        let params = json!({ "format": "png", "maxWidth": width, "maxHeight": height, "everyNthFrame": 1 });
+        self.send("Page.startScreencast", params).map(drop)
+    }
+
+    /// The images recorded since `film_start`, (time in s since the epoch, PNG), until a terminal
+    /// has played and stopped (`data-playing`), or nothing played within `wait`
+    pub fn film(&mut self, wait: Duration, limit: Duration) -> Result<Vec<(f64, Vec<u8>)>, String> {
+        let start = std::time::Instant::now();
+        let (mut frames, mut played, mut end) = (Vec::new(), false, None);
+        loop {
+            let playing = self.eval("!!document.querySelector('[data-playing]')")?.as_bool().unwrap_or(false);
+            played |= playing;
+            for ev in self.events.as_mut().map(std::mem::take).unwrap_or_default() {
+                if ev["method"] != "Page.screencastFrame" {
+                    continue;
+                }
+                let p = &ev["params"];
+                self.send("Page.screencastFrameAck", json!({ "sessionId": p["sessionId"] }))?;
+                let png = base64::engine::general_purpose::STANDARD.decode(p["data"].as_str().unwrap_or(""));
+                if let (Some(t), Ok(png)) = (p["metadata"]["timestamp"].as_f64(), png) {
+                    frames.push((t, png));
+                }
+            }
+            let waited = start.elapsed();
+            if (played && !playing) || (!played && waited > wait) || waited > limit {
+                // the last images of the screen, still on their way
+                match end {
+                    Some(at) if waited > at => break,
+                    Some(_) => {}
+                    None => end = Some(waited + Duration::from_millis(250)),
+                }
+            }
+            sleep(Duration::from_millis(15));
+        }
+        let stop = self.send("Page.stopScreencast", json!({}));
+        self.events = None;
+        stop?;
+        Ok(frames)
+    }
+
     pub fn key(&mut self, key: &str, code: u32) -> Result<(), String> {
         for kind in ["keyDown", "keyUp"] {
             self.send(
@@ -125,18 +193,24 @@ impl Drop for Browser {
     }
 }
 
-/// The DevTools address of the browser's page, once it answers (10 s at most)
-fn debugger_url(port: u16) -> Option<String> {
+/// The DevTools address of the browser's page, once it answers (10 s at most); otherwise its exit
+/// status if it stopped with an error, `None` if it did not answer in time
+fn debugger_url(port: u16, child: &mut Child) -> Result<String, Option<std::process::ExitStatus>> {
     for _ in 0..50 {
         sleep(Duration::from_millis(200));
+        if let Ok(Some(status)) = child.try_wait()
+            && !status.success()
+        {
+            return Err(Some(status));
+        }
         let Ok(list) = http_get(port, "/json") else { continue };
         let v: Value = serde_json::from_str(&list).unwrap_or(Value::Null);
         let page = v.as_array().and_then(|a| a.iter().find(|t| t["type"] == "page"));
         if let Some(url) = page.and_then(|t| t["webSocketDebuggerUrl"].as_str()) {
-            return Some(url.to_string());
+            return Ok(url.to_string());
         }
     }
-    None
+    Err(None)
 }
 
 fn http_get(port: u16, path: &str) -> std::io::Result<String> {

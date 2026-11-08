@@ -1,7 +1,7 @@
 /* ==========================================================================
    "iso" theme on the shared template (glitu/template.css): palette, fonts, veils.
    Isometric: a board of columns that rise and fall in a wave, one coral column.
-   Animated "iso" backdrop (glitu.json); text panel in a slight gradient.
+   Animated "iso" backdrop (glitu.yaml); text panel in a slight gradient.
    ========================================================================== */
 :root {
   --font: "IBM Plex Sans", "Segoe UI", "Noto Color Emoji", "Apple Color Emoji", "Segoe UI Emoji", system-ui, sans-serif;

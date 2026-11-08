@@ -46,7 +46,8 @@ fn rels(targets: &[(&str, String)]) -> String {
     let mut s = format!("{HEAD}<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">");
     for (i, (kind, target)) in targets.iter().enumerate() {
         let kind = if kind.starts_with("http") { kind.to_string() } else { format!("{REL}{kind}") };
-        let mode = if target.contains("://") || target.starts_with("mailto:") { " TargetMode=\"External\"" } else { "" };
+        let mode =
+            if target.contains("://") || target.starts_with("mailto:") { " TargetMode=\"External\"" } else { "" };
         s += &format!("<Relationship Id=\"rId{}\" Type=\"{kind}\" Target=\"{}\"{mode}/>", i + 1, esc(target));
     }
     s + "</Relationships>"
@@ -66,7 +67,10 @@ fn notes_shapes(ratio: f64, notes: &[String], lang: &str) -> String {
     let paras: String = if notes.is_empty() {
         format!("<a:p><a:endParaRPr lang=\"{lang}\"/></a:p>")
     } else {
-        notes.iter().map(|p| format!("<a:p><a:r><a:rPr lang=\"{lang}\" dirty=\"0\"/><a:t>{}</a:t></a:r></a:p>", esc(p))).collect()
+        notes
+            .iter()
+            .map(|p| format!("<a:p><a:r><a:rPr lang=\"{lang}\" dirty=\"0\"/><a:t>{}</a:t></a:r></a:p>", esc(p)))
+            .collect()
     };
     format!(
         "<p:sp><p:nvSpPr><p:cNvPr id=\"2\" name=\"Slide image\"/><p:cNvSpPr><a:spLocks noGrp=\"1\" noRot=\"1\" noChangeAspect=\"1\"/></p:cNvSpPr>\
@@ -97,6 +101,167 @@ fn theme() -> String {
     let fill = "<a:solidFill><a:schemeClr val=\"phClr\"/></a:solidFill>";
     let line = format!("<a:ln w=\"9525\">{fill}</a:ln>");
     format!("{HEAD}{}", THEME.replace("{FILL}", fill).replace("{LINE}", &line))
+}
+
+// ---------------------------------------------------------------- animations
+
+/// What happens to a shape at a click
+enum Effect {
+    /// Appears: `fx` (fade, move, zoom, wipe), after `delay` ms
+    In { fx: String, ms: u64, delay: u64, dx: f64, dy: f64, k: f64, dir: String },
+    /// Leaves, fading
+    Out { ms: u64 },
+    /// Fades to half (`semi-fade-out`)
+    Dim,
+    /// Grows or shrinks by `k`
+    Scale { k: f64 },
+}
+
+/// The slide's animations (`<p:timing>`): one PowerPoint click per click of the slide that moves
+/// something; on each, its effects together. `anims`: (shape id, `anim` of `export.js`)
+fn timing(anims: &[(u32, Value)]) -> String {
+    let n = |a: &Value, k: &str| a[k].as_f64();
+    let mut events: Vec<(f64, u32, Effect)> = Vec::new();
+    for (id, a) in anims {
+        let ms = |k: &str| a[k].as_f64().map_or(200, |v| v.round().max(1.0) as u64);
+        if let Some(on) = n(a, "on") {
+            let fx = a["fx"].as_str().unwrap_or("fade").to_string();
+            let dir = a["dir"].as_str().unwrap_or("l").to_string();
+            let (dx, dy, k) = (n(a, "dx").unwrap_or(0.0), n(a, "dy").unwrap_or(0.0), n(a, "k").unwrap_or(1.0));
+            let delay = n(a, "delay").unwrap_or(0.0).max(0.0) as u64;
+            events.push((on, *id, Effect::In { fx, ms: ms("ms"), delay, dx, dy, k, dir }));
+        }
+        if let Some(off) = n(a, "off").filter(|off| n(a, "on").is_none_or(|on| *off > on)) {
+            events.push((off, *id, Effect::Out { ms: ms("outMs") }));
+        }
+        if let Some(at) = n(a, "dim") {
+            events.push((at, *id, Effect::Dim));
+        }
+        if let (Some(at), Some(k)) = (a["scale"][0].as_f64(), a["scale"][1].as_f64()) {
+            events.push((at, *id, Effect::Scale { k }));
+        }
+    }
+    if events.is_empty() {
+        return String::new();
+    }
+    events.sort_by(|a, b| a.0.total_cmp(&b.0));
+    let mut ids = 2;
+    let mut clicks = String::new();
+    let mut i = 0;
+    while i < events.len() {
+        let at = events[i].0;
+        let mut effects = String::new();
+        let mut first = true;
+        while i < events.len() && events[i].0 == at {
+            ids += 1;
+            effects += &effect(&mut ids, events[i].1, &events[i].2, first);
+            first = false;
+            i += 1;
+        }
+        let (outer, inner) = (ids + 1, ids + 2);
+        ids += 2;
+        clicks += &format!(
+            "<p:par><p:cTn id=\"{outer}\" fill=\"hold\"><p:stCondLst><p:cond delay=\"indefinite\"/></p:stCondLst><p:childTnLst>\
+<p:par><p:cTn id=\"{inner}\" fill=\"hold\"><p:stCondLst><p:cond delay=\"0\"/></p:stCondLst><p:childTnLst>{effects}</p:childTnLst></p:cTn></p:par>\
+</p:childTnLst></p:cTn></p:par>"
+        );
+    }
+    format!(
+        "<p:timing><p:tnLst><p:par><p:cTn id=\"1\" dur=\"indefinite\" restart=\"never\" nodeType=\"tmRoot\"><p:childTnLst>\
+<p:seq concurrent=\"1\" nextAc=\"seek\"><p:cTn id=\"2\" dur=\"indefinite\" nodeType=\"mainSeq\"><p:childTnLst>{clicks}</p:childTnLst></p:cTn>\
+<p:prevCondLst><p:cond evt=\"onPrev\" delay=\"0\"><p:tgtEl><p:sldTgt/></p:tgtEl></p:cond></p:prevCondLst>\
+<p:nextCondLst><p:cond evt=\"onNext\" delay=\"0\"><p:tgtEl><p:sldTgt/></p:tgtEl></p:cond></p:nextCondLst></p:seq>\
+</p:childTnLst></p:cTn></p:par></p:tnLst></p:timing>"
+    )
+}
+
+/// One effect of a click (`first`: the one the click starts, the others go with it); `ids`: the
+/// last id of time node given
+fn effect(ids: &mut u32, spid: u32, e: &Effect, first: bool) -> String {
+    let own = *ids;
+    let mut next = || {
+        *ids += 1;
+        *ids
+    };
+    let target = format!("<p:tgtEl><p:spTgt spid=\"{spid}\"/></p:tgtEl>");
+    let set = |id: u32, delay: u64, attr: &str, value: &str| {
+        format!(
+            "<p:set><p:cBhvr><p:cTn id=\"{id}\" dur=\"1\" fill=\"hold\"><p:stCondLst><p:cond delay=\"{delay}\"/></p:stCondLst></p:cTn>{target}\
+<p:attrNameLst><p:attrName>{attr}</p:attrName></p:attrNameLst></p:cBhvr><p:to><p:strVal val=\"{value}\"/></p:to></p:set>"
+        )
+    };
+    let fade = |id: u32, ms: u64, way: &str, filter: &str| {
+        format!(
+            "<p:animEffect transition=\"{way}\" filter=\"{filter}\"><p:cBhvr><p:cTn id=\"{id}\" dur=\"{ms}\"/>{target}</p:cBhvr></p:animEffect>"
+        )
+    };
+    // a property going from `from` to its place (`#ppt_x`…), linearly
+    let anim = |id: u32, ms: u64, attr: &str, from: String| {
+        format!(
+            "<p:anim calcmode=\"lin\" valueType=\"num\"><p:cBhvr><p:cTn id=\"{id}\" dur=\"{ms}\" fill=\"hold\"/>{target}\
+<p:attrNameLst><p:attrName>{attr}</p:attrName></p:attrNameLst></p:cBhvr><p:tavLst>\
+<p:tav tm=\"0\"><p:val><p:strVal val=\"{from}\"/></p:val></p:tav><p:tav tm=\"100000\"><p:val><p:strVal val=\"#{attr}\"/></p:val></p:tav></p:tavLst></p:anim>"
+        )
+    };
+    let shift = |attr: &str, by: f64| {
+        if by < 0.0 { format!("#{attr}-{:.4}", -by) } else { format!("#{attr}+{by:.4}") }
+    };
+    let (class, preset, subtype, delay, body) = match e {
+        Effect::In { fx, ms, delay, dx, dy, k, dir } => {
+            let shown = set(next(), 0, "style.visibility", "visible");
+            let (preset, subtype, rest) = match fx.as_str() {
+                "move" => {
+                    let mut rest = fade(next(), *ms, "in", "fade");
+                    rest += &anim(next(), *ms, "ppt_x", shift("ppt_x", *dx));
+                    rest += &anim(next(), *ms, "ppt_y", shift("ppt_y", *dy));
+                    (42, 0, rest)
+                }
+                "zoom" => {
+                    let mut rest = anim(next(), *ms, "ppt_w", format!("#ppt_w*{k:.3}"));
+                    rest += &anim(next(), *ms, "ppt_h", format!("#ppt_h*{k:.3}"));
+                    rest += &fade(next(), *ms, "in", "fade");
+                    (53, 16, rest)
+                }
+                "wipe" => {
+                    let (sub, filter) = match dir.as_str() {
+                        "r" => (2, "wipe(right)"),
+                        "t" => (1, "wipe(up)"),
+                        "b" => (4, "wipe(down)"),
+                        _ => (8, "wipe(left)"),
+                    };
+                    (22, sub, fade(next(), *ms, "in", filter))
+                }
+                _ => (10, 0, fade(next(), *ms, "in", "fade")),
+            };
+            ("entr", preset, subtype, *delay, shown + &rest)
+        }
+        Effect::Out { ms } => {
+            let gone = fade(next(), *ms, "out", "fade");
+            ("exit", 10, 0, 0, gone + &set(next(), ms.saturating_sub(1), "style.visibility", "hidden"))
+        }
+        Effect::Dim => {
+            let (a, b) = (next(), next());
+            let body = format!(
+                "<p:set><p:cBhvr><p:cTn id=\"{a}\" dur=\"200\" fill=\"hold\"/>{target}<p:attrNameLst><p:attrName>style.opacity</p:attrName></p:attrNameLst></p:cBhvr>\
+<p:to><p:strVal val=\"0.5\"/></p:to></p:set>\
+<p:animEffect filter=\"image\" prLst=\"opacity: 0.5\"><p:cBhvr rctx=\"IE\"><p:cTn id=\"{b}\" dur=\"200\" fill=\"hold\"/>{target}</p:cBhvr></p:animEffect>"
+            );
+            ("emph", 9, 0, 0, body)
+        }
+        Effect::Scale { k } => {
+            let by = (k * 100_000.0).round() as i64;
+            let body = format!(
+                "<p:animScale><p:cBhvr><p:cTn id=\"{}\" dur=\"200\" fill=\"hold\"/>{target}</p:cBhvr><p:by x=\"{by}\" y=\"{by}\"/></p:animScale>",
+                next()
+            );
+            ("emph", 6, 0, 0, body)
+        }
+    };
+    let node = if first { "clickEffect" } else { "withEffect" };
+    format!(
+        "<p:par><p:cTn id=\"{own}\" presetID=\"{preset}\" presetClass=\"{class}\" presetSubtype=\"{subtype}\" fill=\"hold\" nodeType=\"{node}\">\
+<p:stCondLst><p:cond delay=\"{delay}\"/></p:stCondLst><p:childTnLst>{body}</p:childTnLst></p:cTn></p:par>"
+    )
 }
 
 /// What the whole file needs to know of the presentation
@@ -135,13 +300,18 @@ pub fn write(slides: &[Slide], deck: &Deck) -> Vec<u8> {
         sh.rel("slideLayout", "../slideLayouts/slideLayout1.xml".into());
         sh.rel("notesSlide", format!("../notesSlides/notesSlide{n}.xml"));
         let bg = match &slide.background {
-            Background::Color([r, g, b]) => format!("<a:solidFill><a:srgbClr val=\"{r:02X}{g:02X}{b:02X}\"/></a:solidFill>"),
+            Background::Color([r, g, b]) => {
+                format!("<a:solidFill><a:srgbClr val=\"{r:02X}{g:02X}{b:02X}\"/></a:solidFill>")
+            }
             Background::Png(png) => {
                 let rid = sh.image(png.clone(), "png");
-                format!("<a:blipFill dpi=\"0\" rotWithShape=\"1\"><a:blip r:embed=\"{rid}\"/><a:srcRect/><a:stretch><a:fillRect/></a:stretch></a:blipFill>")
+                format!(
+                    "<a:blipFill dpi=\"0\" rotWithShape=\"1\"><a:blip r:embed=\"{rid}\"/><a:srcRect/><a:stretch><a:fillRect/></a:stretch></a:blipFill>"
+                )
             }
         };
-        let shapes = shapes::shapes(&mut sh, slide.items.clone());
+        let (shapes, anims) = shapes::shapes(&mut sh, slide.items.clone());
+        let timing = timing(&anims);
         let mut rels_list = sh.rels().to_vec();
         for (rel, bytes, ext) in &sh.media {
             images += 1;
@@ -153,7 +323,7 @@ pub fn write(slides: &[Slide], deck: &Deck) -> Vec<u8> {
         slide_parts.push((
             format!(
                 "{HEAD}<p:sld {NS}><p:cSld><p:bg><p:bgPr>{bg}<a:effectLst/></p:bgPr></p:bg><p:spTree>{GROUP}{shapes}</p:spTree></p:cSld>\
-<p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sld>"
+<p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr>{timing}</p:sld>"
             ),
             rels(&rels_list),
         ));
@@ -181,8 +351,11 @@ pub fn write(slides: &[Slide], deck: &Deck) -> Vec<u8> {
         types += &format!("<Override PartName=\"/ppt/{part}.xml\" ContentType=\"{CT}{kind}+xml\"/>");
     }
     for n in 1..=slides.len() {
-        types += &format!("<Override PartName=\"/ppt/slides/slide{n}.xml\" ContentType=\"{CT}presentationml.slide+xml\"/>");
-        types += &format!("<Override PartName=\"/ppt/notesSlides/notesSlide{n}.xml\" ContentType=\"{CT}presentationml.notesSlide+xml\"/>");
+        types +=
+            &format!("<Override PartName=\"/ppt/slides/slide{n}.xml\" ContentType=\"{CT}presentationml.slide+xml\"/>");
+        types += &format!(
+            "<Override PartName=\"/ppt/notesSlides/notesSlide{n}.xml\" ContentType=\"{CT}presentationml.notesSlide+xml\"/>"
+        );
     }
     // [Content_Types].xml first in the archive, by convention
     let mut package = Zip::default();
@@ -190,21 +363,33 @@ pub fn write(slides: &[Slide], deck: &Deck) -> Vec<u8> {
     package.append(zip);
     let mut zip = package;
 
-    zip.add("_rels/.rels", rels(&[
-        ("officeDocument", "ppt/presentation.xml".into()),
-        ("http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties", "docProps/core.xml".into()),
-        ("extended-properties", "docProps/app.xml".into()),
-    ]).into_bytes());
+    zip.add(
+        "_rels/.rels",
+        rels(&[
+            ("officeDocument", "ppt/presentation.xml".into()),
+            (
+                "http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties",
+                "docProps/core.xml".into(),
+            ),
+            ("extended-properties", "docProps/app.xml".into()),
+        ])
+        .into_bytes(),
+    );
     zip.add("docProps/core.xml", format!(
         "{HEAD}<cp:coreProperties xmlns:cp=\"http://schemas.openxmlformats.org/package/2006/metadata/core-properties\" \
 xmlns:dc=\"http://purl.org/dc/elements/1.1/\"><dc:title>{}</dc:title><dc:creator>{}</dc:creator></cp:coreProperties>",
         esc(title), esc(author)
     ).into_bytes());
-    zip.add("docProps/app.xml", format!(
-        "{HEAD}<Properties xmlns=\"http://schemas.openxmlformats.org/officeDocument/2006/extended-properties\">\
+    zip.add(
+        "docProps/app.xml",
+        format!(
+            "{HEAD}<Properties xmlns=\"http://schemas.openxmlformats.org/officeDocument/2006/extended-properties\">\
 <Application>glitu</Application><Slides>{}</Slides><Notes>{}</Notes></Properties>",
-        slides.len(), slides.len()
-    ).into_bytes());
+            slides.len(),
+            slides.len()
+        )
+        .into_bytes(),
+    );
 
     let mut pres_rels: Vec<(&str, String)> = vec![
         ("slideMaster", "slideMasters/slideMaster1.xml".into()),
@@ -216,7 +401,8 @@ xmlns:dc=\"http://purl.org/dc/elements/1.1/\"><dc:title>{}</dc:title><dc:creator
     ];
     let first = pres_rels.len() + 1;
     pres_rels.extend((1..=slides.len()).map(|n| ("slide", format!("slides/slide{n}.xml"))));
-    let ids: String = (0..slides.len()).map(|i| format!("<p:sldId id=\"{}\" r:id=\"rId{}\"/>", 256 + i, first + i)).collect();
+    let ids: String =
+        (0..slides.len()).map(|i| format!("<p:sldId id=\"{}\" r:id=\"rId{}\"/>", 256 + i, first + i)).collect();
     zip.add("ppt/presentation.xml", format!(
         "{HEAD}<p:presentation {NS} saveSubsetFonts=\"1\"><p:sldMasterIdLst><p:sldMasterId id=\"2147483648\" r:id=\"rId1\"/></p:sldMasterIdLst>\
 <p:notesMasterIdLst><p:notesMasterId r:id=\"rId2\"/></p:notesMasterIdLst><p:sldIdLst>{ids}</p:sldIdLst>\
@@ -235,20 +421,31 @@ xmlns:dc=\"http://purl.org/dc/elements/1.1/\"><dc:title>{}</dc:title><dc:creator
         "{HEAD}<p:sldMaster {NS}><p:cSld><p:bg><p:bgRef idx=\"1001\"><a:schemeClr val=\"bg1\"/></p:bgRef></p:bg><p:spTree>{GROUP}</p:spTree></p:cSld>\
 {CLR_MAP}<p:sldLayoutIdLst><p:sldLayoutId id=\"2147483649\" r:id=\"rId1\"/></p:sldLayoutIdLst></p:sldMaster>"
     ).into_bytes());
-    zip.add("ppt/slideMasters/_rels/slideMaster1.xml.rels", rels(&[
-        ("slideLayout", "../slideLayouts/slideLayout1.xml".into()),
-        ("theme", "../theme/theme1.xml".into()),
-    ]).into_bytes());
+    zip.add(
+        "ppt/slideMasters/_rels/slideMaster1.xml.rels",
+        rels(&[("slideLayout", "../slideLayouts/slideLayout1.xml".into()), ("theme", "../theme/theme1.xml".into())])
+            .into_bytes(),
+    );
     zip.add("ppt/slideLayouts/slideLayout1.xml", format!(
         "{HEAD}<p:sldLayout {NS} type=\"blank\" preserve=\"1\"><p:cSld name=\"Blank\"><p:spTree>{GROUP}</p:spTree></p:cSld>\
 <p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sldLayout>"
     ).into_bytes());
-    zip.add("ppt/slideLayouts/_rels/slideLayout1.xml.rels", rels(&[("slideMaster", "../slideMasters/slideMaster1.xml".into())]).into_bytes());
-    zip.add("ppt/notesMasters/notesMaster1.xml", format!(
-        "{HEAD}<p:notesMaster {NS}><p:cSld><p:spTree>{GROUP}{}</p:spTree></p:cSld>{CLR_MAP}</p:notesMaster>",
-        notes_shapes(ratio, &[], &lang)
-    ).into_bytes());
-    zip.add("ppt/notesMasters/_rels/notesMaster1.xml.rels", rels(&[("theme", "../theme/theme2.xml".into())]).into_bytes());
+    zip.add(
+        "ppt/slideLayouts/_rels/slideLayout1.xml.rels",
+        rels(&[("slideMaster", "../slideMasters/slideMaster1.xml".into())]).into_bytes(),
+    );
+    zip.add(
+        "ppt/notesMasters/notesMaster1.xml",
+        format!(
+            "{HEAD}<p:notesMaster {NS}><p:cSld><p:spTree>{GROUP}{}</p:spTree></p:cSld>{CLR_MAP}</p:notesMaster>",
+            notes_shapes(ratio, &[], &lang)
+        )
+        .into_bytes(),
+    );
+    zip.add(
+        "ppt/notesMasters/_rels/notesMaster1.xml.rels",
+        rels(&[("theme", "../theme/theme2.xml".into())]).into_bytes(),
+    );
 
     for (i, (slide, slide_rels)) in slide_parts.into_iter().enumerate() {
         let n = i + 1;
@@ -258,10 +455,14 @@ xmlns:dc=\"http://purl.org/dc/elements/1.1/\"><dc:title>{}</dc:title><dc:creator
             "{HEAD}<p:notes {NS}><p:cSld><p:spTree>{GROUP}{}</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:notes>",
             notes_shapes(ratio, &slides[i].notes, &lang)
         ).into_bytes());
-        zip.add(&format!("ppt/notesSlides/_rels/notesSlide{n}.xml.rels"), rels(&[
-            ("notesMaster", "../notesMasters/notesMaster1.xml".into()),
-            ("slide", format!("../slides/slide{n}.xml")),
-        ]).into_bytes());
+        zip.add(
+            &format!("ppt/notesSlides/_rels/notesSlide{n}.xml.rels"),
+            rels(&[
+                ("notesMaster", "../notesMasters/notesMaster1.xml".into()),
+                ("slide", format!("../slides/slide{n}.xml")),
+            ])
+            .into_bytes(),
+        );
     }
     zip.finish()
 }
@@ -270,6 +471,30 @@ xmlns:dc=\"http://purl.org/dc/elements/1.1/\"><dc:title>{}</dc:title><dc:creator
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn appearances_become_clicks() {
+        assert_eq!(timing(&[]), "");
+        let anims = [
+            (5, json!({ "on": 2, "fx": "move", "ms": 300, "dx": 0, "dy": -0.05 })),
+            (6, json!({ "on": 0, "fx": "fade", "ms": 200, "off": 2, "outMs": 200 })),
+            (7, json!({ "on": 0, "fx": "wipe", "ms": 600, "dir": "t", "delay": 600 })),
+            (8, json!({ "dim": 1, "scale": [1, 1.3] })),
+        ];
+        let xml = timing(&anims);
+        // three clicks: 0 (two shapes appear), 1 (one dims and grows), 2 (one comes down, one leaves)
+        assert_eq!(xml.matches("delay=\"indefinite\"").count(), 3);
+        assert_eq!((xml.matches("clickEffect").count(), xml.matches("withEffect").count()), (3, 3));
+        let first = |s: &str| xml.find(s).unwrap();
+        assert!(first("spid=\"6\"") < first("spid=\"8\"") && first("spid=\"8\"") < first("spid=\"5\""));
+        assert!(xml.contains("filter=\"wipe(up)\"") && xml.contains("<p:cond delay=\"600\"/>"));
+        assert!(xml.contains("#ppt_y-0.0500") && xml.contains("presetClass=\"exit\""));
+        assert!(xml.contains("prLst=\"opacity: 0.5\"") && xml.contains("<p:by x=\"130000\" y=\"130000\"/>"));
+        // every time node has its own id
+        let ids: Vec<&str> =
+            xml.match_indices("<p:cTn id=\"").map(|(i, _)| xml[i + 11..].split('"').next().unwrap()).collect();
+        assert_eq!(ids.len(), ids.iter().collect::<std::collections::HashSet<_>>().len());
+    }
 
     #[test]
     fn the_package_holds_editable_shapes_and_notes() {
@@ -296,6 +521,9 @@ mod tests {
         assert!(text.contains("<a:cubicBezTo>") && text.contains("<a:tailEnd type=\"triangle\""));
         assert!(text.contains("sz=\"1800\""));
         assert!(text.contains("A note") && text.contains("lang=\"fr-FR\""));
-        assert_eq!((office_lang("en"), office_lang("pt-BR"), office_lang("de")), ("en-US".into(), "pt-BR".into(), "de-DE".into()));
+        assert_eq!(
+            (office_lang("en"), office_lang("pt-BR"), office_lang("de")),
+            ("en-US".into(), "pt-BR".into(), "de-DE".into())
+        );
     }
 }

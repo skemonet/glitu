@@ -1,0 +1,4 @@
+#!/bin/sh
+# tries to read a file outside the presentation's folder: Landlock forbids it
+cat >/dev/null
+echo "<svg><text>$(cat ../secret.txt 2>/dev/null || echo refused)</text></svg>"

@@ -76,7 +76,11 @@ pub fn on_active<E: JsCast + 'static>(target: &web_sys::EventTarget, event: &str
     let cb = Closure::<dyn FnMut(web_sys::Event)>::new(move |e: web_sys::Event| f(e.unchecked_into()));
     let options = web_sys::AddEventListenerOptions::new();
     options.set_passive(false);
-    let _ = target.add_event_listener_with_callback_and_add_event_listener_options(event, cb.as_ref().unchecked_ref(), &options);
+    let _ = target.add_event_listener_with_callback_and_add_event_listener_options(
+        event,
+        cb.as_ref().unchecked_ref(),
+        &options,
+    );
     cb.forget();
 }
 
