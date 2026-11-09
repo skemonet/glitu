@@ -59,10 +59,11 @@ step "dependencies: advisories, licences, sources (cargo deny)"
 if have cargo-deny; then cargo deny --locked check; fi
 
 # glitu-web runs in the browser: its pure logic is tested natively, the rest end to end by the
-# visual oracles; it is left out of the measure
+# visual oracles; it is left out of the measure, like what needs a screen: the windows of
+# glitu-play (wayland.rs, player.rs) and the animated backdrops (glitu-backdrop)
 step "coverage (cargo llvm-cov): at least $(cat tools/coverage.min) % of the lines"
 if have cargo-llvm-cov; then
-  cargo llvm-cov --workspace --locked --all-features --summary-only --ignore-filename-regex 'glitu-web/' \
+  cargo llvm-cov --workspace --locked --all-features --summary-only --ignore-filename-regex 'glitu-web/|glitu-backdrop/|glitu-play/src/(wayland|player)\.rs' \
     --fail-under-lines "$(cat tools/coverage.min)"
 fi
 
