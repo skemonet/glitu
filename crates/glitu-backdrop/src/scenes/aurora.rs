@@ -1,11 +1,11 @@
 //! Aurora: ribbons of aqua, cyan and magenta light that wave over a starry night-blue sky.
 //! Behind the text, the ribbons stay in place and pale under a veil.
 
-
 use crate::{Canvas, Layer, Noise, Scene, lerp, rgba, seeded, veil};
 
 const RIBBONS: [&str; 3] = ["#2de2c0", "#3aa8ff", "#c45cff"];
 
+#[derive(Default)]
 pub struct Aurora {
     noise: Noise,
     /// One vertical gradient per ribbon, stretched column by column
@@ -14,12 +14,6 @@ pub struct Aurora {
     /// Layer of the ribbons, at a third of the resolution: enlarged with smoothing, it does not show
     /// the columns it is made of
     layer: Option<Box<dyn Layer>>,
-}
-
-impl Default for Aurora {
-    fn default() -> Self {
-        Aurora { noise: Noise::new(), sprites: Vec::new(), stars: Vec::new(), layer: None }
-    }
 }
 
 impl Scene for Aurora {
@@ -65,11 +59,11 @@ impl Scene for Aurora {
         let Some(layer) = &self.layer else { return };
         let lc = layer.canvas();
         let (lw, lh) = (layer.width() as f64, layer.height() as f64);
-        let _ = lc.set_transform(1.0, 0.0, 0.0, 1.0, 0.0, 0.0);
-        let _ = lc.set_global_composite_operation("source-over");
+        lc.set_transform(1.0, 0.0, 0.0, 1.0, 0.0, 0.0);
+        lc.set_global_composite_operation("source-over");
         lc.clear_rect(0.0, 0.0, lw, lh);
-        let _ = lc.set_global_composite_operation("lighter");
-        let _ = lc.set_transform(lw / w, 0.0, 0.0, lh / h, 0.0, 0.0);
+        lc.set_global_composite_operation("lighter");
+        lc.set_transform(lw / w, 0.0, 0.0, lh / h, 0.0, 0.0);
         // Adjoining columns of one pixel of the layer: none doubles the light of its neighbour
         let step = w / lw;
         for (i, sprite) in self.sprites.iter().enumerate() {
@@ -83,25 +77,15 @@ impl Scene for Aurora {
                 // Opacity slowly varying along the ribbon: no vertical streaks
                 let a = 0.2 + 0.5 * self.noise.n3(u * 1.6 + fi, t * 0.2, 2.0).powf(1.5);
                 lc.set_global_alpha(a * lerp(1.0, 0.6, dim));
-                lc.draw_layer_part(
-                    sprite.as_ref(),
-                    0.0,
-                    0.0,
-                    1.0,
-                    128.0,
-                    x,
-                    y - hh,
-                    step,
-                    hh,
-                );
+                lc.draw_layer_part(sprite.as_ref(), 0.0, 0.0, 1.0, 128.0, x, y - hh, step, hh);
                 x += step;
             }
         }
         lc.set_global_alpha(1.0);
-        let _ = ctx.set_global_composite_operation("lighter");
+        ctx.set_global_composite_operation("lighter");
         ctx.set_image_smoothing_enabled(true);
         ctx.draw_layer(layer.as_ref(), 0.0, 0.0, w, h);
-        let _ = ctx.set_global_composite_operation("source-over");
+        ctx.set_global_composite_operation("source-over");
         veil(ctx, w, h, "#03060f", 0.7 * dim, 0.2 * dim);
     }
 }

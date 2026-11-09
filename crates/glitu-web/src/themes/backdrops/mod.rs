@@ -45,8 +45,8 @@ struct Backdrop {
 
 impl Backdrop {
     fn draw(&self) {
-        let _ = self.ctx.set_transform(self.scale, 0.0, 0.0, self.scale, 0.0, 0.0);
-        let _ = self.ctx.set_global_composite_operation("source-over");
+        self.ctx.set_transform(self.scale, 0.0, 0.0, self.scale, 0.0, 0.0);
+        self.ctx.set_global_composite_operation("source-over");
         self.ctx.set_global_alpha(1.0);
         self.scene.draw(&self.ctx, self.w, self.h, self.t, self.dim);
     }

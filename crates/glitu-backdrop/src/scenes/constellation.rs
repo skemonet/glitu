@@ -1,7 +1,6 @@
 //! Constellation: a few drifting points, very thin links between close neighbours, a few
 //! twinkling stars, on night blue.
 
-
 use crate::{Canvas, Scene, TAU, circle, lerp, seeded, veil};
 
 struct Star {

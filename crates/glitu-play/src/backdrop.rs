@@ -10,7 +10,7 @@ use crate::resample::resample;
 use crate::skia::Skia;
 
 enum Kind {
-    Crystal(Crystal),
+    Crystal(Box<Crystal>),
     Scene(Box<dyn Scene>),
 }
 
@@ -24,6 +24,7 @@ pub struct Backdrop {
     scale: f64,
     canvas: Skia,
     /// Speed of the animation (0: still, 1: normal), which tends towards `target`
+    #[allow(dead_code)] // the animated backdrop, not played yet (`advance`)
     rate: f64,
     target: f64,
     dim: f64,
@@ -43,7 +44,7 @@ impl Backdrop {
                 let (r, t) = (scene.resolution(), scene.start());
                 (Kind::Scene(scene), screen * r, t)
             }
-            None => (Kind::Crystal(Crystal::new(Options::default(), info.seed)), screen, 0.0),
+            None => (Kind::Crystal(Box::new(Crystal::new(Options::default(), info.seed))), screen, 0.0),
         };
         let canvas = Skia::new((w * scale + 0.5).floor() as u32, (h * scale + 0.5).floor() as u32);
         let mut b =
@@ -56,6 +57,7 @@ impl Backdrop {
     }
 
     /// Frames per second when it runs
+    #[allow(dead_code)] // the animated backdrop, not played yet
     pub fn fps(&self) -> f64 {
         match &self.kind {
             Kind::Crystal(c) => c.o.fps,
@@ -76,11 +78,13 @@ impl Backdrop {
     }
 
     /// Does it still move (running, slowing down, or dimming)?
+    #[allow(dead_code)] // the animated backdrop, not played yet
     pub fn moving(&self) -> bool {
         !(self.target == 0.0 && self.rate < 0.01 && (self.dim - self.dim_to).abs() < 0.005)
     }
 
     /// Advances by `dt` seconds (at most 0.1, as the page)
+    #[allow(dead_code)] // the animated backdrop, not played yet
     pub fn advance(&mut self, dt: f64) {
         let dt = dt.min(0.1);
         self.rate += (self.target - self.rate) * (dt * EASING).min(1.0);

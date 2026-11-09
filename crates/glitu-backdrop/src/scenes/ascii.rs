@@ -1,19 +1,13 @@
 //! Amber ASCII: a field of characters whose density follows a flowing noise, with rings moving
 //! away from a point, in the amber of an old terminal.
 
-
 use crate::{Canvas, Noise, Scene, clamp01, lerp, veil};
 
 const RAMP: [&str; 11] = [" ", ".", "·", ":", "-", "=", "+", "*", "#", "%", "@"];
 
+#[derive(Default)]
 pub struct Ascii {
     noise: Noise,
-}
-
-impl Default for Ascii {
-    fn default() -> Self {
-        Ascii { noise: Noise::new() }
-    }
 }
 
 impl Scene for Ascii {
@@ -46,7 +40,7 @@ impl Scene for Ascii {
                 let c = RAMP[((v * RAMP.len() as f64) as usize).min(RAMP.len() - 1)];
                 if c != " " {
                     ctx.set_fill_style_str(&format!("rgba(255,179,71,{:.2})", (0.2 + 0.8 * v) * lerp(1.0, 0.6, dim)));
-                    let _ = ctx.fill_text(c, x, y);
+                    ctx.fill_text(c, x, y);
                 }
                 x += cw;
             }

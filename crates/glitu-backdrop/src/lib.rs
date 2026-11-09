@@ -31,6 +31,7 @@ pub enum GradientKind {
 
 impl Gradient {
     /// `color`: a CSS colour
+    #[allow(clippy::result_unit_err)] // as the canvas of the browser, whose errors carry nothing
     pub fn add_color_stop(&self, offset: f64, color: &str) -> Result<(), ()> {
         self.stops.borrow_mut().push((offset, color.to_string()));
         Ok(())
@@ -76,7 +77,18 @@ pub trait Canvas {
     fn set_image_smoothing_enabled(&self, on: bool);
     /// The part (sx, sy, sw, sh) of `layer`, drawn into (dx, dy, dw, dh)
     #[allow(clippy::too_many_arguments)]
-    fn draw_layer_part(&self, layer: &dyn Layer, sx: f64, sy: f64, sw: f64, sh: f64, dx: f64, dy: f64, dw: f64, dh: f64);
+    fn draw_layer_part(
+        &self,
+        layer: &dyn Layer,
+        sx: f64,
+        sy: f64,
+        sw: f64,
+        sh: f64,
+        dx: f64,
+        dy: f64,
+        dw: f64,
+        dh: f64,
+    );
     fn draw_layer(&self, layer: &dyn Layer, dx: f64, dy: f64, dw: f64, dh: f64);
     /// A canvas outside the page, of `w` × `h` pixels
     fn layer(&self, w: u32, h: u32) -> Box<dyn Layer>;
@@ -85,6 +97,7 @@ pub trait Canvas {
         Gradient { kind: GradientKind::Linear { x0, y0, x1, y1 }, stops: RefCell::default() }
     }
 
+    #[allow(clippy::result_unit_err)] // as the canvas of the browser
     fn create_radial_gradient(&self, x0: f64, y0: f64, r0: f64, x1: f64, y1: f64, r1: f64) -> Result<Gradient, ()> {
         if r0 < 0.0 || r1 < 0.0 {
             return Err(());

@@ -666,7 +666,7 @@ mod tests {
         t.set_font("20px sans-serif");
         t.set_text_baseline("top");
         t.fill_text("Hi", 2.0, 2.0);
-        assert!(t.pixels().iter().any(|&p| p == 0xffffff));
+        assert!(t.pixels().contains(&0xffffff));
         let l = c.layer(1, 2);
         l.canvas().set_fill_style_str("#0000ff");
         l.canvas().fill_rect(0.0, 0.0, 1.0, 2.0);

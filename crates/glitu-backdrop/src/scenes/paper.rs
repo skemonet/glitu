@@ -1,20 +1,14 @@
 //! Cut paper: wavy layers of paper, from aqua to petrol blue, with real drop shadows that
 //! breathe. Behind the text, the layers go down and flatten.
 
-
 use crate::{Canvas, Grain, Noise, Scene, TAU, clamp01, lerp};
 
 const LAYERS: [&str; 6] = ["#dcebe8", "#b7dbd4", "#86c2b8", "#4fa39a", "#2c7a75", "#1b4e52"];
 
+#[derive(Default)]
 pub struct Paper {
     noise: Noise,
     grain: Option<Grain>,
-}
-
-impl Default for Paper {
-    fn default() -> Self {
-        Paper { noise: Noise::new(), grain: None }
-    }
 }
 
 impl Scene for Paper {

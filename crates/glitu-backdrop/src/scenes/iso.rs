@@ -1,7 +1,6 @@
 //! Isometric: a board of isometric columns that rise and fall in a wave, a single coral column
 //! in the centre. Behind the text, the board shrinks into the right corner.
 
-
 use crate::{Canvas, Scene, clamp01, lerp};
 
 pub struct Iso;

@@ -241,7 +241,7 @@ impl Crystal {
         lz /= ll;
         let (w, h) = (self.w, self.h);
         ctx.set_transform(scale, 0.0, 0.0, scale, 0.0, 0.0);
-        let _ = ctx.set_global_composite_operation("source-over");
+        ctx.set_global_composite_operation("source-over");
         ctx.set_shadow_blur(0.0);
         ctx.set_fill_style_str("#030308");
         ctx.fill_rect(0.0, 0.0, w, h);
@@ -269,7 +269,7 @@ impl Crystal {
             ctx.set_line_width(1.0);
             ctx.stroke();
         }
-        let _ = ctx.set_global_composite_operation("lighter");
+        ctx.set_global_composite_operation("lighter");
         ctx.set_line_width(1.2);
         for (k, tr) in self.tris.iter().enumerate() {
             if !tr.glow {
@@ -318,13 +318,13 @@ impl Crystal {
                     ctx.set_shadow_blur(0.0);
                     ctx.set_fill_gradient(&g);
                     ctx.begin_path();
-                    let _ = ctx.arc(hp.0, hp.1, 14.0, 0.0, PI * 2.0);
+                    ctx.arc(hp.0, hp.1, 14.0, 0.0, PI * 2.0);
                     ctx.fill();
                 }
             }
         }
         ctx.set_shadow_blur(0.0);
-        let _ = ctx.set_global_composite_operation("source-over");
+        ctx.set_global_composite_operation("source-over");
     }
 
     /// Advances by `dt` seconds of animation

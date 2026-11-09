@@ -160,11 +160,22 @@ impl Canvas for Ctx {
     fn set_image_smoothing_enabled(&self, on: bool) {
         self.0.set_image_smoothing_enabled(on);
     }
-    fn draw_layer_part(&self, layer: &dyn Layer, sx: f64, sy: f64, sw: f64, sh: f64, dx: f64, dy: f64, dw: f64, dh: f64) {
+    fn draw_layer_part(
+        &self,
+        layer: &dyn Layer,
+        sx: f64,
+        sy: f64,
+        sw: f64,
+        sh: f64,
+        dx: f64,
+        dy: f64,
+        dw: f64,
+        dh: f64,
+    ) {
         if let Some(el) = element(layer) {
-            let _ = self
-                .0
-                .draw_image_with_html_canvas_element_and_sw_and_sh_and_dx_and_dy_and_dw_and_dh(el, sx, sy, sw, sh, dx, dy, dw, dh);
+            let _ = self.0.draw_image_with_html_canvas_element_and_sw_and_sh_and_dx_and_dy_and_dw_and_dh(
+                el, sx, sy, sw, sh, dx, dy, dw, dh,
+            );
         }
     }
     fn draw_layer(&self, layer: &dyn Layer, dx: f64, dy: f64, dw: f64, dh: f64) {

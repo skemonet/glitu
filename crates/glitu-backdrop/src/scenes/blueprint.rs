@@ -1,7 +1,6 @@
 //! Blueprint: architect's blue paper, a fine grid, a dimensioned mechanical part whose ring of
 //! holes turns slowly, and a title block on the cover.
 
-
 use crate::{Canvas, Scene, TAU, clamp01, lerp, veil};
 
 pub struct Blueprint;
@@ -15,7 +14,7 @@ fn line(ctx: &dyn Canvas, x1: f64, y1: f64, x2: f64, y2: f64) {
 
 fn ring(ctx: &dyn Canvas, x: f64, y: f64, r: f64) {
     ctx.begin_path();
-    let _ = ctx.arc(x, y, r, 0.0, TAU);
+    ctx.arc(x, y, r, 0.0, TAU);
     ctx.stroke();
 }
 
@@ -91,7 +90,7 @@ impl Scene for Blueprint {
         ctx.set_font(&format!("{}px \"IBM Plex Mono\", monospace", 10.0 * k));
         ctx.set_text_align("center");
         ctx.set_text_baseline("bottom");
-        let _ = ctx.fill_text("Ø 140", cx, dy - 3.0 * k);
+        ctx.fill_text("Ø 140", cx, dy - 3.0 * k);
         // Title block, which fades behind the text
         if low < 1.0 {
             ctx.set_global_alpha(1.0 - low);
@@ -110,7 +109,7 @@ impl Scene for Blueprint {
                 ("SHEET 01", bx + 4.0 * k, by + bh * 0.75),
                 ("A3", bx + bw * 0.6 + 4.0 * k, by + bh * 0.75),
             ] {
-                let _ = ctx.fill_text(txt, x, y);
+                ctx.fill_text(txt, x, y);
             }
             ctx.set_global_alpha(1.0);
         }

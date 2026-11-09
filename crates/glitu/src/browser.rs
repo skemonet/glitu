@@ -72,8 +72,11 @@ impl Browser {
     /// recorded (the backdrops read it once, at the start: they stay still)
     pub fn reduce_motion(&mut self, on: bool) -> Result<(), String> {
         let value = if on { "reduce" } else { "no-preference" };
-        self.send("Emulation.setEmulatedMedia", json!({ "features": [{ "name": "prefers-reduced-motion", "value": value }] }))
-            .map(drop)
+        self.send(
+            "Emulation.setEmulatedMedia",
+            json!({ "features": [{ "name": "prefers-reduced-motion", "value": value }] }),
+        )
+        .map(drop)
     }
 
     pub fn send(&mut self, method: &str, params: Value) -> Result<Value, String> {
