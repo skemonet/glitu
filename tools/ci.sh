@@ -79,7 +79,7 @@ d=$(mktemp -d)
 "$g" --version
 "$g" version
 "$g" build tests/features/slides.md -o "$d/demo.html"
-"$g" export tests/features/slides.md --format site -o "$d/site"
+"$g" build site tests/features/slides.md -o "$d/site"
 test -s "$d/site/index.html" && test -s "$d/demo.html"
 "$g" init "$d/talk" --theme mine
 "$g" build "$d/talk/slides.md" -o "$d/talk.html"
