@@ -134,6 +134,17 @@ html.glitu-remote .reveal{height:40vh!important}
 /* Animated slides (`{.animate}`): no slide transition, the elements are what moves */
 .reveal.auto-animating .slides section { transition: none !important; animation: none !important; }
 
+/* A visual at a forced place (`box="x y w h"`): a frame filling the area of the visual, the box
+   placed in it in %, the visual whole inside the box */
+.reveal .boxed { position: relative; align-self: stretch; flex: 1; width: 100%; height: 100%; min-width: 0; min-height: 0; }
+.reveal .boxed > .box {
+  position: absolute; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  box-sizing: border-box;
+}
+.reveal .boxed > .box > * { max-width: 100%; max-height: 100%; min-height: 0; }
+.reveal .boxed > .box > :is(img, video) { object-fit: contain; margin: 0; }
+.reveal .boxed > .box > :is(.diagram, .window) { flex: 1; width: 100%; }
+
 /* Layers shared by all the slides (`global-top`, `global-bottom` in the front matter): bottom
    right by default, above or below the content */
 .reveal .slides section > .global-layer {

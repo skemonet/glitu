@@ -20,6 +20,17 @@ pub(super) struct Seen {
 
 pub(super) fn visual_html(v: &Block, assets: &mut dyn Assets, seen: &mut Seen) -> Result<String, String> {
     Ok(match v {
+        // `box="x y w h"`: the place and size forced, in % of the area of the visual, its caption with it
+        Block::Fence(f) if f.attrs.contains_key("box") => {
+            let mut bare = f.clone();
+            let place = bare.attrs.remove("box").unwrap_or_default();
+            boxed_html(&place, &visual_html(&Block::Fence(bare), assets, seen)?)?
+        }
+        Block::Image(m) if m.attrs.contains_key("box") => {
+            let mut bare = m.clone();
+            let place = bare.attrs.remove("box").unwrap_or_default();
+            boxed_html(&place, &visual_html(&Block::Image(bare), assets, seen)?)?
+        }
         Block::Fence(f) if f.attrs.contains_key("caption") => {
             let mut bare = f.clone();
             let caption = bare.attrs.remove("caption");
@@ -44,6 +55,25 @@ pub(super) fn visual_html(v: &Block, assets: &mut dyn Assets, seen: &mut Seen) -
         Block::Image(m) => media_html(m, "visual")?,
         _ => String::new(),
     })
+}
+
+/// Four numbers `x y w h`, in % (a `%` after them is allowed)
+pub(super) fn rect_of(s: &str) -> Option<[f64; 4]> {
+    let v: Vec<f64> = s
+        .split_whitespace()
+        .map(|t| t.trim_end_matches('%').parse::<f64>().ok().filter(|v| v.is_finite()))
+        .collect::<Option<_>>()?;
+    let r: [f64; 4] = v.try_into().ok()?;
+    (r[2] > 0.0 && r[3] > 0.0).then_some(r)
+}
+
+/// A visual at a forced place: a frame filling the area of the visual, the box inside it
+fn boxed_html(place: &str, visual: &str) -> Result<String, String> {
+    let [x, y, w, h] = rect_of(place)
+        .ok_or_else(|| format!("box=\"{place}\": x y width height are expected, in % of the area of the visual"))?;
+    Ok(format!(
+        "<div class=\"boxed\"><div class=\"box\" style=\"left:{x}%;top:{y}%;width:{w}%;height:{h}%\">{visual}</div></div>"
+    ))
 }
 
 /// The line under a visual (`caption="…"`, or the title of an image), which appears with it

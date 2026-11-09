@@ -26,7 +26,7 @@ thread_local! {
 }
 
 /// The size of the picture of an image or a video, once it is known
-fn natural(media: &Element) -> Option<(f64, f64)> {
+pub fn natural(media: &Element) -> Option<(f64, f64)> {
     let (w, h) = if let Some(img) = media.dyn_ref::<HtmlImageElement>() {
         (img.natural_width(), img.natural_height())
     } else {

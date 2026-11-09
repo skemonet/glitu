@@ -332,8 +332,15 @@ const IFRAME: &str = "iframe";
 fn with_settings(section: &str, head: &Head) -> String {
     let mut attrs = String::new();
     let mut style = Vec::new();
-    if let Some(t) = head.attrs.get("transition") {
-        attrs += &format!(" data-transition=\"{}\"", esc(t));
+    match head.attrs.get("transition").map(|t| (t, t.split_once(':'))) {
+        // `dive:api`: the diagram of the previous slide zooms on its element `api` (a skemo card),
+        // or on a zone `x y w h` in % of its picture, and this slide's comes out of it;
+        // `surface:api`, the other way round (see the engine)
+        Some((_, Some((way @ ("dive" | "surface"), target)))) => {
+            attrs += &format!(" data-{way}=\"{}\"", esc(target.trim()));
+        }
+        Some((t, _)) => attrs += &format!(" data-transition=\"{}\"", esc(t)),
+        None => {}
     }
     // `{.animate}`: the elements shared with the neighbouring animated slide slide over (see the engine)
     if head.classes.iter().any(|c| c == "animate") {
@@ -598,6 +605,24 @@ mod tests {
                 "class=\"layout-end\"><div class=\"chapter\" data-backdrop=\"animated\"><h2>E</h2><p>bye</p>"
             )
         );
+    }
+
+    #[test]
+    fn dives_into_an_element_and_forced_boxes() {
+        let deck = html(
+            "## A\n\n![](a.png)\n\n## B {transition=\"dive:api\"}\n\n## C {transition=\"surface: 10 20 30 40\"}\n",
+        );
+        assert!(deck.contains("data-dive=\"api\""), "{deck}");
+        assert!(deck.contains("data-surface=\"10 20 30 40\""), "{deck}");
+        assert!(!deck.contains("data-transition"), "{deck}");
+        let deck = html("## A\n\n![](a.png){box=\"50 0 50% 100\"}\n");
+        assert!(
+            deck.contains("<div class=\"boxed\"><div class=\"box\" style=\"left:50%;top:0%;width:50%;height:100%\"><img class=\"visual\" src=\"a.png\""),
+            "{deck}"
+        );
+        assert!(!deck.contains("box=\""), "{deck}");
+        let err = render(&parse("## A\n\n![](a.png){box=\"1 2 3\"}\n"), &mut NoAssets).unwrap_err();
+        assert!(err.contains("box=\"1 2 3\""), "{err}");
     }
 
     #[test]

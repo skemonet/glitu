@@ -11,6 +11,7 @@ mod attributes;
 mod autoslide;
 mod chrome;
 mod code;
+mod dive;
 mod dom;
 mod draw;
 mod engine;
@@ -71,6 +72,7 @@ pub fn start(options: JsValue) {
     code::install();
     magic::install();
     animate::install();
+    dive::install();
     skemo::install();
     notes::install();
     terminal::install(&theme);

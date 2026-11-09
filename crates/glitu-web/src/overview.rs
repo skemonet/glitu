@@ -16,7 +16,7 @@ thread_local! {
     static ACTIVE: Cell<bool> = const { Cell::new(false) };
 }
 
-fn active() -> bool {
+pub fn active() -> bool {
     ACTIVE.with(Cell::get)
 }
 

@@ -45,3 +45,46 @@ spec:
 ![Game of life](img/life.webm "Rendered by ffmpeg (life filter)"){muted pauses="0:01.5 0:03" focus="35 30 30 40 0:01.5-0:02"}
 
 Note: The video stops by itself at 1.5 s, circled. [click] It resumes, stops at 3 s. [click] It plays to the end.
+
+## Zooming into a diagram
+
+### The pieces
+
+- glitu-core compiles the markdown
+- The next slide goes inside it
+
+```skemo
+diagram(dir="right")
+  card#cli.crate(icon="terminal") glitu
+    | build · server
+    to(core)
+  card#core.crate(icon="cpu") glitu-core
+    | markdown → HTML slides
+    to(web)
+  card#web.wasm(icon="monitor") glitu-web
+    | navigation, steps
+```
+
+Note: The general diagram. The next slide zooms into glitu-core.
+
+## Inside glitu-core {transition="dive:core"}
+
+### The compiler
+
+- The markdown is read, then rendered
+- The diagram has a forced place: `box="…"`
+- ← zooms back out
+
+```skemo box="4 8 92 84"
+diagram(dir="down")
+  card#md(icon="folder-open") markdown.rs
+    | the slides, the @n markers
+    to(render)
+  card#render(icon="cpu") render
+    | sections, layouts, visuals
+    to(html)
+  card#html(icon="globe") html.rs
+    | inline markdown, icons
+```
+
+Note: The diagram of glitu-core came out of its card. Going back plays the zoom the other way.
