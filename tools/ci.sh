@@ -38,6 +38,8 @@ fi
 # tools/skemo.version, installed once into the cached cargo home
 step "tools: skemo $(cat tools/skemo.version)"
 skemo_version=$(cat tools/skemo.version)
+# where cargo install puts it (the CI's cached cargo home is not on its PATH)
+export PATH="${CARGO_HOME:-$HOME/.cargo}/bin:$PATH"
 if ! skemo --version 2> /dev/null | grep -qx "skemo $skemo_version"; then
   cargo install --git https://github.com/skemonet/skemo --tag "v$skemo_version" skemo-cli
 fi
