@@ -23,11 +23,11 @@ stages:
   - publish
 
 default:
-  image: localhost/ci/rust:1.99.1-5
+  image: localhost/ci/rust:1.99.1-6
   cache:
-    - key: target-rust-1.99.1-5-c1
+    - key: target-rust-1.99.1-6-c1
       paths: [target]
-    - key: cargo-rust-1.99.1-5-c1
+    - key: cargo-rust-1.99.1-6-c1
       paths: [.cargo-home]
 
 variables:
