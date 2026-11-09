@@ -125,6 +125,11 @@ website:
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
   script:
+    # the demo draws skemo diagrams: the skemo of tools/skemo.version, from the cached cargo home
+    # (installed by the check job, or here)
+    - export PATH="$CARGO_HOME/bin:$PATH"
+    - v=$(cat tools/skemo.version); skemo --version 2>/dev/null | grep -qx "skemo $v" || cargo install --git https://github.com/skemonet/skemo --tag "v$v" skemo-cli
+    - export GLITU_TOOL_SKEMO="$(command -v skemo)" GLITU_REQUIRE_TOOLS=skemo
     # the version released, or the last one: the light pages load the engine from glitu/<version>/
     - . ./release.env && export GLITU_BUILD_VERSION && tools/site.sh site/dist
     - tools/github-pages.sh site/dist
