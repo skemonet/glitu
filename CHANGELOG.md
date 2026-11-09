@@ -18,6 +18,11 @@ and the versions [Semantic Versioning](https://semver.org/).
   are shown as text. The hostile presentations of `tests/security/` check it.
 
 ### Changed
+- A skemo diagram whose steps leave room for the text's clicks (`card A @1`, then `@8:halo` after
+  the text's clicks 2 to 7) is no longer refused by skemo 0.1.0-rc.9: glitu passes
+  `--allow step-gap` when skemo has the `allow` feature.
+- `glitu oracle check` matches the captures by state (slide and click), not by position: a missing
+  click fails alone instead of shifting every later slide.
 - **skemo is no longer linked into glitu**: ` ```skemo ` blocks are rendered by the `skemo` command
   line, to install (https://skemo.net/install); the binary goes from 21.9 to 9.5 MB.
 - A theme's settings are `glitu.yaml` instead of `glitu.json` (still read).

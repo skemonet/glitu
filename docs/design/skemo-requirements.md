@@ -100,8 +100,14 @@ Required:
    `data-highlight="halo:3-4 magnify:6"` (effects in the order written, separated by a space).
    `data-fx` stays the appearance effect only.
 4. Its steps count in the diagram's steps (`data-states` of the root), like an appearance.
-5. An unknown effect after `@n:` keeps its current treatment; a highlight on a step that does not
-   exist is a warning.
+5. An unknown effect after `@n:` keeps its current treatment. A diagram's steps are **clicks of
+   the whole slide**: between two steps of a diagram, the clicks may belong to the text
+   (`card A @1` then `card B @8`, the text taking clicks 2 to 7). Only glitu knows them, so
+   skemo's `step-gap` warning (D-094, a gap inside a diagram on its own) does not apply: glitu
+   passes `--allow step-gap` when the probe lists the `allow` feature (D-098, `0.1.0-rc.9`; an
+   older skemo does not emit `step-gap`). glitu has no upper bound to check either: the engine
+   groups a slide's fragments by index and numbers them again, as reveal.js does, so every step
+   written is a click and a gap in the numbers never gives a click that changes nothing.
 6. In the formats without clicks (PNG, GIF, APNG, WebP), skemo may draw them or ignore them;
    documented.
 
@@ -260,7 +266,7 @@ told, passes `--root` and `--diagnostics json` and leaves the highlights to skem
 | SK-1 | Exit codes 0, 1, 2; nothing on stdout when refused; works in a read-only folder; no escape when not a terminal. An empty standard input renders an empty diagram (exit 0): acceptable? |
 | SK-2 | One JSON object per line, as specified (code, line, columns, help). In English, the quotes are still `« »` (`unknown target « zz »`). |
 | SK-3 | `capabilities --format json` gives the features; **the version is still `0.1.0-rc.8`**, the same as the release without them: glitu cannot require a minimum version, it relies on the features. A new version number is needed before release. |
-| SK-4 | `data-highlight` next to `data-fx`, on cards without `#id` and on arrows; the clicks count in `data-states`; same rendering as glitu's (oracle). **Missing: no warning for a highlight on a click that does not exist** (`card#a A @9:halo` passes `--deny-warnings`). |
+| SK-4 | `data-highlight` next to `data-fx`, on cards without `#id` and on arrows; the clicks count in `data-states`; same rendering as glitu's (oracle). A highlight on a click that does not exist cannot happen in glitu (SK-4.5): skemo's `step-gap` (rc.9) is passed with `--allow step-gap`. |
 | SK-6 | Refused with a diagnostic: `../x`, an absolute path, a link leading out, a link to `/dev/zero`, an image over 1 MiB, a PNG named `.svg`. `sub/../ok.png` (inside the root) is refused too: stricter than asked, fine. An absolute path without an image extension (`icon="/etc/passwd"`) is read as an icon name ("unknown icon"): nothing read, fine. |
 | SK-7 | Two runs, the same bytes. |
 | SK-8 | `--font-scale` applied. **Two `--css` with the same file name (the theme's and the presentation's `skemo.css`) are both embedded as `skemo.css`**: a diagram reopened from the page cannot tell them apart (glitu passes one merged file meanwhile). |

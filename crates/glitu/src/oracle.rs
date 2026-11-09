@@ -98,11 +98,18 @@ pub fn check(url: &str, reference: &Path, limit: f64) -> Result<bool, String> {
     let index =
         fs::read_to_string(reference.join("index.json")).map_err(|e| format!("{}: {e}", reference.display()))?;
     let refs: Vec<String> = serde_json::from_str(&index).map_err(|e| e.to_string())?;
+    // matched by state (`<slide>-<click>`), not by position: a missing click fails alone
+    let state = |name: &str| name.split_once('_').map_or(name, |(_, s)| s).to_string();
     let mut ok = refs.len() == names.len();
     if !ok {
         println!("number of states: oracle {}, rendering {}", refs.len(), names.len());
     }
-    for (r, c) in refs.iter().zip(&names) {
+    for r in &refs {
+        let Some(c) = names.iter().find(|c| state(c) == state(r)) else {
+            ok = false;
+            println!("FAIL  {r}: missing from the rendering");
+            continue;
+        };
         let d = diff(&decode(&reference.join(r))?, &decode(&cur.join(c))?);
         let bad = d.percent > limit;
         if bad && !d.image.is_empty() {
@@ -111,6 +118,10 @@ pub fn check(url: &str, reference: &Path, limit: f64) -> Result<bool, String> {
         }
         ok &= !bad;
         println!("{} {r} ↔ {c}  {:.2} %", if bad { "FAIL " } else { "ok   " }, d.percent);
+    }
+    for c in names.iter().filter(|c| !refs.iter().any(|r| state(r) == state(c))) {
+        ok = false;
+        println!("FAIL  {c}: not in the oracle");
     }
     println!("{}: rendering and differences", cur.display());
     Ok(ok)
