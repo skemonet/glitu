@@ -5,5 +5,6 @@ pub mod ascii;
 pub mod aurora;
 pub mod blueprint;
 pub mod constellation;
+pub mod graphite;
 pub mod iso;
 pub mod paper;

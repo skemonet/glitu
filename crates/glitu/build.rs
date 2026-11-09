@@ -17,6 +17,10 @@ fn main() {
     let web = manifest.parent().unwrap().join("glitu-web");
     println!("cargo:rerun-if-changed={}", web.join("src").display());
     println!("cargo:rerun-if-changed={}", web.join("Cargo.toml").display());
+    // the backdrops the engine draws, a crate of their own (shared with glitu-play)
+    let backdrop = manifest.parent().unwrap().join("glitu-backdrop");
+    println!("cargo:rerun-if-changed={}", backdrop.join("src").display());
+    println!("cargo:rerun-if-changed={}", backdrop.join("Cargo.toml").display());
 
     // A separate target folder: the parent cargo holds the lock on its own. One per profile
     // (target/<profile>/web-target, above OUT_DIR), shared by every feature set of the profile:

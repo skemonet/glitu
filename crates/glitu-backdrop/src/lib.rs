@@ -143,6 +143,7 @@ pub fn scene(name: &str) -> Option<Box<dyn Scene>> {
         "ascii" => Box::new(scenes::ascii::Ascii::default()),
         "blueprint" => Box::new(scenes::blueprint::Blueprint),
         "iso" => Box::new(scenes::iso::Iso),
+        "graphite" => Box::new(scenes::graphite::Graphite),
         _ => return None,
     })
 }

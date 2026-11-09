@@ -407,7 +407,10 @@ html, body, .reveal-viewport { background: var(--base); }
   color: var(--accent-2); background: var(--eyebrow-bg); border: 1px solid var(--eyebrow-line);
 }
 .reveal .cover h1 {
-  font-family: var(--title-font); font-size: calc(var(--cover-size) * var(--text-scale, 1)); font-weight: var(--title-weight); letter-spacing: -.03em; line-height: 1; margin: .3em 0 .2em;
+  font-family: var(--title-font); font-size: calc(var(--cover-size) * var(--text-scale, 1)); font-weight: var(--title-weight); letter-spacing: -.03em; line-height: 1; margin: .3em 0 .05em;
+  /* the text is painted by its background, which stops at the box: the padding takes in the
+     descenders (g, p, y), the margin gives it back */
+  padding-bottom: .15em;
   background: var(--cover-title); -webkit-background-clip: text; background-clip: text; color: transparent;
 }
 .reveal .cover .subtitle { font-size: calc(30px * var(--text-scale, 1)); color: var(--cover-subtitle); max-width: 20em; line-height: 1.35; }
@@ -533,7 +536,7 @@ html, body, .reveal-viewport { background: var(--base); }
 .reveal :is(.layout-center, .layout-statement, .layout-fact) .layout-body { align-items: center; text-align: center; }
 .reveal .layout-statement :is(h2, p) { font-family: var(--title-font); font-size: calc(54px * var(--text-scale, 1)); font-weight: var(--title-weight); line-height: 1.15; color: var(--heading); max-width: 1000px; }
 .reveal .layout-fact h2 {
-  font-family: var(--title-font); font-size: calc(150px * var(--text-scale, 1)); font-weight: var(--title-weight); line-height: 1; margin: 0 0 .15em;
+  font-family: var(--title-font); font-size: calc(150px * var(--text-scale, 1)); font-weight: var(--title-weight); line-height: 1; margin: 0; padding-bottom: .15em;   /* descenders: see .cover h1 */
   background: var(--gradient); -webkit-background-clip: text; background-clip: text; color: transparent;
 }
 .reveal .layout-fact p { font-size: calc(30px * var(--text-scale, 1)); color: var(--text-dim); }

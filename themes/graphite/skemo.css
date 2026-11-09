@@ -1,0 +1,19 @@
+/* Types of the skemo diagrams, matched to the theme of the presentation (greys, purple accent).
+   The text size for projection comes from glitu.yaml (skemo.fontScale),
+   or from the block itself: ```skemo font-scale="2" */
+.workstation    { --c: #6b7280; }
+.cluster  { --c: #a855f7; }
+.node    { --c: #6b7280; }
+.tool    { --c: #9ca3af; --label: "CLI"; }
+.system  { --c: #9333ea; --label: "API"; }
+.agent    { --c: #c084fc; --label: "AGENT"; }
+.app      { --c: #a855f7; --label: "APP"; }
+.pod      { --c: #7e22ce; --label: "POD"; }
+.service  { --c: #9ca3af; --label: "SVC"; }
+.svc-network { --c: #d97706; }
+.milestone    { --c: #c084fc; }
+/* Generic types, for any diagram */
+.file     { --c: #6b7280; --label: "FILE"; }
+.output   { --c: #9ca3af; --label: "OUTPUT"; }
+.user     { --c: #c084fc; --label: "USER"; }
+.data     { --c: #a3a3a3; --label: "DATA"; }
