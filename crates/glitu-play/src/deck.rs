@@ -232,6 +232,7 @@ impl Archive {
     pub fn read(&self, name: &str) -> Result<Vec<u8>, String> {
         let &(offset, size) = self.entries.get(name).ok_or_else(|| format!("{name}: missing from the archive"))?;
         let mut f = fs::File::open(&self.path).map_err(|e| e.to_string())?;
+        let len = f.metadata().map_err(|e| e.to_string())?.len();
         // the local header: 30 bytes, then the name and an extra field of their own lengths
         let mut head = [0u8; 30];
         f.seek(SeekFrom::Start(offset)).and_then(|_| f.read_exact(&mut head)).map_err(|e| e.to_string())?;
@@ -239,9 +240,14 @@ impl Archive {
             return Err(format!("{name}: damaged archive"));
         }
         let skip =
-            i64::from(u16::from_le_bytes([head[26], head[27]])) + i64::from(u16::from_le_bytes([head[28], head[29]]));
+            u64::from(u16::from_le_bytes([head[26], head[27]])) + u64::from(u16::from_le_bytes([head[28], head[29]]));
+        // the size comes from the file: it must fit in the file before a buffer is made for it
+        let start = offset + 30 + skip;
+        if start.checked_add(size as u64).is_none_or(|end| end > len) {
+            return Err(format!("{name}: damaged archive"));
+        }
         let mut bytes = vec![0; size];
-        f.seek(SeekFrom::Current(skip)).and_then(|_| f.read_exact(&mut bytes)).map_err(|e| e.to_string())?;
+        f.seek(SeekFrom::Start(start)).and_then(|_| f.read_exact(&mut bytes)).map_err(|e| e.to_string())?;
         Ok(bytes)
     }
 }
@@ -262,6 +268,10 @@ fn zip_entries(path: &Path) -> Result<HashMap<String, (u64, usize)>, String> {
     let u16_at = |b: &[u8], i: usize| u16::from_le_bytes([b[i], b[i + 1]]) as usize;
     let u32_at = |b: &[u8], i: usize| u32::from_le_bytes([b[i], b[i + 1], b[i + 2], b[i + 3]]) as usize;
     let (count, size, offset) = (u16_at(&tail, end + 10), u32_at(&tail, end + 12), u32_at(&tail, end + 16));
+    // the directory lies in the file, and holds `count` entries of 46 bytes at least
+    if offset as u64 + size as u64 > len || count * 46 > size {
+        return Err("damaged archive".into());
+    }
     let mut central = vec![0; size];
     f.seek(SeekFrom::Start(offset as u64)).and_then(|_| f.read_exact(&mut central)).map_err(|e| e.to_string())?;
     let mut entries = HashMap::new();
@@ -280,6 +290,10 @@ fn zip_entries(path: &Path) -> Result<HashMap<String, (u64, usize)>, String> {
             return Err(format!(
                 "{name}: compressed entry; the player reads the archive as glitu writes it (export it again)"
             ));
+        }
+        // the entry (its header of 30 bytes at least, then its bytes) lies in the file
+        if (local + 30).checked_add(stored as u64).is_none_or(|end| end > len) {
+            return Err(format!("{name}: damaged archive"));
         }
         entries.insert(name, (local, stored));
         at += 46 + name_len + extra + comment;
@@ -304,7 +318,7 @@ pub fn decode(bytes: &[u8]) -> Result<Image, String> {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
 
     #[test]
@@ -335,7 +349,7 @@ mod tests {
     }
 
     /// A stored zip archive, as `glitu build play` writes it (the CRC is not checked: left at zero)
-    fn zip(files: &[(&str, &[u8])], comment: &[u8]) -> Vec<u8> {
+    pub(crate) fn zip(files: &[(&str, &[u8])], comment: &[u8]) -> Vec<u8> {
         let (mut data, mut central) = (Vec::new(), Vec::new());
         for (name, bytes) in files {
             let offset = data.len() as u32;
@@ -391,6 +405,43 @@ mod tests {
         assert!(d.file("002.png").err().unwrap().contains("missing"));
         fs::write(&file, b"not an archive").unwrap();
         assert!(Deck::open(&file).err().unwrap().contains("not a .glituplay file"));
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    /// A fresh folder for a test
+    fn folder(name: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("glitu-play-test-{}-{name}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    fn put(bytes: &mut [u8], at: usize, v: u32) {
+        bytes[at..at + 4].copy_from_slice(&v.to_le_bytes());
+    }
+
+    #[test]
+    fn an_archive_announcing_sizes_larger_than_itself_is_refused() {
+        let dir = folder("sizes");
+        let deck = br#"{ "glitu-play": 1, "width": 1, "height": 1, "clicks": [ { "slide": 1, "image": "1.png" } ] }"#;
+        let good = zip(&[("deck.json", deck)], b"");
+        let end = good.len() - 22;
+        let central = u32::from_le_bytes(good[end + 16..end + 20].try_into().unwrap()) as usize;
+        let mut bad = Vec::new();
+        // the central directory, then an entry, larger than the file; more entries than it holds
+        for (at, v) in [(end + 12, 0xffff_fff0), (central + 20, 0xffff_fff0), (end + 10, 9)] {
+            let mut z = good.clone();
+            put(&mut z, at, v);
+            bad.push(z);
+        }
+        let mut z = good.clone();
+        put(&mut z, end + 16, 0xffff_fff0);
+        bad.push(z);
+        for z in bad {
+            let file = dir.join("talk.glituplay");
+            fs::write(&file, &z).unwrap();
+            let e = Deck::open(&file).err().unwrap_or_default();
+            assert!(e.contains("damaged archive"), "{e}");
+        }
         let _ = fs::remove_dir_all(&dir);
     }
 
