@@ -5,10 +5,27 @@ and the versions [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+### Security
+- The SVG sanitizer reads the entities of a diagram once, before its checks: an address written
+  with entities (`&#106;avascript:`) no longer passes them, and an `&` before accented text no
+  longer stops the build.
+- A quote in a class or in the language of a code block stays inside its attribute, and a terminal
+  recording holding `<!--` or `<script` can no longer swallow the rest of the page.
+- A folder given to glitu no longer reads a markdown file that is a symbolic link out of the
+  folder, unless the file is named on the command line.
+- The preview server bounds the length of a request's lines, their number and the time to send
+  them; a damaged `%` sequence in an address no longer stops it.
+- The browser is not looked for in the relative entries of `PATH`.
+- Files including each other many times (`<!-- include: -->`) are refused past 4096 files read.
+
 ### Fixed
 - A d2 diagram is centred in its place, like the others (d2 pinned it to the top left corner).
 - `glitu oracle check` matches the slides of a vertical stack one by one (they share their state
   names).
+- `html` and `xml` code of a reveal-md presentation with accented text or an unfinished attribute
+  no longer stops the build.
+- A slide's title holding a `|` is whole in the header and in the speaker view.
+- `tools/ci.sh` passes on macOS.
 
 ### Changed
 - The demo shows the eight template themes and a diagram of each engine (Mermaid, D2, Graphviz);
