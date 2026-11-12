@@ -3,6 +3,17 @@
 The notable changes of glitu. The format follows [Keep a Changelog](https://keepachangelog.com/),
 and the versions [Semantic Versioning](https://semver.org/).
 
+## Unreleased
+
+### Fixed
+- A d2 diagram is centred in its place, like the others (d2 pinned it to the top left corner).
+- `glitu oracle check` matches the slides of a vertical stack one by one (they share their state
+  names).
+
+### Changed
+- The demo shows the eight template themes and a diagram of each engine (Mermaid, D2, Graphviz);
+  its architecture diagram shows the diagram tools run by glitu.
+
 ## 0.2.0 — 2026-11-12
 
 ### Security

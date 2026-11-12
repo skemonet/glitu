@@ -102,3 +102,10 @@ A header across the full width, then two columns
 - On the right
 
 ## Web page {.iframe url="page.html"}
+
+## Eight template themes {.large}
+
+![The same slide in each template theme](img/themes.webp "`theme: graphite` in the front matter; `glitu init --list-themes` lists them")
+
+Note: The same slide in the eight themes that share the template: the layout stays, the backdrop
+and the palette change.
