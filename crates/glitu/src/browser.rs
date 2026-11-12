@@ -6,7 +6,7 @@
 use std::fs;
 use std::io::{BufRead, BufReader, Read, Write};
 use std::net::TcpStream;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process::{Child, Command, Stdio};
 use std::thread::sleep;
 use std::time::Duration;
@@ -23,7 +23,8 @@ pub struct Browser {
     child: Child,
     ws: WebSocket<MaybeTlsStream<TcpStream>>,
     id: u64,
-    profile: PathBuf,
+    /// The browser's profile: private and removed with the browser
+    _profile: crate::engines::run::Scratch,
     /// Events received while waiting for a response, kept during a recording (`film`)
     events: Option<Vec<Value>>,
 }
@@ -32,9 +33,11 @@ impl Browser {
     /// The browser `bin` (see `chromium`), headless, a window of `width` × `height` CSS px,
     /// `scale` screen pixels per px
     pub fn launch(bin: &Path, port: u16, width: u32, height: u32, scale: f64) -> Result<Self, String> {
-        let profile = std::env::temp_dir().join(format!("glitu-browser-{}-{port}", std::process::id()));
+        // a folder of its own (0700, a name nobody can foresee): in a temporary folder shared with
+        // other users, none of them prepares the profile nor reads it
+        let scratch = crate::engines::run::Scratch::new()?;
+        let profile = scratch.0.clone();
         // what the browser writes goes to a file (a pipe nobody reads would block it), read if it fails
-        fs::create_dir_all(&profile).map_err(|e| format!("{}: {e}", profile.display()))?;
         let log = profile.join("glitu-stderr.log");
         let stderr = fs::File::create(&log).map(Stdio::from).unwrap_or_else(|_| Stdio::null());
         let mut child = Command::new(bin)
@@ -52,12 +55,11 @@ impl Browser {
                 let _ = child.kill();
                 let _ = child.wait();
                 let said = fs::read_to_string(&log).unwrap_or_default();
-                let _ = fs::remove_dir_all(&profile);
                 return Err(crate::chromium::launch_failure(bin, exit.map(|s| s.to_string()), &said));
             }
         };
         let (ws, _) = tungstenite::connect(url.as_str()).map_err(|e| e.to_string())?;
-        let mut b = Browser { child, ws, id: 0, profile, events: None };
+        let mut b = Browser { child, ws, id: 0, _profile: scratch, events: None };
         b.send("Page.enable", json!({}))?;
         b.send(
             "Emulation.setDeviceMetricsOverride",
@@ -192,7 +194,6 @@ impl Drop for Browser {
     fn drop(&mut self) {
         let _ = self.child.kill();
         let _ = self.child.wait();
-        let _ = fs::remove_dir_all(&self.profile);
     }
 }
 
