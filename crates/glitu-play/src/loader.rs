@@ -90,7 +90,12 @@ fn work<J: Clone, R>(
 impl Loader {
     /// `wake`: called from the worker after each image, to wake the window's thread up
     pub fn new(archive: Archive, wake: impl Fn() + Send + 'static) -> Loader {
-        Worker::spawn(move |job| load(&archive, job), wake)
+        // a job that panics is an error like another (else the window waits for it for ever)
+        let task = move |job: &Job| {
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| load(&archive, job)))
+                .unwrap_or_else(|_| Err(format!("{}: could not be prepared (internal error)", job.name)))
+        };
+        Worker::spawn(task, wake)
     }
 }
 
@@ -127,5 +132,50 @@ impl<J, R> Drop for Worker<J, R> {
         let (lock, ready) = &*self.shared;
         lock.lock().unwrap_or_else(|e| e.into_inner()).stop = true;
         ready.notify_one();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::deck::tests::zip;
+    use std::time::{Duration, Instant};
+
+    #[test]
+    fn a_job_that_panics_is_answered_with_an_error() {
+        let dir = std::env::temp_dir().join(format!("glitu-play-test-{}-loader", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let mut png = Vec::new();
+        let mut enc = png::Encoder::new(&mut png, 2, 2);
+        enc.set_color(png::ColorType::Rgb);
+        enc.write_header().unwrap().write_image_data(&[7; 12]).unwrap();
+        let file = dir.join("talk.glituplay");
+        let deck = r#"{ "glitu-play": 1, "width": 2, "height": 2, "clicks": [ { "slide": 1, "image": "1.png" } ] }"#;
+        std::fs::write(&file, zip(&[("deck.json", deck.as_bytes()), ("1.png", &png)], b"")).unwrap();
+        let archive = crate::deck::Deck::open(&file).unwrap().archive;
+        let loader = Loader::new(archive, || {});
+        // a scale of 0 makes the scaling panic; the next job is still done
+        let job = |name: &str, scale: f32| Job {
+            generation: 0,
+            name: name.into(),
+            sizes: vec![(Kind::Screen, (4, 4), scale)],
+        };
+        loader.want(vec![job("1.png", 0.0)]);
+        let mut done = Vec::new();
+        let limit = Instant::now() + Duration::from_secs(10);
+        while done.is_empty() && Instant::now() < limit {
+            std::thread::sleep(Duration::from_millis(10));
+            done = loader.take();
+        }
+        let e = done.pop().expect("the loader answers").1.err().unwrap_or_default();
+        assert!(e.contains("1.png"), "{e}");
+        loader.want(vec![job("1.png", 2.0)]);
+        let limit = Instant::now() + Duration::from_secs(10);
+        while done.is_empty() && Instant::now() < limit {
+            std::thread::sleep(Duration::from_millis(10));
+            done = loader.take();
+        }
+        assert!(done.pop().expect("the loader still works").1.is_ok());
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }
