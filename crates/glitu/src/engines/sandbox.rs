@@ -43,17 +43,27 @@ pub fn enable() {
 #[cfg(target_os = "linux")]
 const SYSTEM: [&str; 10] = ["/usr", "/lib", "/lib64", "/lib32", "/bin", "/sbin", "/etc", "/opt", "/nix", "/proc/self"];
 
+/// What a tool reads of its installation: `prefix/bin/tool` → `prefix`, a tool elsewhere → its
+/// folder; but never the whole disk nor a folder holding the home folder (`/bin/dot` → `/bin`,
+/// `~/bin/tool` → `~/bin`, `~/tool` → the tool alone)
+fn installation(tool: &Path, homes: &[PathBuf]) -> PathBuf {
+    let wide = |p: &Path| p.parent().is_none() || homes.iter().any(|h| h.starts_with(p));
+    let bin = tool.parent();
+    let prefix = bin.filter(|b| b.ends_with("bin")).and_then(Path::parent);
+    [prefix, bin].into_iter().flatten().find(|p| !wide(p)).unwrap_or(tool).to_path_buf()
+}
+
 impl Rules {
     /// `root`: the presentation's; `tool`: the program; `tmp`: the private temporary folder
     pub fn new(root: &Path, tool: &Path, tmp: &Path, browser: bool) -> Rules {
         let mut read = vec![root.to_path_buf(), tmp.to_path_buf()];
         // the tool's installation: `prefix/bin/tool` → `prefix`, links resolved (a tool linked from
         // ~/.local/bin into its own folder)
+        let home = std::env::var_os("HOME").map(PathBuf::from);
+        let homes: Vec<PathBuf> =
+            home.iter().flat_map(|h| [h.canonicalize().ok(), Some(h.clone())]).flatten().collect();
         for t in [tool.to_path_buf(), tool.canonicalize().unwrap_or_else(|_| tool.to_path_buf())] {
-            if let Some(prefix) = t.parent().and_then(|bin| if bin.ends_with("bin") { bin.parent() } else { Some(bin) })
-            {
-                read.push(prefix.to_path_buf());
-            }
+            read.push(installation(&t, &homes));
         }
         // a browser reads its own installation and profile, and fonts: the home folder (not
         // `~/.ssh`-proof, the price of running a browser)
@@ -214,6 +224,16 @@ mod tests {
         let r = Rules::new(&tmp, Path::new("/usr/bin/sh"), &tmp, false);
         assert!(r.read.iter().any(|p| p.ends_with("usr") || p == Path::new("/")) || cfg!(not(unix)));
         assert!(!r.network);
+        let home = [PathBuf::from("/home/me")];
+        let at = |tool: &str| installation(Path::new(tool), &home);
+        assert_eq!(at("/opt/graphviz/bin/dot"), Path::new("/opt/graphviz"));
+        assert_eq!(at("/opt/tools/dot"), Path::new("/opt/tools"));
+        assert_eq!(at("/home/me/.local/bin/d2"), Path::new("/home/me/.local"));
+        // never the whole disk nor the whole home folder
+        assert_eq!(at("/bin/dot"), Path::new("/bin"));
+        assert_eq!(at("/home/me/bin/d2"), Path::new("/home/me/bin"));
+        assert_eq!(at("/home/me/d2"), Path::new("/home/me/d2"));
+        assert_eq!(at("/home/bin/d2"), Path::new("/home/bin"));
         let profile = Rules { read: vec!["/a \"b\"".into()], write: vec!["/t".into()], network: false }.seatbelt();
         assert!(
             profile.contains("(allow file-read* (subpath \"/a \\\"b\\\"\"))") && profile.contains("(deny network*)")
