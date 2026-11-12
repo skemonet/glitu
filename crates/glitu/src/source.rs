@@ -80,8 +80,18 @@ pub fn inputs(args: &[PathBuf]) -> Result<Vec<PathBuf>, String> {
 /// README, CHANGELOG, LICENSE and the names starting with `_` or `.`
 pub fn markdown_in(dir: &Path) -> Result<Vec<PathBuf>, String> {
     let at = |name: &std::ffi::OsStr| if dir == Path::new(".") { PathBuf::from(name) } else { dir.join(name) };
+    // these files are found, not named by the user: a link leading out of the folder is refused
+    let inside = Reads::only(dir);
+    let found = |name: &str| -> Result<PathBuf, String> {
+        if inside.contains(&dir.join(name)) {
+            return Ok(at(name.as_ref()));
+        }
+        Err(format!(
+            "{name}: a symbolic link out of the presentation's folder; to use it anyway, name it on the command line"
+        ))
+    };
     if dir.join("slides.md").is_file() {
-        return Ok(vec![at("slides.md".as_ref())]);
+        return Ok(vec![found("slides.md")?]);
     }
     let entries = fs::read_dir(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
     let mut names: Vec<String> = entries
@@ -97,7 +107,7 @@ pub fn markdown_in(dir: &Path) -> Result<Vec<PathBuf>, String> {
             if dir == Path::new(".") { "this folder".to_string() } else { dir.display().to_string() }
         ));
     }
-    Ok(names.iter().map(|n| at(n.as_ref())).collect())
+    names.iter().map(|n| found(n)).collect()
 }
 
 /// A file of the folder that is not part of the presentation, unless named on the command line
@@ -465,6 +475,32 @@ mod tests {
         assert_eq!(markdown_in(&dir).unwrap(), [dir.join("slides.md")]);
         let empty = temp("merge-empty");
         assert!(markdown_in(&empty).unwrap_err().contains("no markdown file"));
+    }
+
+    /// The files glitu finds by itself in a folder are not the user's choice: a link among them
+    /// that leads out of the folder is refused (a cloned folder would publish `~/.ssh/…`)
+    #[cfg(unix)]
+    #[test]
+    fn a_folder_does_not_read_markdown_linked_from_outside() {
+        use std::os::unix::fs::symlink;
+        let base = temp("linked");
+        fs::write(base.join("secret.txt"), "SECRET\n").unwrap();
+        for link in ["leak.md", "slides.md"] {
+            let dir = base.join(format!("talk-{link}"));
+            fs::create_dir_all(&dir).unwrap();
+            fs::write(dir.join("01-intro.md"), "# Intro\n").unwrap();
+            symlink("../secret.txt", dir.join(link)).unwrap();
+            let err = markdown_in(&dir).unwrap_err();
+            assert!(err.contains(link) && err.contains("symbolic link"), "{err}");
+            // named by the user, it is their choice
+            assert_eq!(inputs(&[dir.join(link)]).unwrap(), [dir.join(link)]);
+        }
+        // a link that stays in the folder is a file like another
+        let dir = base.join("talk-inside");
+        fs::create_dir_all(dir.join("parts")).unwrap();
+        fs::write(dir.join("parts/a.txt"), "# A\n").unwrap();
+        symlink("parts/a.txt", dir.join("a.md")).unwrap();
+        assert_eq!(markdown_in(&dir).unwrap(), [dir.join("a.md")]);
     }
 
     #[test]
