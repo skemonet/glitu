@@ -40,8 +40,8 @@ impl Scene for Constellation {
     fn draw(&self, ctx: &dyn Canvas, w: f64, h: f64, t: f64, dim: f64) {
         let k = w / 480.0;
         let g = ctx.create_linear_gradient(0.0, 0.0, w, h);
-        let _ = g.add_color_stop(0.0, "#060812");
-        let _ = g.add_color_stop(1.0, "#101a38");
+        g.add_color_stop(0.0, "#060812");
+        g.add_color_stop(1.0, "#101a38");
         ctx.set_fill_gradient(&g);
         ctx.fill_rect(0.0, 0.0, w, h);
         // The points drift and come back through the opposite edge
