@@ -43,7 +43,9 @@ export PATH="${CARGO_HOME:-$HOME/.cargo}/bin:$PATH"
 if ! skemo --version 2> /dev/null | grep -qx "skemo $skemo_version"; then
   cargo install --git https://github.com/skemonet/skemo --tag "v$skemo_version" skemo-cli
 fi
-export GLITU_TOOL_SKEMO="$(command -v skemo)" GLITU_REQUIRE_TOOLS=skemo
+# the tools the engine tests must find (the CI adds dot and d2); the demo also draws with d2,
+# dot and mermaid (a Chromium-based browser)
+export GLITU_TOOL_SKEMO="$(command -v skemo)" GLITU_REQUIRE_TOOLS="${GLITU_REQUIRE_TOOLS:-skemo}"
 
 step "lints (clippy, -D warnings): --all-features, then the default build"
 cargo clippy --workspace --all-targets --locked --all-features -- -D warnings

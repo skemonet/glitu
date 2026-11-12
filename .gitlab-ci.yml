@@ -23,17 +23,19 @@ stages:
   - publish
 
 default:
-  image: localhost/ci/rust:1.99.1-6
+  image: localhost/ci/rust:1.99.1-7
   cache:
-    - key: target-rust-1.99.1-6-c1
+    - key: target-rust-1.99.1-7-c1
       paths: [target]
-    - key: cargo-rust-1.99.1-6-c1
+    - key: cargo-rust-1.99.1-7-c1
       paths: [.cargo-home]
 
 variables:
   CARGO_TERM_COLOR: always
   CARGO_HOME: $CI_PROJECT_DIR/.cargo-home
   GITHUB_REPO: skemonet/glitu
+  # the image has dot, d2 and Chromium (mermaid.js): the demo draws with them, the tests need them
+  GLITU_REQUIRE_TOOLS: skemo,dot,d2
 
 quick-check:
   stage: check
@@ -125,11 +127,11 @@ website:
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
   script:
-    # the demo draws skemo diagrams: the skemo of tools/skemo.version, from the cached cargo home
-    # (installed by the check job, or here)
+    # the demo draws skemo diagrams (and d2, dot, mermaid ones, with the image's tools): the skemo
+    # of tools/skemo.version, from the cached cargo home (installed by the check job, or here)
     - export PATH="$CARGO_HOME/bin:$PATH"
     - v=$(cat tools/skemo.version); skemo --version 2>/dev/null | grep -qx "skemo $v" || cargo install --git https://github.com/skemonet/skemo --tag "v$v" skemo-cli
-    - export GLITU_TOOL_SKEMO="$(command -v skemo)" GLITU_REQUIRE_TOOLS=skemo
+    - export GLITU_TOOL_SKEMO="$(command -v skemo)"
     # the version released, or the last one: the light pages load the engine from glitu/<version>/
     - . ./release.env && export GLITU_BUILD_VERSION && tools/site.sh site/dist
     - tools/github-pages.sh site/dist
