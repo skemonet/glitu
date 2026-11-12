@@ -243,17 +243,34 @@ struct Request {
     range: Option<String>,
 }
 
+/// At most this many bytes in the request line or in a header, and this many headers: a client
+/// cannot make the server keep an endless request in memory
+const MAX_LINE: usize = 8192;
+const MAX_HEADERS: usize = 100;
+
+/// A line of the request, its end included; an error beyond `MAX_LINE`
+fn read_limited_line(reader: &mut impl BufRead) -> std::io::Result<String> {
+    let mut line = String::new();
+    let n = reader.by_ref().take(MAX_LINE as u64).read_line(&mut line)?;
+    if n == MAX_LINE && !line.ends_with('\n') {
+        return Err(std::io::Error::new(std::io::ErrorKind::InvalidData, "request line too long"));
+    }
+    Ok(line)
+}
+
 /// Reads the request line and the headers
 fn read_request(reader: &mut impl BufRead) -> std::io::Result<Request> {
-    let mut line = String::new();
-    reader.read_line(&mut line)?;
+    let line = read_limited_line(reader)?;
     let target = line.split_whitespace().nth(1).unwrap_or("/").to_string();
     let path = target.split(['?', '#']).next().unwrap_or("/").to_string();
     let (mut length, mut range) = (0, None);
-    loop {
-        let mut h = String::new();
-        if reader.read_line(&mut h)? <= 2 {
+    for n in 0.. {
+        let h = read_limited_line(reader)?;
+        if h.len() <= 2 {
             break;
+        }
+        if n >= MAX_HEADERS {
+            return Err(std::io::Error::new(std::io::ErrorKind::InvalidData, "too many headers"));
         }
         let lower = h.to_ascii_lowercase();
         if let Some(v) = lower.strip_prefix("content-length:") {
@@ -275,6 +292,9 @@ fn read_body(reader: &mut impl Read, req: &Request, max: usize) -> std::io::Resu
 const NO_CONTENT: &[u8] = b"HTTP/1.1 204 No Content\r\nConnection: close\r\n\r\n";
 
 fn handle(mut stream: TcpStream, state: &Mutex<State>) -> std::io::Result<()> {
+    // a client that sends its request too slowly is dropped (the timeout covers the request
+    // only: the stream of events stays open as long as the page)
+    stream.set_read_timeout(Some(Duration::from_secs(10)))?;
     let mut reader = BufReader::new(stream.try_clone()?);
     let req = read_request(&mut reader)?;
     match (req.path.as_str(), req.post) {
@@ -346,6 +366,9 @@ fn events(mut stream: TcpStream, req: &Request, state: &Mutex<State>) -> std::io
     if let Some(p) = s.position.as_ref().filter(|_| req.target.contains("follow")) {
         write!(stream, "event: position\ndata: {p}\n\n")?;
     }
+    // a page that stops reading its events must not hold the others back (they are written
+    // with the state locked): its stream fails after a while and is dropped
+    stream.set_write_timeout(Some(Duration::from_secs(5)))?;
     s.clients.push(stream);
     Ok(())
 }
@@ -415,11 +438,12 @@ fn percent_decode(s: &str) -> String {
     let mut out = Vec::with_capacity(b.len());
     let mut i = 0;
     while i < b.len() {
+        // by bytes: the two after a `%` may belong to a character of several bytes
+        let hex = |k: usize| b.get(k).and_then(|c| (*c as char).to_digit(16));
         if b[i] == b'%'
-            && i + 2 < b.len()
-            && let Ok(v) = u8::from_str_radix(&s[i + 1..i + 3], 16)
+            && let (Some(high), Some(low)) = (hex(i + 1), hex(i + 2))
         {
-            out.push(v);
+            out.push((high * 16 + low) as u8);
             i += 3;
             continue;
         }
@@ -550,6 +574,20 @@ mod tests {
     }
 
     #[test]
+    fn a_request_is_read_within_limits() {
+        let ok = read_request(&mut "GET /a?b HTTP/1.1\r\nRange: bytes=0-1\r\nContent-Length: 3\r\n\r\nabc".as_bytes());
+        let ok = ok.unwrap();
+        assert_eq!((ok.path.as_str(), ok.length, ok.range.as_deref()), ("/a", 3, Some("bytes=0-1")));
+        // a line without end, a header without end, headers without end
+        let long = format!("GET /{} HTTP/1.1\r\n\r\n", "a".repeat(MAX_LINE));
+        assert!(read_request(&mut long.as_bytes()).is_err());
+        let long = format!("GET / HTTP/1.1\r\nX: {}\r\n\r\n", "a".repeat(MAX_LINE));
+        assert!(read_request(&mut long.as_bytes()).is_err());
+        let many = format!("GET / HTTP/1.1\r\n{}\r\n", "X: y\r\n".repeat(MAX_HEADERS + 1));
+        assert!(read_request(&mut many.as_bytes()).is_err());
+    }
+
+    #[test]
     fn files_are_served_from_the_site_in_memory() {
         let site = vec![
             Output { path: "index.html".into(), bytes: b"<head></head>".to_vec() },
@@ -566,6 +604,9 @@ mod tests {
         assert_eq!(status, "500 Internal Server Error");
         assert!(String::from_utf8_lossy(&body).contains("line 3: &lt;oops&gt;"));
         assert_eq!(percent_decode("a%2"), "a%2");
+        // a `%` before a character of several bytes, or before a sign, is not an escape
+        assert_eq!(percent_decode("/%aé"), "/%aé");
+        assert_eq!(percent_decode("%+f%41"), "%+fA");
         assert_eq!(mime("x.unknown"), "application/octet-stream");
     }
 
