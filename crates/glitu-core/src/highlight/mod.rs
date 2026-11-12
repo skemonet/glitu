@@ -231,7 +231,7 @@ pub fn magic_move(versions: &[(&str, &str)], first_step: u32) -> String {
                 })
             })
             .collect();
-        let lang = if lang.is_empty() { "plaintext" } else { lang };
+        let lang = if lang.is_empty() { "plaintext".into() } else { esc(lang) };
         let step = if k == 0 {
             String::new()
         } else {
@@ -266,7 +266,8 @@ pub fn block(c: &Code) -> String {
     let (code, classes) = if c.reveal_md { (c.code.to_string(), Vec::new()) } else { annotations(c.code) };
     let colored = if c.reveal_md { hljs::lines(c.lang, &code) } else { lines(c.lang, &code) };
     let lines = annotated(colored, &classes);
-    let lang = if c.lang.is_empty() { "plaintext" } else { c.lang };
+    // escaped: the language is written into an attribute
+    let lang = if c.lang.is_empty() { "plaintext".into() } else { esc(c.lang) };
     let class = if c.reveal_md {
         format!("{lang} hljs language-{lang}")
     } else if lang == "html" {

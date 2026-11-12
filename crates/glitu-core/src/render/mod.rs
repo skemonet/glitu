@@ -482,7 +482,7 @@ fn panel_slide_html(header: &str, classes: &[String], groups: &[Group], stage: &
     let stage = stage_html("stage", stage);
     format!(
         "<section data-header=\"{header}\" data-layout=\"{PANEL}\"><div class=\"{}\">{inner}</div>{stage}{aside}</section>",
-        classes.join(" ")
+        esc(&classes.join(" "))
     )
 }
 
