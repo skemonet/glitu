@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>glitu documentation</title>
+<meta name="description" content="Install glitu, create your first Markdown presentation, preview it with live reload and build it into a single HTML page.">
+<link rel="canonical" href="https://glitu.net/docs/">
+<meta name="theme-color" content="#070b16">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="glitu">
+<meta property="og:title" content="Getting started">
+<meta property="og:description" content="Install glitu, create your first Markdown presentation, preview it with live reload and build it into a single HTML page.">
+<meta property="og:url" content="https://glitu.net/docs/">
+<meta property="og:image" content="https://glitu.net/img/cover.webp">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230b1020'/%3E%3Cpath d='M9 22 15 10h4l-6 12zM15 22l6-12h3l-6 12z' fill='%2322d3ee'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/docs/docs.css">
+<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"TechArticle","headline":"Getting started","description":"Install glitu, create your first Markdown presentation, preview it with live reload and build it into a single HTML page.","url":"https://glitu.net/docs/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"glitu","url":"https://glitu.net/"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"glitu","item":"https://glitu.net/"},{"@type":"ListItem","position":2,"name":"Documentation","item":"https://glitu.net/docs/"}]}]}</script>
+</head>
+<body>
+<a class="skip" href="#content">Skip to content</a>
+<header class="top">
+  <a class="brand" href="/">gl<span>i</span>tu</a>
+  <nav aria-label="Site">
+    <a href="/docs/" aria-current="true">Docs</a>
+    <a href="/demo.html">Demo</a>
+    <a href="https://github.com/skemonet/glitu">GitHub</a>
+  </nav>
+</header>
+<div class="layout">
+  <nav class="side" aria-label="Documentation"><ul><li><a href="/docs/" aria-current="page">Getting started</a></li><li><a href="/docs/writing/">Writing slides</a></li><li><a href="/docs/steps/">Steps and animations</a></li><li><a href="/docs/layouts/">Layouts and media</a></li><li><a href="/docs/code/">Code, diagrams and terminals</a></li><li><a href="/docs/presenting/">Presenting</a></li><li><a href="/docs/publishing/">Building and exporting</a></li><li><a href="/docs/themes/">Themes</a></li><li><a href="/docs/slow-computers/">Slow computers</a></li></ul></nav>
+  <main id="content">
+    <article>
+      <h1>Getting started</h1>
+      <p class="lead">Install glitu, create your first Markdown presentation, preview it with live reload and build it into a single HTML page.</p>
+<p>glitu turns a Markdown file into a presentation. One <code>slides.md</code> holds the text, the diagrams,
+the code shown on screen and the terminal recordings; glitu previews it, builds it into a web page
+and exports it to PowerPoint, PDF or images. The presentation engine is written in Rust and runs
+in the browser as WebAssembly: there is no npm and no Node.</p>
+<h2 id="install"><a class="anchor" href="#install">Install</a></h2>
+<p>On Linux and macOS, the install script downloads the latest release into <code>~/.local/bin</code> and
+verifies its SHA-256 checksum:</p>
+<pre><code class="language-sh"><span class="hljs-title function_">curl</span> <span class="hljs-params">-fsSL</span> https://raw.githubusercontent.com/skemonet/glitu/main/tools/install.sh <span class="hljs-operator">|</span> <span class="hljs-title function_">sh</span></code></pre>
+<p>You can also download a binary from the
+<a href="https://github.com/skemonet/glitu/releases/latest">releases</a>: <code>glitu-linux-x86_64</code>,
+<code>glitu-linux-arm64</code>, <code>glitu-macos-arm64</code>, <code>glitu-macos-x86_64</code> or <code>glitu-windows-x86_64.exe</code>.</p>
+<p>To build from source, you need Rust 1.90 or later and its WebAssembly target:</p>
+<pre><code class="language-sh"><span class="hljs-title function_">rustup</span> target add wasm32-unknown-unknown
+<span class="hljs-title function_">git</span> clone https://github.com/skemonet/glitu <span class="hljs-operator">&amp;&amp;</span> <span class="hljs-built_in">cd</span> glitu
+<span class="hljs-title function_">cargo</span> build <span class="hljs-params">--release</span>          <span class="hljs-comment"># target/release/glitu</span></code></pre>
+<p>Diagrams are drawn by tools of your machine: install the <a href="https://skemo.net/install">skemo</a>
+command line for <code>```skemo</code> blocks, and <code>d2</code> or Graphviz's <code>dot</code> if you use them.</p>
+<p>The exports to PowerPoint, PDF and PNG also need a Chromium-based browser (Chrome, Chromium, Edge,
+Brave or Vivaldi). If none is installed, glitu can download one: see
+<a href="/docs/publishing/#the-browser">Building and exporting</a>.</p>
+<h2 id="your-first-presentation"><a class="anchor" href="#your-first-presentation">Your first presentation</a></h2>
+<pre><code class="language-sh"><span class="hljs-title function_">glitu</span> init talk                <span class="hljs-comment"># creates talk/slides.md</span>
+<span class="hljs-title function_">glitu</span> server talk/slides.md     <span class="hljs-comment"># preview at http://localhost:8000</span></code></pre>
+<p>Open <a href="http://localhost:8000">http://localhost:8000</a>: the page reloads every time you save <code>slides.md</code>. Press
+<kbd>→</kbd> or <kbd>Space</kbd> to advance, <kbd>S</kbd> for the speaker view and <kbd>?</kbd>
+for every shortcut.</p>
+<p>A presentation is a front matter followed by chapters (<code>#</code>) and slides (<code>##</code>):</p>
+<pre><code class="language-markdown"><span class="hljs-meta">---</span>
+<span class="hljs-attr">title</span>: <span class="hljs-string">Kubernetes in practice</span>
+<span class="hljs-attr">subtitle</span>: <span class="hljs-string">Deploy and expose an application</span>
+<span class="hljs-attr">author</span>: <span class="hljs-string">Ada Lovelace</span>
+<span class="hljs-attr">theme</span>: <span class="hljs-string">crystal</span>
+<span class="hljs-meta">---</span>
+
+<span class="hljs-section"># Resources</span>
+
+<span class="hljs-section">## Deploying an application</span>
+
+<span class="hljs-section">### Deployment</span>
+
+- Number of replicas @1
+- The ReplicaSet creates the pods @2
+
+<span class="hljs-code">```</span><span class="hljs-literal">yaml</span> title=&quot;deployment.yml&quot; @1
+<span class="hljs-code">apiVersion: apps/v1</span>
+<span class="hljs-code">kind: Deployment</span>
+<span class="hljs-code">spec:</span>
+  <span class="hljs-code">replicas: 3</span>
+<span class="hljs-code">```</span>
+
+Note: What to say while this slide is shown.</code></pre>
+<p>Each slide has a text panel on the left and one visual on the right: here a code window. The
+<code>@1</code> and <code>@2</code> markers make the elements appear click by click. <a href="/docs/writing/">Writing slides</a>
+explains the structure, <a href="/docs/steps/">Steps and animations</a> the clicks.</p>
+<h2 id="share-it"><a class="anchor" href="#share-it">Share it</a></h2>
+<pre><code class="language-sh"><span class="hljs-title function_">glitu</span> build talk/slides.md <span class="hljs-params">-o</span> talk.html    <span class="hljs-comment"># one page, works offline</span>
+<span class="hljs-title function_">glitu</span> build pptx talk <span class="hljs-params">-o</span> talk.pptx         <span class="hljs-comment"># an editable PowerPoint</span>
+<span class="hljs-title function_">glitu</span> build pdf talk <span class="hljs-params">-o</span> talk.pdf           <span class="hljs-comment"># a vector PDF</span></code></pre>
+<p>The page built by <code>glitu build</code> contains everything: engine, theme, fonts and images. Send it by
+email or put it on a USB key; it opens with a double click. See
+<a href="/docs/publishing/">Building and exporting</a> for the other formats.</p>
+<h2 id="the-commands"><a class="anchor" href="#the-commands">The commands</a></h2>
+<table><thead><tr><th>Command</th><th>Purpose</th></tr></thead><tbody>
+<tr><td><code>glitu init</code></td><td>Create a presentation, a <code>style.css</code> to customize its theme, or a theme of your own</td></tr>
+<tr><td><code>glitu server</code></td><td>Preview a presentation with live reload, and keep every open window in sync</td></tr>
+<tr><td><code>glitu build</code></td><td>Build a self-contained HTML page, or with a format (<code>site</code>, <code>pptx</code>, <code>pdf</code>, <code>png</code>, <code>play</code>) a static website, PowerPoint, PDF, PNG images or a file for glitu-play</td></tr>
+<tr><td><code>glitu unpack</code></td><td>Recover the Markdown source of a built page</td></tr>
+</tbody></table>
+<p><code>glitu --help</code> lists the commands and <code>glitu &lt;command&gt; --help</code> describes their options. The exit
+code is <code>0</code> on success, <code>1</code> when the command fails and <code>2</code> when the command line is invalid.</p>
+<h2 id="writing-with-an-ai-assistant"><a class="anchor" href="#writing-with-an-ai-assistant">Writing with an AI assistant</a></h2>
+<p>The repository includes a skill for Claude Code and other agents that read skills,
+<a href="https://github.com/skemonet/glitu/tree/main/skills/glitu-presentation"><code>skills/glitu-presentation</code></a>.
+It teaches the syntax, the diagrams and the workflow. Copy the folder into <code>~/.claude/skills/</code>,
+then ask for a presentation.</p>
+
+    </article>
+    <nav class="pager" aria-label="Pages"><span></span><a class="next" rel="next" href="/docs/writing/"><span>Next</span>Writing slides</a></nav>
+  </main>
+  <nav class="toc" aria-label="On this page"><p>On this page</p><ul><li><a href="#install">Install</a></li><li><a href="#your-first-presentation">Your first presentation</a></li><li><a href="#share-it">Share it</a></li><li><a href="#the-commands">The commands</a></li><li><a href="#writing-with-an-ai-assistant">Writing with an AI assistant</a></li></ul></nav>
+</div>
+<footer>glitu is dual-licensed under MIT or Apache-2.0. <a href="https://github.com/skemonet/glitu/edit/main/site/docs/index.md">Edit this page on GitHub</a></footer>
+</body>
+</html>

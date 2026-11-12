@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Slow computers · glitu documentation</title>
+<meta name="description" content="Present on an old or slow computer without a browser, with a PDF in pdfpc or with glitu-play, the native player that keeps the arrows drawn step by step and the terminals typing.">
+<link rel="canonical" href="https://glitu.net/docs/slow-computers/">
+<meta name="theme-color" content="#070b16">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="glitu">
+<meta property="og:title" content="Slow computers">
+<meta property="og:description" content="Present on an old or slow computer without a browser, with a PDF in pdfpc or with glitu-play, the native player that keeps the arrows drawn step by step and the terminals typing.">
+<meta property="og:url" content="https://glitu.net/docs/slow-computers/">
+<meta property="og:image" content="https://glitu.net/img/cover.webp">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230b1020'/%3E%3Cpath d='M9 22 15 10h4l-6 12zM15 22l6-12h3l-6 12z' fill='%2322d3ee'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/docs/docs.css">
+<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"TechArticle","headline":"Slow computers","description":"Present on an old or slow computer without a browser, with a PDF in pdfpc or with glitu-play, the native player that keeps the arrows drawn step by step and the terminals typing.","url":"https://glitu.net/docs/slow-computers/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"glitu","url":"https://glitu.net/"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"glitu","item":"https://glitu.net/"},{"@type":"ListItem","position":2,"name":"Documentation","item":"https://glitu.net/docs/"},{"@type":"ListItem","position":3,"name":"Slow computers","item":"https://glitu.net/docs/slow-computers/"}]}]}</script>
+</head>
+<body>
+<a class="skip" href="#content">Skip to content</a>
+<header class="top">
+  <a class="brand" href="/">gl<span>i</span>tu</a>
+  <nav aria-label="Site">
+    <a href="/docs/" aria-current="true">Docs</a>
+    <a href="/demo.html">Demo</a>
+    <a href="https://github.com/skemonet/glitu">GitHub</a>
+  </nav>
+</header>
+<div class="layout">
+  <nav class="side" aria-label="Documentation"><ul><li><a href="/docs/">Getting started</a></li><li><a href="/docs/writing/">Writing slides</a></li><li><a href="/docs/steps/">Steps and animations</a></li><li><a href="/docs/layouts/">Layouts and media</a></li><li><a href="/docs/code/">Code, diagrams and terminals</a></li><li><a href="/docs/presenting/">Presenting</a></li><li><a href="/docs/publishing/">Building and exporting</a></li><li><a href="/docs/themes/">Themes</a></li><li><a href="/docs/slow-computers/" aria-current="page">Slow computers</a></li></ul></nav>
+  <main id="content">
+    <article>
+      <h1>Slow computers</h1>
+      <p class="lead">Present on an old or slow computer without a browser, with a PDF in pdfpc or with glitu-play, the native player that keeps the arrows drawn step by step and the terminals typing.</p>
+<p>A glitu presentation runs in a browser, and on an old netbook, the browser is what becomes too
+slow: the page lays out, blurs, shades and animates every slide. On such a computer, present
+without it. glitu prepares the presentation <strong>on another computer</strong> (the export needs Chromium),
+and the slow one only shows pictures:</p>
+<table><thead><tr><th></th><th>PDF + pdfpc</th><th>glitu-play</th></tr></thead><tbody>
+<tr><td>What is installed on the slow computer</td><td>a PDF reader: pdfpc, mupdf, zathura…</td><td><code>glitu-play</code> (4 MB, no browser)</td></tr>
+<tr><td>Steps</td><td>one page per click</td><td>one picture per click</td></tr>
+<tr><td>skemo arrows drawn step by step</td><td>no, they appear</td><td>yes</td></tr>
+<tr><td>Terminal recordings typing</td><td>no, the result appears</td><td>yes</td></tr>
+<tr><td>Speaker notes, timer</td><td>yes, in pdfpc</td><td>yes, <code>s</code> or <code>--speaker</code></td></tr>
+</tbody></table>
+<p>The pictures are those of the browser, pixel for pixel: the slide looks the same as in the
+browser.</p>
+<h2 id="export-at-the-screen-s-size"><a class="anchor" href="#export-at-the-screen-s-size">Export at the screen's size</a></h2>
+<p>Find the size of the slow computer's screen (<code>xrandr</code> on Linux), and export the pictures at its
+width with <code>--width</code>. The pictures are then shown as they are, without being resized while you
+present, and the files are lighter. For a 1024 × 600 screen and 16:9 slides:</p>
+<pre><code class="language-sh"><span class="hljs-title function_">glitu</span> build pdf slides.md <span class="hljs-params">--clicks --width</span> 1024 <span class="hljs-params">-o</span> talk.pdf    <span class="hljs-comment"># PDF</span>
+<span class="hljs-title function_">glitu</span> build play slides.md <span class="hljs-params">--width</span> 1024 <span class="hljs-params">-o</span> talk.glituplay     <span class="hljs-comment"># glitu-play</span></code></pre>
+<p>With slides of another shape (for example 4:3 on a 16:9 screen), choose the width that fits the
+height: a 960 × 700 slide on a 1024 × 600 screen is 823 pixels wide.</p>
+<h2 id="a-pdf-presented-with-pdfpc"><a class="anchor" href="#a-pdf-presented-with-pdfpc">A PDF, presented with pdfpc</a></h2>
+<p><code>--clicks</code> makes one page per click, each a picture: a PDF reader only has to show it, which even
+a slow processor does at once. The pages of one slide carry the slide's number, so the readers
+that use page labels count slides, not clicks.</p>
+<p><a href="https://pdfpc.github.io/">pdfpc</a> (<code>apt install pdfpc</code>) adds the speaker view on a second screen:
+the current and the next slide, the notes, a timer. glitu writes the notes into <code>talk.pdfpc</code>,
+beside <code>talk.pdf</code>; keep the two files together.</p>
+<pre><code class="language-sh"><span class="hljs-title function_">pdfpc</span> talk.pdf          <span class="hljs-comment"># the presentation on the projector, the speaker view on the laptop</span>
+<span class="hljs-title function_">pdfpc</span> <span class="hljs-params">-s</span> talk.pdf       <span class="hljs-comment"># the other way round</span>
+<span class="hljs-title function_">mupdf</span> talk.pdf          <span class="hljs-comment"># or any reader, full screen (mupdf: f)</span></code></pre>
+<p>Without <code>--clicks</code>, the PDF is printed as vectors: its text can be selected, but a slow computer
+has to draw each page, and the steps are lost. For presenting, prefer <code>--clicks</code>.</p>
+<h2 id="glitu-play-the-native-player"><a class="anchor" href="#glitu-play-the-native-player">glitu-play, the native player</a></h2>
+<p><code>glitu-play</code> is a small program, separate from <code>glitu</code>, that presents the <code>.glituplay</code> file written by
+<code>glitu build play</code> without a browser. It shows the pictures of the clicks, and animates by itself
+only what moves:</p>
+<ul>
+<li>the <strong>skemo arrows</strong> drawn step by step: the browser's own pixels revealed along the arrow, then
+its head, as in the browser;</li>
+<li>the <strong>terminal recordings</strong>: the typing recorded during the export, image by image, at its
+pace;</li>
+<li>the other changes of a click fade in; the next slide fades over the previous one.</li>
+</ul>
+<p>The last picture of each animation is exactly the browser's. Only the area that changes is
+redrawn, by software: no graphics card is needed.</p>
+<pre><code class="language-sh"><span class="hljs-title function_">glitu-play</span> talk                  <span class="hljs-comment"># full screen</span>
+<span class="hljs-title function_">glitu-play</span> talk <span class="hljs-params">--window</span>         <span class="hljs-comment"># in a window</span>
+<span class="hljs-title function_">glitu-play</span> talk <span class="hljs-params">--start</span> 12       <span class="hljs-comment"># from slide 12</span>
+<span class="hljs-title function_">glitu-play</span> talk <span class="hljs-params">--speaker</span>        <span class="hljs-comment"># with the speaker view</span></code></pre>
+<table><thead><tr><th>Key</th><th>Action</th></tr></thead><tbody>
+<tr><td>→ ↓ Space Enter Page Down <code>n</code>, click</td><td>Next</td></tr>
+<tr><td>← ↑ Backspace Page Up <code>p</code></td><td>Previous</td></tr>
+<tr><td>Home, End</td><td>First, last click</td></tr>
+<tr><td><code>f</code>, F11</td><td>Full screen</td></tr>
+<tr><td>Esc</td><td>Leave full screen</td></tr>
+<tr><td><code>s</code></td><td>Speaker view: open, close</td></tr>
+<tr><td><code>t</code>, <code>r</code></td><td>Timer: pause or resume, back to zero</td></tr>
+<tr><td><code>+</code>, <code>-</code></td><td>Size of the notes</td></tr>
+<tr><td><code>q</code></td><td>Quit</td></tr>
+</tbody></table>
+<p>A click during an animation ends it and goes to the next one. Going back shows the previous click
+at once.</p>
+<p>The speaker view opens in a second window: the current click and the next one, the notes, the
+slide and its click, and a timer that starts at the first click forward. With two screens it goes
+full screen on the other one; with <code>--speaker</code>, the slides go to the secondary screen and the view
+to the primary one (the laptop's). The keys work in both windows.</p>
+<p>The directory holds one PNG per click (and a few more for the arrows and the terminals), and a
+<code>deck.json</code> that describes them; copy the whole directory to the slow computer.</p>
+<p>Build <code>glitu-play</code> from the sources of glitu with <code>cargo build --release -p glitu-play</code>; it runs
+on Linux (X11 or Wayland), macOS and Windows.</p>
+<h2 id="what-is-not-there-yet"><a class="anchor" href="#what-is-not-there-yet">What is not there yet</a></h2>
+<ul>
+<li>In glitu-play: the animated backdrop (it is still), animated code and
+animated slides (they fade), drawing on the slides.</li>
+<li>Rendering with the graphics card in glitu-play, which can be turned off.</li>
+</ul>
+
+    </article>
+    <nav class="pager" aria-label="Pages"><a class="prev" rel="prev" href="/docs/themes/"><span>Previous</span>Themes</a><span></span></nav>
+  </main>
+  <nav class="toc" aria-label="On this page"><p>On this page</p><ul><li><a href="#export-at-the-screen-s-size">Export at the screen's size</a></li><li><a href="#a-pdf-presented-with-pdfpc">A PDF, presented with pdfpc</a></li><li><a href="#glitu-play-the-native-player">glitu-play, the native player</a></li><li><a href="#what-is-not-there-yet">What is not there yet</a></li></ul></nav>
+</div>
+<footer>glitu is dual-licensed under MIT or Apache-2.0. <a href="https://github.com/skemonet/glitu/edit/main/site/docs/slow-computers.md">Edit this page on GitHub</a></footer>
+</body>
+</html>

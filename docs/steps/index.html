@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Steps and animations · glitu documentation</title>
+<meta name="description" content="Reveal content click by click with @n markers, choose entrance effects and highlights, set transitions and animate elements from one slide to the next.">
+<link rel="canonical" href="https://glitu.net/docs/steps/">
+<meta name="theme-color" content="#070b16">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="glitu">
+<meta property="og:title" content="Steps and animations">
+<meta property="og:description" content="Reveal content click by click with @n markers, choose entrance effects and highlights, set transitions and animate elements from one slide to the next.">
+<meta property="og:url" content="https://glitu.net/docs/steps/">
+<meta property="og:image" content="https://glitu.net/img/cover.webp">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230b1020'/%3E%3Cpath d='M9 22 15 10h4l-6 12zM15 22l6-12h3l-6 12z' fill='%2322d3ee'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/docs/docs.css">
+<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"TechArticle","headline":"Steps and animations","description":"Reveal content click by click with @n markers, choose entrance effects and highlights, set transitions and animate elements from one slide to the next.","url":"https://glitu.net/docs/steps/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"glitu","url":"https://glitu.net/"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"glitu","item":"https://glitu.net/"},{"@type":"ListItem","position":2,"name":"Documentation","item":"https://glitu.net/docs/"},{"@type":"ListItem","position":3,"name":"Steps and animations","item":"https://glitu.net/docs/steps/"}]}]}</script>
+</head>
+<body>
+<a class="skip" href="#content">Skip to content</a>
+<header class="top">
+  <a class="brand" href="/">gl<span>i</span>tu</a>
+  <nav aria-label="Site">
+    <a href="/docs/" aria-current="true">Docs</a>
+    <a href="/demo.html">Demo</a>
+    <a href="https://github.com/skemonet/glitu">GitHub</a>
+  </nav>
+</header>
+<div class="layout">
+  <nav class="side" aria-label="Documentation"><ul><li><a href="/docs/">Getting started</a></li><li><a href="/docs/writing/">Writing slides</a></li><li><a href="/docs/steps/" aria-current="page">Steps and animations</a></li><li><a href="/docs/layouts/">Layouts and media</a></li><li><a href="/docs/code/">Code, diagrams and terminals</a></li><li><a href="/docs/presenting/">Presenting</a></li><li><a href="/docs/publishing/">Building and exporting</a></li><li><a href="/docs/themes/">Themes</a></li><li><a href="/docs/slow-computers/">Slow computers</a></li></ul></nav>
+  <main id="content">
+    <article>
+      <h1>Steps and animations</h1>
+      <p class="lead">Reveal content click by click with @n markers, choose entrance effects and highlights, set transitions and animate elements from one slide to the next.</p>
+<p>Everything in a slide can appear on a click: a bullet, a paragraph, a word, a code window, a
+formula, or an element of a diagram. Clicks are numbered within each slide, and the same number
+means the same click everywhere in the slide.</p>
+<h2 id="step-markers"><a class="anchor" href="#step-markers">Step markers</a></h2>
+<pre><code class="language-markdown">- Number of replicas @1                ← appears at click 1
+- The ReplicaSet creates the pods @+1   ← one click after the previous step: click 2
+- Visible from click 2 to 3 @2-3        ← then disappears
+- Rolling update @4:up                  ← click 4, entering from below</code></pre>
+<table><thead><tr><th>Marker</th><th>Meaning</th></tr></thead><tbody>
+<tr><td><code>@n</code></td><td>Shown from click <em>n</em></td></tr>
+<tr><td><code>@+n</code></td><td>Shown <em>n</em> clicks after the previous step of the slide</td></tr>
+<tr><td><code>@n-m</code></td><td>Shown from click <em>n</em> to click <em>m</em>, then hidden</td></tr>
+<tr><td><code>@0-2</code></td><td>Shown from the start, hidden after click 2</td></tr>
+<tr><td><code>@n:effect</code></td><td>Shown at click <em>n</em> with an entrance effect</td></tr>
+</tbody></table>
+<p>The markers work on bullets, <code>###</code> titles, paragraphs, code windows (<code>```yaml @1</code>), formulas,
+words (<code>[text]{@2}</code>), images and videos (<code>![](img/x.png){@2}</code>), zones of an image
+(<code>{focus="10 20 30 30 @2"}</code>, see <a href="/docs/layouts/#focus-on-part-of-an-image-or-a-video">Focus</a>) and
+skemo diagram elements (<code>card#api API @2</code>). The pauses of a video take one click each (see
+<a href="/docs/layouts/#pausing-at-precise-times">Videos</a>). Keep the clicks of the text
+aligned with those of the visual: bullet <code>@1</code> explains what appears at <code>@1</code> in the diagram.</p>
+<h2 id="effects"><a class="anchor" href="#effects">Effects</a></h2>
+<p><code>@2:effect</code> chooses how an element appears: <code>up</code>, <code>down</code>, <code>left</code>, <code>right</code>, <code>grow</code>, <code>shrink</code>,
+<code>zoom</code>, <code>red</code>, <code>green</code>, <code>blue</code> or <code>dim</code>. Any fragment class of reveal.js works too.</p>
+<h2 id="highlights"><a class="anchor" href="#highlights">Highlights</a></h2>
+<p>A highlight emphasizes an element that is already visible, for the duration of its clicks:</p>
+<table><thead><tr><th>Highlight</th><th>Effect</th></tr></thead><tbody>
+<tr><td><code>@3-4:halo</code></td><td>A glow, once</td></tr>
+<tr><td><code>@3-4:chase</code></td><td>A light running around the element</td></tr>
+<tr><td><code>@3-4:magnify</code></td><td>The view zooms on the element, then returns</td></tr>
+</tbody></table>
+<p><code>halo</code> and <code>chase</code> fade out after three seconds at most. A highlight is added to the entrance of
+the element:</p>
+<pre><code class="language-markdown">- Persistent storage @1 @3:halo</code></pre>
+<pre><code class="language-yaml"><span class="hljs-attr">kind</span>: <span class="hljs-string">Service</span></code></pre>
+<p>The colour is the theme's accent, or <code>--fx-color</code> if your <code>style.css</code> sets it.</p>
+<h2 id="blocks-that-replace-each-other"><a class="anchor" href="#blocks-that-replace-each-other">Blocks that replace each other</a></h2>
+<p>Several <code>###</code> titles with a step in the same slide show one block at a time:</p>
+<pre><code class="language-markdown"><span class="hljs-section">## Three ways to deploy</span>
+
+<span class="hljs-section">### Manually @1</span>
+- kubectl apply
+
+<span class="hljs-section">### With Helm @2</span>
+- helm install
+
+<span class="hljs-section">### With Argo CD @3</span>
+- A Git commit</code></pre>
+<h2 id="transitions-and-backgrounds"><a class="anchor" href="#transitions-and-backgrounds">Transitions and backgrounds</a></h2>
+<p>Attributes on the <code>##</code> line set the transition and the background of a slide:</p>
+<pre><code class="language-markdown"><span class="hljs-section">## Results {transition=&quot;zoom&quot; background=&quot;#123&quot;}</span>
+<span class="hljs-section">## Our office {background=&quot;img/office.jpg&quot;}</span></code></pre>
+<p><code>class="x"</code> adds a class to the slide and <code>zoom="0.8"</code> scales its content. The theme sets the
+default transition in its <code>glitu.yaml</code>.</p>
+<h3 id="zooming-into-a-diagram"><a class="anchor" href="#zooming-into-a-diagram">Zooming into a diagram</a></h3>
+<p><code>transition="dive:api"</code> zooms from one slide to the next through a diagram: the diagram of the
+previous slide grows around its element <code>api</code> (a skemo card) until it fills the stage, and the
+diagram of the new slide comes out of it, while the text of the panel fades out, then the new one
+in. <code>surface:api</code> zooms back out to the general diagram; going back with ← plays either the other
+way.</p>
+<pre><code class="language-markdown"><span class="hljs-section">## The API in detail {transition=&quot;dive:api&quot;}</span>
+<span class="hljs-section">## Back to the whole {transition=&quot;surface:api&quot;}</span></code></pre>
+<p>Instead of an element, a zone of the picture: <code>dive:40 30 20 15</code> (x y width height, in %).</p>
+<h2 id="animated-slides"><a class="anchor" href="#animated-slides">Animated slides</a></h2>
+<p><code>{.animate}</code> on two consecutive slides animates what they share: elements with the same text, the
+same image or the same window title slide to their new place, and new elements fade in. To pair
+elements whose text differs, name them: <code>[text]{#name}</code>.</p>
+<pre><code class="language-markdown"><span class="hljs-section">## Before {.animate}</span>
+
+- [Monolith]{#app}
+
+<span class="hljs-section">## After {.animate}</span>
+
+- [Service A]{#app}
+- Service B</code></pre>
+<h2 id="animated-code"><a class="anchor" href="#animated-code">Animated code</a></h2>
+<p>A <code>````md magic-move</code> block (four backticks) holds several versions of the same code, one per
+click. The tokens that are kept slide to their new place, the others fade out or appear:</p>
+<pre><code class="language-markdown"><span class="hljs-code">````</span><span class="hljs-literal">md</span> magic-move
+<span class="hljs-code">```rust</span>
+<span class="hljs-code">let x = 1;</span>
+<span class="hljs-code">```</span>
+<span class="hljs-code">```rust</span>
+<span class="hljs-code">let x = compute();</span>
+<span class="hljs-code">```</span>
+<span class="hljs-code">````</span></code></pre>
+<p>See <a href="/docs/code/">Code, diagrams and terminals</a> for code windows and line highlighting.</p>
+<h2 id="automatic-advance-and-timing"><a class="anchor" href="#automatic-advance-and-timing">Automatic advance and timing</a></h2>
+<p><code>data-autoslide</code> on a slide, or <code>autoSlide</code> (in milliseconds) in the theme's <code>glitu.yaml</code>,
+advances the presentation on its own; <kbd>A</kbd> pauses and resumes it, and <code>loop: true</code>
+restarts at the end. Planned durations, written in slide titles (<code>## Demo ⏳90</code>), are described in
+<a href="/docs/presenting/#timing-and-rehearsals">Presenting</a>.</p>
+
+    </article>
+    <nav class="pager" aria-label="Pages"><a class="prev" rel="prev" href="/docs/writing/"><span>Previous</span>Writing slides</a><a class="next" rel="next" href="/docs/layouts/"><span>Next</span>Layouts and media</a></nav>
+  </main>
+  <nav class="toc" aria-label="On this page"><p>On this page</p><ul><li><a href="#step-markers">Step markers</a></li><li><a href="#effects">Effects</a></li><li><a href="#highlights">Highlights</a></li><li><a href="#blocks-that-replace-each-other">Blocks that replace each other</a></li><li><a href="#transitions-and-backgrounds">Transitions and backgrounds</a></li><li><a href="#animated-slides">Animated slides</a></li><li><a href="#animated-code">Animated code</a></li><li><a href="#automatic-advance-and-timing">Automatic advance and timing</a></li></ul></nav>
+</div>
+<footer>glitu is dual-licensed under MIT or Apache-2.0. <a href="https://github.com/skemonet/glitu/edit/main/site/docs/steps.md">Edit this page on GitHub</a></footer>
+</body>
+</html>

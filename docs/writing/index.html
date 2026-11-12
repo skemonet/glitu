@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Writing slides · glitu documentation</title>
+<meta name="description" content="The structure of a glitu presentation in Markdown: front matter, chapters, slides, text panels, speaker notes, formulas, icons, fonts and multi-file decks.">
+<link rel="canonical" href="https://glitu.net/docs/writing/">
+<meta name="theme-color" content="#070b16">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="glitu">
+<meta property="og:title" content="Writing slides">
+<meta property="og:description" content="The structure of a glitu presentation in Markdown: front matter, chapters, slides, text panels, speaker notes, formulas, icons, fonts and multi-file decks.">
+<meta property="og:url" content="https://glitu.net/docs/writing/">
+<meta property="og:image" content="https://glitu.net/img/cover.webp">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230b1020'/%3E%3Cpath d='M9 22 15 10h4l-6 12zM15 22l6-12h3l-6 12z' fill='%2322d3ee'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/docs/docs.css">
+<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"TechArticle","headline":"Writing slides","description":"The structure of a glitu presentation in Markdown: front matter, chapters, slides, text panels, speaker notes, formulas, icons, fonts and multi-file decks.","url":"https://glitu.net/docs/writing/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"glitu","url":"https://glitu.net/"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"glitu","item":"https://glitu.net/"},{"@type":"ListItem","position":2,"name":"Documentation","item":"https://glitu.net/docs/"},{"@type":"ListItem","position":3,"name":"Writing slides","item":"https://glitu.net/docs/writing/"}]}]}</script>
+</head>
+<body>
+<a class="skip" href="#content">Skip to content</a>
+<header class="top">
+  <a class="brand" href="/">gl<span>i</span>tu</a>
+  <nav aria-label="Site">
+    <a href="/docs/" aria-current="true">Docs</a>
+    <a href="/demo.html">Demo</a>
+    <a href="https://github.com/skemonet/glitu">GitHub</a>
+  </nav>
+</header>
+<div class="layout">
+  <nav class="side" aria-label="Documentation"><ul><li><a href="/docs/">Getting started</a></li><li><a href="/docs/writing/" aria-current="page">Writing slides</a></li><li><a href="/docs/steps/">Steps and animations</a></li><li><a href="/docs/layouts/">Layouts and media</a></li><li><a href="/docs/code/">Code, diagrams and terminals</a></li><li><a href="/docs/presenting/">Presenting</a></li><li><a href="/docs/publishing/">Building and exporting</a></li><li><a href="/docs/themes/">Themes</a></li><li><a href="/docs/slow-computers/">Slow computers</a></li></ul></nav>
+  <main id="content">
+    <article>
+      <h1>Writing slides</h1>
+      <p class="lead">The structure of a glitu presentation in Markdown: front matter, chapters, slides, text panels, speaker notes, formulas, icons, fonts and multi-file decks.</p>
+<p>A presentation is a single Markdown file, usually <code>slides.md</code>. Images go into <code>img/</code>, terminal
+recordings into <code>casts/</code>, and larger decks can be split into several files.</p>
+<h2 id="front-matter"><a class="anchor" href="#front-matter">Front matter</a></h2>
+<p>The front matter, between two <code>---</code> lines at the top of the file, describes the presentation. It
+also produces the cover slide.</p>
+<pre><code class="language-yaml">---
+<span class="hljs-attr">title</span>: <span class="hljs-string">Kubernetes in practice</span>      <span class="hljs-comment"># cover title and page title</span>
+<span class="hljs-attr">subtitle</span>: <span class="hljs-string">Deploy and expose an application</span>
+<span class="hljs-attr">author</span>: <span class="hljs-string">Ada Lovelace</span>
+<span class="hljs-attr">date</span>: <span class="hljs-string">October 2026</span>
+<span class="hljs-attr">description</span>: <span class="hljs-string">A hands-on introduction to Kubernetes deployments</span>   <span class="hljs-comment"># for search engines</span>
+<span class="hljs-attr">lang</span>: <span class="hljs-string">en</span>                           <span class="hljs-comment"># language of the page</span>
+<span class="hljs-attr">theme</span>: <span class="hljs-string">crystal</span>                     <span class="hljs-comment"># see Themes</span>
+<span class="hljs-attr">logo</span>: <span class="hljs-string">img/logo.svg</span>                 <span class="hljs-comment"># in img/ or public/, or an https:// URL</span>
+<span class="hljs-attr">navigation</span>: <span class="hljs-string">2d</span>                     <span class="hljs-comment"># one column per chapter (optional)</span>
+---</code></pre>
+<table><thead><tr><th>Key</th><th>Effect</th></tr></thead><tbody>
+<tr><td><code>title</code>, <code>subtitle</code>, <code>author</code>, <code>date</code></td><td>The cover slide; <code>title</code> is also the title of the page</td></tr>
+<tr><td><code>description</code></td><td>The summary shown by search engines and link previews (defaults to <code>subtitle</code>)</td></tr>
+<tr><td><code>lang</code></td><td>The language of the page</td></tr>
+<tr><td><code>theme</code></td><td>The theme, optionally at a version: <code>crystal:0.1.0</code>, or a local theme: <code>./themes/mine</code></td></tr>
+<tr><td><code>logo</code></td><td>A logo in the header (template themes) or in a corner (<code>black</code>, <code>white</code>)</td></tr>
+<tr><td><code>global-top</code>, <code>global-bottom</code></td><td>A mention on every slide, in Markdown: <code>global-top: "© ACME"</code></td></tr>
+<tr><td><code>font</code>, <code>font-title</code>, <code>font-mono</code></td><td>Fonts from Google Fonts, downloaded at build time</td></tr>
+<tr><td><code>navigation: 2d</code></td><td>Two-dimensional navigation: one column per chapter</td></tr>
+<tr><td><code>source: false</code></td><td>Do not embed the Markdown source in the built page</td></tr>
+<tr><td><code>glitu</code></td><td>The engine version the presentation requires, such as <code>0.1.0</code></td></tr>
+</tbody></table>
+<h2 id="chapters-and-slides"><a class="anchor" href="#chapters-and-slides">Chapters and slides</a></h2>
+<pre><code class="language-markdown"><span class="hljs-section"># Resources                    ← chapter, numbered 01, 02…</span>
+
+Deploy, then expose            ← subtitle of the chapter slide
+
+<span class="hljs-section">## Deploying an application    ← a slide; its header reads &quot;RESOURCES / Deploying…&quot;</span>
+
+<span class="hljs-section">### Deployment                 ← title of the text panel</span>
+
+- Number of replicas
+- Rolling updates
+
+<span class="hljs-code">```</span><span class="hljs-literal">yaml</span> title=&quot;deployment.yml&quot;
+<span class="hljs-code">replicas: 3</span>
+<span class="hljs-code">```</span></code></pre>
+<ul>
+<li>A level-1 heading starts a <strong>chapter</strong> and produces a chapter slide. <code># End {-}</code> creates a
+chapter without a number.</li>
+<li>A level-2 heading starts a <strong>slide</strong>. Its header shows the chapter and the slide title.</li>
+<li>A level-3 heading is the title of the <strong>text panel</strong>, on the left.</li>
+<li>The first visual of the slide (code, diagram, image, terminal, formula) goes on the right. A
+slide without a visual gives the full width to its text; a slide without text gives it to its
+visual.</li>
+</ul>
+<p>Several <code>### Title @n</code> headings in the same slide are blocks that replace each other, click after
+click.</p>
+<h2 id="speaker-notes"><a class="anchor" href="#speaker-notes">Speaker notes</a></h2>
+<p>A paragraph starting with <code>Note:</code> holds the speaker notes. They appear in the speaker view
+(<kbd>S</kbd>), not on the slide.</p>
+<pre><code class="language-markdown">Note: Start with the problem. [click] Then show the manifest. [click:3] Finally, the result.</code></pre>
+<p><code>[click]</code> moves to the next click and <code>[click:3]</code> to click 3: the speaker view highlights the
+passage that matches the current click.</p>
+<h2 id="text"><a class="anchor" href="#text">Text</a></h2>
+<table><thead><tr><th>To get</th><th>Write</th></tr></thead><tbody>
+<tr><td>a word that appears on click</td><td><code>[text]{@2}</code></td></tr>
+<tr><td>a hand-drawn mark</td><td><code>[word]{.circle @2}</code>: <code>.underline</code>, <code>.circle</code>, <code>.box</code>, <code>.highlight</code>, <code>.strike</code></td></tr>
+<tr><td>a coloured mark</td><td>add <code>.red</code>, <code>.green</code>, <code>.blue</code>, <code>.cyan</code>, <code>.yellow</code> or <code>.purple</code></td></tr>
+<tr><td>a CSS class</td><td><code>[text]{.class}</code></td></tr>
+<tr><td>an icon</td><td><code>:mdi:github:</code>: any <a href="https://icon-sets.iconify.design">Iconify</a> icon, as <code>collection:name</code></td></tr>
+<tr><td>big emojis</td><td>an <code>```emoji</code> block, one per line; <code>😱 @1</code> replaces the previous one at click 1</td></tr>
+</tbody></table>
+<p>Marks are drawn when their click comes, or immediately without <code>@n</code>. Their colour defaults to the
+theme's (<code>--mark</code>). The spaces before <code>: ; ! ? »</code> become non-breaking, as French typography
+requires.</p>
+<h2 id="formulas"><a class="anchor" href="#formulas">Formulas</a></h2>
+<p>Formulas are written in LaTeX and rendered as MathML when the presentation is built, so the page
+needs no script to display them.</p>
+<pre><code class="language-markdown">The energy $E = mc^2$ inline, and as a block:
+
+$$\int_0^1 x^2 \, dx = \frac{1}{3}$$</code></pre>
+<p>A <code>```math</code> block is a formula used as the visual of the slide. In a formula written over
+several lines, keep <code>=</code> on the same line as a term: a line made of a single <code>=</code> is a Markdown
+heading underline.</p>
+<h2 id="fonts-and-logos"><a class="anchor" href="#fonts-and-logos">Fonts and logos</a></h2>
+<pre><code class="language-yaml"><span class="hljs-attr">font</span>: <span class="hljs-string">Inter</span>
+<span class="hljs-attr">font-title</span>: <span class="hljs-string">Poppins</span>
+<span class="hljs-attr">font-mono</span>: <span class="hljs-string">Fira Code</span>
+<span class="hljs-attr">logo</span>: <span class="hljs-string">img/logo.svg</span>
+<span class="hljs-attr">global-top</span>: <span class="hljs-string">&quot;© ACME 2026&quot;</span></code></pre>
+<p>Google Fonts are downloaded at build time and embedded in the page. The logo must be in <code>img/</code> or
+<code>public/</code> (both are copied with the presentation) or be an <code>https://</code> URL. <code>global-top</code> is shown
+in front of the content, bottom right; <code>global-bottom</code> behind it, bottom left.</p>
+<h2 id="splitting-a-presentation-into-files"><a class="anchor" href="#splitting-a-presentation-into-files">Splitting a presentation into files</a></h2>
+<pre><code class="language-markdown"><span class="hljs-comment">&lt;!-- include: chapters/deployment.md --&gt;</span></code></pre>
+<p>The line is replaced by the content of the file, relative to the file that includes it. The front
+matter of an included file is ignored, and its images stay relative to the main file.</p>
+<h2 id="the-reveal-md-syntax"><a class="anchor" href="#the-reveal-md-syntax">The reveal-md syntax</a></h2>
+<p>A Markdown file written for reveal.js or reveal-md is recognized automatically and rendered with
+the <code>black</code> theme: slides separated by <code>---</code>, vertical slides by <code>----</code>, <code>Note:</code>, and the
+<code>&lt;!-- .slide: … --&gt;</code> and <code>&lt;!-- .element: … --&gt;</code> comments. See <a href="/docs/themes/#reveal-js-and-reveal-md-compatibility">Themes</a>.</p>
+
+    </article>
+    <nav class="pager" aria-label="Pages"><a class="prev" rel="prev" href="/docs/"><span>Previous</span>Getting started</a><a class="next" rel="next" href="/docs/steps/"><span>Next</span>Steps and animations</a></nav>
+  </main>
+  <nav class="toc" aria-label="On this page"><p>On this page</p><ul><li><a href="#front-matter">Front matter</a></li><li><a href="#chapters-and-slides">Chapters and slides</a></li><li><a href="#speaker-notes">Speaker notes</a></li><li><a href="#text">Text</a></li><li><a href="#formulas">Formulas</a></li><li><a href="#fonts-and-logos">Fonts and logos</a></li><li><a href="#splitting-a-presentation-into-files">Splitting a presentation into files</a></li><li><a href="#the-reveal-md-syntax">The reveal-md syntax</a></li></ul></nav>
+</div>
+<footer>glitu is dual-licensed under MIT or Apache-2.0. <a href="https://github.com/skemonet/glitu/edit/main/site/docs/writing.md">Edit this page on GitHub</a></footer>
+</body>
+</html>

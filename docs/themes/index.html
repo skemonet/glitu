@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Themes · glitu documentation</title>
+<meta name="description" content="The built-in themes of glitu, customizing one with style.css, creating your own theme, the glitu.yaml settings and the compatibility with reveal.js and reveal-md.">
+<link rel="canonical" href="https://glitu.net/docs/themes/">
+<meta name="theme-color" content="#070b16">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="glitu">
+<meta property="og:title" content="Themes">
+<meta property="og:description" content="The built-in themes of glitu, customizing one with style.css, creating your own theme, the glitu.yaml settings and the compatibility with reveal.js and reveal-md.">
+<meta property="og:url" content="https://glitu.net/docs/themes/">
+<meta property="og:image" content="https://glitu.net/img/cover.webp">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230b1020'/%3E%3Cpath d='M9 22 15 10h4l-6 12zM15 22l6-12h3l-6 12z' fill='%2322d3ee'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/docs/docs.css">
+<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"TechArticle","headline":"Themes","description":"The built-in themes of glitu, customizing one with style.css, creating your own theme, the glitu.yaml settings and the compatibility with reveal.js and reveal-md.","url":"https://glitu.net/docs/themes/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"glitu","url":"https://glitu.net/"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"glitu","item":"https://glitu.net/"},{"@type":"ListItem","position":2,"name":"Documentation","item":"https://glitu.net/docs/"},{"@type":"ListItem","position":3,"name":"Themes","item":"https://glitu.net/docs/themes/"}]}]}</script>
+</head>
+<body>
+<a class="skip" href="#content">Skip to content</a>
+<header class="top">
+  <a class="brand" href="/">gl<span>i</span>tu</a>
+  <nav aria-label="Site">
+    <a href="/docs/" aria-current="true">Docs</a>
+    <a href="/demo.html">Demo</a>
+    <a href="https://github.com/skemonet/glitu">GitHub</a>
+  </nav>
+</header>
+<div class="layout">
+  <nav class="side" aria-label="Documentation"><ul><li><a href="/docs/">Getting started</a></li><li><a href="/docs/writing/">Writing slides</a></li><li><a href="/docs/steps/">Steps and animations</a></li><li><a href="/docs/layouts/">Layouts and media</a></li><li><a href="/docs/code/">Code, diagrams and terminals</a></li><li><a href="/docs/presenting/">Presenting</a></li><li><a href="/docs/publishing/">Building and exporting</a></li><li><a href="/docs/themes/" aria-current="page">Themes</a></li><li><a href="/docs/slow-computers/">Slow computers</a></li></ul></nav>
+  <main id="content">
+    <article>
+      <h1>Themes</h1>
+      <p class="lead">The built-in themes of glitu, customizing one with style.css, creating your own theme, the glitu.yaml settings and the compatibility with reveal.js and reveal-md.</p>
+<h2 id="built-in-themes"><a class="anchor" href="#built-in-themes">Built-in themes</a></h2>
+<p>The official themes are built into the binary:</p>
+<pre><code class="language-sh"><span class="hljs-title function_">glitu</span> init <span class="hljs-params">--list-themes</span></code></pre>
+<table><thead><tr><th>Theme</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>crystal</code></td><td>The default theme: a header, a text panel, a visual, an animated crystal backdrop</td></tr>
+<tr><td><code>constellation</code>, <code>paper</code>, <code>aurora</code>, <code>ascii</code>, <code>blueprint</code>, <code>iso</code>, <code>graphite</code></td><td>The same layout with another backdrop and palette: stars, cut paper, aurora, amber ASCII, technical drawing, isometric, charcoal with a purple glow</td></tr>
+<tr><td><code>black</code>, <code>white</code></td><td>The themes of reveal.js; <code>black</code> is the default for the reveal-md syntax</td></tr>
+</tbody></table>
+<p>Choose one in the front matter, <code>theme: paper</code>, or when creating the presentation:
+<code>glitu init talk --theme paper</code>.</p>
+<h2 id="customizing-a-theme"><a class="anchor" href="#customizing-a-theme">Customizing a theme</a></h2>
+<pre><code class="language-sh"><span class="hljs-title function_">glitu</span> init talk <span class="hljs-params">--css</span></code></pre>
+<p>This writes <code>talk/style.css</code>, which lists every variable of the theme (colours, fonts, sizes,
+veils), commented out. Uncomment and change the ones you need: the file is loaded after the theme.</p>
+<pre><code class="language-css">:<span class="hljs-selector-pseudo">root</span> {
+  --<span class="hljs-type">accent</span>: #<span class="hljs-literal">f97316</span>;
+  --<span class="hljs-type">mark</span>: #<span class="hljs-literal">f97316</span>;
+}</code></pre>
+<h2 id="creating-a-theme"><a class="anchor" href="#creating-a-theme">Creating a theme</a></h2>
+<pre><code class="language-sh"><span class="hljs-title function_">glitu</span> init talk <span class="hljs-params">--theme</span> mine</code></pre>
+<p>Any name that is not a built-in theme creates <code>talk/themes/mine/</code>, a copy of <code>crystal</code> to change
+at will: its <code>theme.css</code> sets every variable of the template, grouped by role, and it comes with
+its fonts, <code>skemo.css</code> and <code>glitu.yaml</code>. The presentation uses it with <code>theme: ./themes/mine</code>. In an
+existing presentation, only the theme folder is created.</p>
+<p>A theme is looked for next to the presentation, then in the parent folders; the built-in themes
+are used when no folder has one with that name.</p>
+<h2 id="glitu-yaml"><a class="anchor" href="#glitu-yaml">glitu.yaml</a></h2>
+<p>Each theme has a <code>glitu.yaml</code>:</p>
+<table><thead><tr><th>Setting</th><th>Effect</th></tr></thead><tbody>
+<tr><td><code>version</code></td><td>The version of the theme, required for the official themes</td></tr>
+<tr><td><code>name</code></td><td>The name the engine recognizes, for a third-party theme</td></tr>
+<tr><td><code>styles</code></td><td>The stylesheets to load, in order</td></tr>
+<tr><td><code>template</code></td><td><code>true</code> when the theme uses the shared template</td></tr>
+<tr><td><code>backdrop</code></td><td>The animated backdrop of a template theme: <code>crystal</code>, <code>constellation</code>, <code>paper</code>, <code>aurora</code>, <code>ascii</code>, <code>blueprint</code>, <code>iso</code> or <code>graphite</code></td></tr>
+<tr><td><code>maxScale</code></td><td>The maximum magnification of the slides: 2 by default, 8 for the template themes</td></tr>
+<tr><td><code>skemo.fontScale</code></td><td>The text size of the diagrams</td></tr>
+<tr><td><code>mouseWheel</code>, <code>autoSlide</code>, <code>loop</code></td><td>Change slides with the wheel, advance automatically (milliseconds), loop at the end</td></tr>
+</tbody></table>
+<p>It also sets the size of the slides, their margin, the centring, the arrows, the progress bar, the
+slide number and the transition, as reveal.js does.</p>
+<h2 id="the-shared-template"><a class="anchor" href="#the-shared-template">The shared template</a></h2>
+<p>All the themes except <code>black</code> and <code>white</code> use the same template, <code>glitu/template.css</code>. It holds
+the whole layout (header, panel, stage, cover, chapters, progress, layouts) and is tuned only
+through CSS variables: palette, fonts, veils, and <code>--tilt</code>, the slant of the separation between
+the panel and the stage. The <code>theme.css</code> of a template theme is limited to these variables.</p>
+<p>The backdrop is shared by the whole presentation. It runs under the cover and the chapters
+(<code>data-backdrop="animated"</code>), stands still elsewhere, and fades on the side of the text.</p>
+<p>The template styles the markup that glitu produces:</p>
+<table><thead><tr><th>Element</th><th>Markup</th></tr></thead><tbody>
+<tr><td>Cover</td><td><code>.cover</code> with <code>.eyebrow</code>, <code>h1</code>, <code>.subtitle</code>, <code>.byline</code></td></tr>
+<tr><td>Chapter</td><td><code>.chapter</code> with <code>.num</code>, <code>h2</code>, <code>p</code></td></tr>
+<tr><td>Slide</td><td><code>section[data-header="Section|Topic"]</code></td></tr>
+<tr><td>Text</td><td><code>.panel</code> with <code>h2</code>, <code>ul</code>; <code>.panel-steps</code> for blocks that replace each other</td></tr>
+<tr><td>Visual</td><td><code>.stage</code> (<code>.full</code> without text) with <code>.diagram</code>, <code>.window</code>, <code>.pan-track</code></td></tr>
+<tr><td>Layouts</td><td><code>section.layout-cols &gt; .cols &gt; .col</code>, <code>section.layout-quote &gt; .layout-body</code></td></tr>
+<tr><td>Formula</td><td><code>.formula</code>, <code>math</code></td></tr>
+</tbody></table>
+<h2 id="reveal-js-and-reveal-md-compatibility"><a class="anchor" href="#reveal-js-and-reveal-md-compatibility">reveal.js and reveal-md compatibility</a></h2>
+<p>A Markdown file written for reveal-md is recognized automatically when it uses <code>---</code> as a slide
+separator. glitu reads its rules and renders it with the <code>black</code> theme:</p>
+<table><thead><tr><th>Rule</th><th>Example</th></tr></thead><tbody>
+<tr><td>Slides and vertical slides</td><td><code>---</code> and <code>----</code></td></tr>
+<tr><td>Speaker notes</td><td><code>Note: …</code></td></tr>
+<tr><td>Slide attributes</td><td><code>&lt;!-- .slide: data-background="#000000" --&gt;</code></td></tr>
+<tr><td>Element attributes</td><td><code>- Item &lt;!-- .element: class="fragment" data-fragment-index="2" --&gt;</code></td></tr>
+<tr><td>Highlighted lines by steps</td><td><code>```php [1|3-5]</code></td></tr>
+</tbody></table>
+<p>The engine produces the same page structure as reveal.js: vertical slides, backgrounds, arrows,
+progress bar, slide number, transitions and centring. In reveal-md files, glitu does not support the math plugin (<code>$$…$$</code>), mermaid diagrams, the
+<code>revealOptions</code> of the front matter, the overview or the PDF export of reveal.js.</p>
+
+    </article>
+    <nav class="pager" aria-label="Pages"><a class="prev" rel="prev" href="/docs/publishing/"><span>Previous</span>Building and exporting</a><a class="next" rel="next" href="/docs/slow-computers/"><span>Next</span>Slow computers</a></nav>
+  </main>
+  <nav class="toc" aria-label="On this page"><p>On this page</p><ul><li><a href="#built-in-themes">Built-in themes</a></li><li><a href="#customizing-a-theme">Customizing a theme</a></li><li><a href="#creating-a-theme">Creating a theme</a></li><li><a href="#glitu-yaml">glitu.yaml</a></li><li><a href="#the-shared-template">The shared template</a></li><li><a href="#reveal-js-and-reveal-md-compatibility">reveal.js and reveal-md compatibility</a></li></ul></nav>
+</div>
+<footer>glitu is dual-licensed under MIT or Apache-2.0. <a href="https://github.com/skemonet/glitu/edit/main/site/docs/themes.md">Edit this page on GitHub</a></footer>
+</body>
+</html>

@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Building and exporting · glitu documentation</title>
+<meta name="description" content="Build a self-contained HTML page or a lightweight one, export to PowerPoint, PDF, PNG or a static website, pin versions and recover the Markdown source of a page.">
+<link rel="canonical" href="https://glitu.net/docs/publishing/">
+<meta name="theme-color" content="#070b16">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="glitu">
+<meta property="og:title" content="Building and exporting">
+<meta property="og:description" content="Build a self-contained HTML page or a lightweight one, export to PowerPoint, PDF, PNG or a static website, pin versions and recover the Markdown source of a page.">
+<meta property="og:url" content="https://glitu.net/docs/publishing/">
+<meta property="og:image" content="https://glitu.net/img/cover.webp">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230b1020'/%3E%3Cpath d='M9 22 15 10h4l-6 12zM15 22l6-12h3l-6 12z' fill='%2322d3ee'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/docs/docs.css">
+<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"TechArticle","headline":"Building and exporting","description":"Build a self-contained HTML page or a lightweight one, export to PowerPoint, PDF, PNG or a static website, pin versions and recover the Markdown source of a page.","url":"https://glitu.net/docs/publishing/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"glitu","url":"https://glitu.net/"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"glitu","item":"https://glitu.net/"},{"@type":"ListItem","position":2,"name":"Documentation","item":"https://glitu.net/docs/"},{"@type":"ListItem","position":3,"name":"Building and exporting","item":"https://glitu.net/docs/publishing/"}]}]}</script>
+</head>
+<body>
+<a class="skip" href="#content">Skip to content</a>
+<header class="top">
+  <a class="brand" href="/">gl<span>i</span>tu</a>
+  <nav aria-label="Site">
+    <a href="/docs/" aria-current="true">Docs</a>
+    <a href="/demo.html">Demo</a>
+    <a href="https://github.com/skemonet/glitu">GitHub</a>
+  </nav>
+</header>
+<div class="layout">
+  <nav class="side" aria-label="Documentation"><ul><li><a href="/docs/">Getting started</a></li><li><a href="/docs/writing/">Writing slides</a></li><li><a href="/docs/steps/">Steps and animations</a></li><li><a href="/docs/layouts/">Layouts and media</a></li><li><a href="/docs/code/">Code, diagrams and terminals</a></li><li><a href="/docs/presenting/">Presenting</a></li><li><a href="/docs/publishing/" aria-current="page">Building and exporting</a></li><li><a href="/docs/themes/">Themes</a></li><li><a href="/docs/slow-computers/">Slow computers</a></li></ul></nav>
+  <main id="content">
+    <article>
+      <h1>Building and exporting</h1>
+      <p class="lead">Build a self-contained HTML page or a lightweight one, export to PowerPoint, PDF, PNG or a static website, pin versions and recover the Markdown source of a page.</p>
+<h2 id="a-self-contained-page"><a class="anchor" href="#a-self-contained-page">A self-contained page</a></h2>
+<pre><code class="language-sh"><span class="hljs-title function_">glitu</span> build                          <span class="hljs-comment"># slides.md → presentation.html</span>
+<span class="hljs-title function_">glitu</span> build talk/slides.md <span class="hljs-params">-o</span> talk.html</code></pre>
+<p>The page contains everything: the engine, the theme, the fonts, the images, the diagrams and the
+terminal recordings (about 2 MB). It opens with a double click and needs no network, which makes
+it the safest file to carry to a conference.</p>
+<h2 id="a-lightweight-page"><a class="anchor" href="#a-lightweight-page">A lightweight page</a></h2>
+<pre><code class="language-sh"><span class="hljs-title function_">glitu</span> build <span class="hljs-params">--assets</span> https://glitu.net/static <span class="hljs-params">-o</span> talk.html</code></pre>
+<p>With <code>--assets</code>, the page keeps only the presentation (text, diagrams, terminals, images) and
+loads the engine and the theme from the given address. It requires network access when you
+present.</p>
+<p>The page requests exact versions, <code>glitu/&lt;version&gt;/</code> and <code>themes/&lt;name&gt;/&lt;version&gt;/</code>, and checks
+every file against its SHA-384 hash: a file published again with different content is refused
+rather than silently breaking the page. A local theme (<code>theme: ./path</code>) is not published, so it
+stays embedded in the page.</p>
+<p>https://glitu.net/static hosts the engine and the official themes. To host them yourself, write
+them into a folder and publish it, for instance with GitHub Pages:</p>
+<pre><code class="language-sh"><span class="hljs-title function_">cargo</span> run <span class="hljs-params">--release -p</span> glitu <span class="hljs-params">--example</span> assets <span class="hljs-operator">--</span> static/</code></pre>
+<h2 id="export"><a class="anchor" href="#export">Export</a></h2>
+<pre><code class="language-sh"><span class="hljs-title function_">glitu</span> build pptx <span class="hljs-params">-o</span> talk.pptx             <span class="hljs-comment"># editable PowerPoint</span>
+<span class="hljs-title function_">glitu</span> build pdf <span class="hljs-params">-o</span> talk.pdf               <span class="hljs-comment"># vector PDF</span>
+<span class="hljs-title function_">glitu</span> build png <span class="hljs-params">-o</span> images                 <span class="hljs-comment"># one PNG image per slide</span>
+<span class="hljs-title function_">glitu</span> build site <span class="hljs-params">-o</span> dist                  <span class="hljs-comment"># static website</span>
+<span class="hljs-title function_">glitu</span> build play <span class="hljs-params">-o</span> talk.glituplay        <span class="hljs-comment"># for glitu-play, on a slow computer</span></code></pre>
+<p>The format comes after <code>build</code>, with its own options (<code>glitu build pdf --help</code>). These options
+apply to <code>pptx</code>, <code>pdf</code>, <code>png</code> and <code>play</code> (<code>--clicks</code> and <code>--images</code> to some of them):</p>
+<table><thead><tr><th>Option</th><th>Effect</th></tr></thead><tbody>
+<tr><td><code>--clicks</code></td><td>One page, slide or image per click instead of one per slide</td></tr>
+<tr><td><code>--range 1-3,5</code></td><td>Only these slides, numbered in reading order</td></tr>
+<tr><td><code>--images</code></td><td>PowerPoint only: one picture per slide, exact but not editable</td></tr>
+<tr><td><code>--width 1024</code></td><td>Width of the pictures in pixels (1920 by default): the screen's own, for a slow computer</td></tr>
+</tbody></table>
+<h3 id="powerpoint"><a class="anchor" href="#powerpoint">PowerPoint</a></h3>
+<p>Each element becomes an editable PowerPoint object: text boxes with their fonts, colours, links
+and bullets; shapes with their fills, gradients, borders, rounded corners and shadows; skemo
+diagrams as groups of shapes and paths; images. The speaker notes go to the notes pages. Only
+what PowerPoint cannot represent stays a picture: the animated backdrop, canvases, videos,
+formulas, and rotated or clipped elements.</p>
+<p>The fonts of the theme (Lato, Inter and JetBrains Mono for <code>crystal</code>) must be installed on the
+computer that opens the file.</p>
+<h3 id="pdf"><a class="anchor" href="#pdf">PDF</a></h3>
+<p>The PDF is printed by the browser as vectors, so its text can be selected and searched. With
+<code>--clicks</code>, it has one page per click, an outline of the slide titles, and page labels: the pages
+of one slide carry its number. A <code>.pdfpc</code> file is written beside it, with the speaker notes, for
+the <a href="https://pdfpc.github.io/">pdfpc</a> presenter (see <a href="/docs/slow-computers/">Slow computers</a>).</p>
+<h3 id="png"><a class="anchor" href="#png">PNG</a></h3>
+<p><code>glitu build png</code> writes <code>NN.png</code> for each slide, or <code>NN-c.png</code> for each click with <code>--clicks</code>, into
+the output directory (<code>presentation/</code> by default).</p>
+<h3 id="native-player"><a class="anchor" href="#native-player">Native player</a></h3>
+<p><code>glitu build play</code> writes one <code>.glituplay</code> file for <code>glitu-play</code>, which presents without a
+browser: one picture per click, the description of what moves, and the Markdown (<code>glitu unpack</code>
+gets it back). See <a href="/docs/slow-computers/">Slow computers</a>.</p>
+<h3 id="static-website"><a class="anchor" href="#static-website">Static website</a></h3>
+<p><code>glitu build site</code> writes <code>index.html</code>, the engine, the theme and the resources into a directory
+(<code>dist/</code> by default), ready for any web server. It needs no browser.</p>
+<h2 id="the-browser"><a class="anchor" href="#the-browser">The browser</a></h2>
+<p>The exports to PowerPoint, PDF and PNG replay the presentation in a Chromium-based browser,
+without a window. glitu looks for one in this order:</p>
+<ol>
+<li>the <code>CHROMIUM</code> environment variable, a path or a command name;</li>
+<li>Chrome's headless shell, if glitu downloaded it;</li>
+<li>Chrome, Chromium, Edge, Brave or Vivaldi, in the <code>PATH</code> and then in their usual locations
+(<code>/Applications</code> on macOS, <code>Program Files</code> on Windows).</li>
+</ol>
+<p>If none is found, <code>--download-browser</code> downloads Chrome's headless shell, Google's "Chrome for
+Testing" build made for automation (about 100 MB, once). glitu first says what it will download
+and where, and asks for confirmation; <code>-y</code> accepts without asking, for scripts and CI. The archive
+is verified against the SHA-256 checksum built into glitu, then installed into
+<code>~/.cache/glitu/browser/</code> (<code>GLITU_BROWSER_DIR</code> changes this directory). To uninstall it, delete
+the directory. Firefox is not supported, because it no longer implements the DevTools protocol.</p>
+<h2 id="versions"><a class="anchor" href="#versions">Versions</a></h2>
+<p>The front matter can require versions. Without a version, glitu uses the version of the binary
+and of the theme it finds.</p>
+<pre><code class="language-yaml"><span class="hljs-attr">glitu</span>: <span class="hljs-number">0</span>.<span class="hljs-number">1.0</span>               <span class="hljs-comment"># the engine version; any other version is refused at build time</span>
+<span class="hljs-attr">theme</span>: <span class="hljs-string">crystal:0.1.0</span>       <span class="hljs-comment"># an official theme at this version</span>
+<span class="hljs-attr">theme</span>: <span class="hljs-string">./my-themes/x</span>       <span class="hljs-comment"># a local theme, relative to the presentation</span></code></pre>
+<h2 id="recovering-the-source"><a class="anchor" href="#recovering-the-source">Recovering the source</a></h2>
+<p>Every page built by glitu embeds a copy of its Markdown, file by file, including included files
+and imported code. <code>glitu unpack</code> writes it back:</p>
+<pre><code class="language-sh"><span class="hljs-title function_">glitu</span> unpack talk.html <span class="hljs-params">-o</span> talk/
+<span class="hljs-title function_">glitu</span> unpack https://glitu.net/demo.html <span class="hljs-params">-o</span> demo/</code></pre>
+<p><code>--force</code> overwrites existing files. Images and terminal recordings are not embedded: copy them
+back next to the Markdown. <code>source: false</code> in the front matter builds a page without the copy.</p>
+
+    </article>
+    <nav class="pager" aria-label="Pages"><a class="prev" rel="prev" href="/docs/presenting/"><span>Previous</span>Presenting</a><a class="next" rel="next" href="/docs/themes/"><span>Next</span>Themes</a></nav>
+  </main>
+  <nav class="toc" aria-label="On this page"><p>On this page</p><ul><li><a href="#a-self-contained-page">A self-contained page</a></li><li><a href="#a-lightweight-page">A lightweight page</a></li><li><a href="#export">Export</a></li><li><a href="#the-browser">The browser</a></li><li><a href="#versions">Versions</a></li><li><a href="#recovering-the-source">Recovering the source</a></li></ul></nav>
+</div>
+<footer>glitu is dual-licensed under MIT or Apache-2.0. <a href="https://github.com/skemonet/glitu/edit/main/site/docs/publishing.md">Edit this page on GitHub</a></footer>
+</body>
+</html>
