@@ -125,8 +125,14 @@ fn installed() -> Vec<PathBuf> {
 
 /// A name in the PATH (`.exe` added on Windows)
 fn in_path(name: &str) -> Option<PathBuf> {
+    in_dirs(name, std::env::split_paths(&std::env::var_os("PATH")?).collect())
+}
+
+/// A name in the absolute folders among `dirs`: a relative one (`.`, an empty entry) would mean
+/// the current folder, the presentation's
+fn in_dirs(name: &str, dirs: Vec<PathBuf>) -> Option<PathBuf> {
     let file = if cfg!(windows) && !name.ends_with(".exe") { format!("{name}.exe") } else { name.to_string() };
-    std::env::split_paths(&std::env::var_os("PATH")?).map(|d| d.join(&file)).find(|p| p.is_file())
+    dirs.into_iter().filter(|d| d.is_absolute()).map(|d| d.join(&file)).find(|p| p.is_file())
 }
 
 /// The browser answers `--version` within 10 s (a stub left by a package manager does not).
@@ -573,6 +579,21 @@ pub fn launch_failure(bin: &Path, exit: Option<String>, stderr: &str) -> String 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// As for the diagram tools (SEC-3): a relative entry of the PATH (`.`, an empty one) would
+    /// run a `chromium` lying in the presentation's folder
+    #[test]
+    fn only_the_absolute_folders_of_the_path_are_searched() {
+        let dir = std::env::temp_dir().join(format!("glitu-path-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("tool"), "").unwrap();
+        let dirs = |d: &[&Path]| d.iter().map(|p| p.to_path_buf()).collect::<Vec<_>>();
+        assert_eq!(in_dirs("tool", dirs(&[&dir])), Some(dir.join("tool")));
+        let relative = Path::new("src");
+        assert!(relative.join("lib.rs").is_file());
+        assert_eq!(in_dirs("lib.rs", dirs(&[relative, Path::new(""), Path::new(".")])), None);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 
     #[test]
     fn every_platform_has_its_checksum() {

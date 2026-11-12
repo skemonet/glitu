@@ -96,6 +96,10 @@ fn u32_at(b: &[u8], at: usize) -> Result<usize, String> {
         .ok_or_else(|| "truncated zip archive".into())
 }
 
+/// The most an entry read by `entry` may inflate to, whatever size the archive announces (the
+/// archive is someone else's file: a few kilobytes can announce 4 GB)
+const MAX_ENTRY: usize = 256 << 20;
+
 /// The entry `name` of an archive (stored or deflated), `None` if it has none
 pub fn entry(data: &[u8], name: &str) -> Result<Option<Vec<u8>>, String> {
     let end = (0..data.len().saturating_sub(21))
@@ -119,7 +123,7 @@ pub fn entry(data: &[u8], name: &str) -> Result<Option<Vec<u8>>, String> {
         let raw = data.get(start..start + size).ok_or("truncated zip archive")?;
         return match method {
             0 => Ok(Some(raw.to_vec())),
-            8 => miniz_oxide::inflate::decompress_to_vec_with_limit(raw, full)
+            8 => miniz_oxide::inflate::decompress_to_vec_with_limit(raw, full.min(MAX_ENTRY))
                 .map(Some)
                 .map_err(|e| format!("{name}: {e:?}")),
             m => Err(format!("{name}: compression {m} not supported")),
