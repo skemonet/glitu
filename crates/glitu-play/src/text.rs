@@ -13,9 +13,17 @@ pub struct Canvas<'a> {
 }
 
 impl Canvas<'_> {
+    /// The clip, cut at the pixels (a window may be smaller than the parts laid out for it)
+    fn bounds(&self) -> (i32, i32, i32, i32) {
+        let rows = self.pixels.len().checked_div(self.width).unwrap_or(0);
+        let (c, w, h) = (self.clip, i32::try_from(self.width), i32::try_from(rows));
+        (c.0.max(0), c.1.max(0), c.2.min(w.unwrap_or(i32::MAX)), c.3.min(h.unwrap_or(i32::MAX)))
+    }
+
     pub fn fill(&mut self, (x, y, w, h): (i32, i32, i32, i32), color: u32) {
-        let (x0, y0) = (x.max(self.clip.0), y.max(self.clip.1));
-        let (x1, y1) = ((x + w).min(self.clip.2), (y + h).min(self.clip.3));
+        let clip = self.bounds();
+        let (x0, y0) = (x.max(clip.0), y.max(clip.1));
+        let (x1, y1) = (x.saturating_add(w).min(clip.2), y.saturating_add(h).min(clip.3));
         for row in y0..y1 {
             for px in x0..x1 {
                 self.pixels[row as usize * self.width + px as usize] = color;
@@ -95,7 +103,7 @@ impl Text {
             if let Some(g) = self.font.outline_glyph(id.with_scale_and_position(scale, point(pen, baseline))) {
                 let b = g.px_bounds();
                 let (gx, gy) = (b.min.x as i32, b.min.y as i32);
-                let clip = canvas.clip;
+                let clip = canvas.bounds();
                 g.draw(|dx, dy, cov| {
                     let (px, py) = (gx + dx as i32, gy + dy as i32);
                     if cov > 0.0 && px >= clip.0 && px < clip.2 && py >= clip.1 && py < clip.3 {
@@ -138,6 +146,15 @@ mod tests {
         c.fill((90, 25, 50, 50), 7);
         assert_eq!(pixels.iter().filter(|&&p| p == 7).count(), 10 * 5);
         assert!(!pixels.contains(&0xffffff));
+        // a clip larger than the pixels is cut at them
+        let mut pixels = vec![0; 10 * 3];
+        let mut c = Canvas { pixels: &mut pixels, width: 10, clip: (-5, -5, 500, 500) };
+        c.fill((-9, -9, 5000, 5000), 7);
+        t.draw(&mut c, "Hé", size, 0xffffff, (1.0, -3.0));
+        assert!(pixels.iter().all(|&p| p != 0));
+        let mut c = Canvas { pixels: &mut [], width: 0, clip: (0, 0, 500, 500) };
+        c.fill((0, 0, 5, 5), 7);
+        t.draw(&mut c, "Hé", size, 0xffffff, (1.0, 1.0));
         assert_eq!(blend(0xffffff, 0, 0.5), 0x808080);
     }
 }
