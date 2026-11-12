@@ -48,7 +48,8 @@ pub fn fetch(url: &str) -> Result<Vec<u8>, String> {
 /// The content of `url`, without cache
 pub fn download(url: &str) -> Result<Vec<u8>, String> {
     let out = Command::new("curl")
-        .args(["-fsSL", "--max-time", "30", "-A", AGENT, url])
+        // --globoff: `[1-9]` and `{a,b}` in an address are not several addresses
+        .args(["-fsSL", "--globoff", "--max-time", "30", "-A", AGENT, url])
         .output()
         .map_err(|e| format!("curl: {e} (curl is needed to download {url})"))?;
     if !out.status.success() {
@@ -69,6 +70,13 @@ pub fn icons(html: &str) -> Result<String, String> {
         let id = &rest[start..start + len];
         if !seen.contains_key(id) {
             let (set, name) = id.split_once(':').unwrap_or((id, ""));
+            // the name goes into an address: an icon's, nothing else (the page may hold a tag written
+            // by hand)
+            let word =
+                |w: &str| !w.is_empty() && w.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_');
+            if !word(set) || !word(name) {
+                return Err(format!("icon {id}: an icon is named `:collection:name:`, in letters, digits and `-`"));
+            }
             let svg = fetch(&format!("https://api.iconify.design/{set}/{name}.svg?height=1em"))
                 .map_err(|e| format!("icon {id} not found ({e})"))?;
             let svg = String::from_utf8_lossy(&svg).replacen("<svg ", "<svg class=\"icon\" aria-hidden=\"true\" ", 1);
@@ -98,6 +106,10 @@ pub fn fonts(meta: &BTreeMap<String, String>) -> Result<Vec<Output>, String> {
         let Some(family) = meta.get(key).map(|f| f.trim().trim_matches(['"', '\''])).filter(|f| !f.is_empty()) else {
             continue;
         };
+        // the name goes into an address and into the stylesheet
+        if !family.chars().all(|c| c.is_alphanumeric() || c == ' ') {
+            return Err(format!("{key}: `{family}`: a font's name is made of letters, digits and spaces"));
+        }
         let query = family.replace(' ', "+");
         let sheet = fetch(&format!("https://fonts.googleapis.com/css2?family={query}:wght@400;700&display=swap"))
             .or_else(|_| fetch(&format!("https://fonts.googleapis.com/css2?family={query}&display=swap")))
@@ -161,5 +173,9 @@ mod tests {
         assert_eq!(html.matches("<svg class=\"icon\" aria-hidden=\"true\" viewBox").count(), 2);
         assert!(html.starts_with("a <svg") && html.contains("</svg> b <svg"));
         assert!(fonts(&BTreeMap::new()).unwrap().is_empty());
+        // refused before any download
+        assert!(icons("<i class=\"icon\" data-icon=\"mdi:{a,b}/../x\"></i>").unwrap_err().contains("is named"));
+        let font = BTreeMap::from([("font".to_string(), "Inter\"; } body { display: none".to_string())]);
+        assert!(fonts(&font).err().unwrap().contains("a font's name"));
     }
 }
