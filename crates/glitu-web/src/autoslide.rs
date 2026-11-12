@@ -19,6 +19,8 @@ fn delay() -> f64 {
     step.or(Some(slide))
         .and_then(|el| data(&el, "autoslide"))
         .and_then(|v| v.parse().ok())
+        // `NaN` or `inf` is no delay: the timer would fire at once, slide after slide
+        .filter(|ms: &f64| ms.is_finite())
         .unwrap_or_else(|| engine::config().auto_slide)
 }
 
