@@ -48,7 +48,7 @@ pub fn appear(it: &Stepped) -> Appear {
     };
     let end = it
         .until
-        .map(|u| format!("<span class=\"fragment until\" data-fragment-index=\"{}\"></span>", u + 1))
+        .map(|u| format!("<span class=\"fragment until\" data-fragment-index=\"{}\"></span>", u.saturating_add(1)))
         .unwrap_or_default();
     Appear { class, attrs, end, fx: fx_attr(&it.marks) }
 }
@@ -89,7 +89,7 @@ pub(super) fn fx_steps(html: &str) -> String {
             let range = fx.split_once(':').map_or("", |(_, r)| r);
             let (a, b) = range.split_once('-').map_or((range, None), |(a, b)| (a, Some(b)));
             steps.extend(a.parse::<u32>().ok());
-            steps.extend(b.and_then(|b| b.parse::<u32>().ok()).map(|b| b + 1));
+            steps.extend(b.and_then(|b| b.parse::<u32>().ok()).map(|b| b.saturating_add(1)));
         }
     }
     fragment_spans("fx-step", steps)
@@ -100,14 +100,14 @@ pub(super) fn fx_steps(html: &str) -> String {
 pub(super) fn skemo_steps(html: &str) -> String {
     let mut steps = BTreeSet::new();
     for (name, after) in [("data-step", 0), ("data-until", 1)] {
-        steps.extend(attr_values(html, name).filter_map(|v| v.parse::<u32>().ok()).map(|n| n + after));
+        steps.extend(attr_values(html, name).filter_map(|v| v.parse::<u32>().ok()).map(|n| n.saturating_add(after)));
     }
     for value in attr_values(html, "data-focus") {
         for range in value.split_whitespace() {
             let (a, b) = range.split_once('-').unwrap_or((range, range));
             if let (Ok(a), Ok(b)) = (a.parse::<u32>(), b.parse::<u32>()) {
                 steps.insert(a);
-                steps.insert(b + 1);
+                steps.insert(b.saturating_add(1));
             }
         }
     }
@@ -166,7 +166,7 @@ fn by_click(html: &str, step: &mut u32) -> String {
         let marker = &html[at + 6..at + len];
         let next = match marker.strip_prefix(':').map(str::trim) {
             Some(n) => n.parse().ok(),
-            None => marker.is_empty().then_some(*step + 1),
+            None => marker.is_empty().then_some(step.saturating_add(1)),
         };
         from = at + len + 1;
         let Some(next) = next else { continue };

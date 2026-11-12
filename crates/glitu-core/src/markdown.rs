@@ -124,9 +124,9 @@ struct Clicks(u32);
 impl Clicks {
     fn resolve(&mut self, mut s: Stepped) -> Stepped {
         if let Some(n) = s.relative.take() {
-            s.step = self.0 + n;
+            s.step = self.0.saturating_add(n);
             if let Some(u) = s.until.as_mut() {
-                *u += self.0;
+                *u = u.saturating_add(self.0);
             }
         }
         self.0 = self.0.max(s.step);
@@ -320,14 +320,20 @@ fn fence_of(info: &str, content: String) -> Fence {
 
 pub fn front_matter(src: &str) -> (BTreeMap<String, String>, &str) {
     let mut meta = BTreeMap::new();
-    let Some(rest) = src.strip_prefix("---\n") else { return (meta, src) };
-    let Some(end) = rest.find("\n---\n") else { return (meta, src) };
+    // lines ending the Windows way (`\r\n`) too
+    let Some(rest) = src.strip_prefix("---\n").or_else(|| src.strip_prefix("---\r\n")) else { return (meta, src) };
+    let (end, len) = match (rest.find("\n---\n"), rest.find("\r\n---\r\n")) {
+        (Some(unix), Some(windows)) if windows < unix => (windows, 7),
+        (Some(unix), _) => (unix, 5),
+        (None, Some(windows)) => (windows, 7),
+        (None, None) => return (meta, src),
+    };
     for line in rest[..end].lines() {
         if let Some((k, v)) = line.split_once(':') {
             meta.insert(k.trim().to_string(), v.trim().to_string());
         }
     }
-    (meta, &rest[end + 5..])
+    (meta, &rest[end + len..])
 }
 
 /// Text of a heading or a bullet, without its block marker or its line breaks
@@ -436,8 +442,8 @@ impl Reader<'_> {
             None => fence.attrs.get("lines").map_or(0, |l| l.split('|').count() as u32 - 1),
         };
         if more > 0 && (fence.step() > 0 || versions.is_some()) {
-            fence.next_click = if fence.step() > 0 { fence.step() + 1 } else { self.clicks.0 + 1 };
-            self.clicks.0 = self.clicks.0.max(fence.next_click + more - 1);
+            fence.next_click = if fence.step() > 0 { fence.step() } else { self.clicks.0 }.saturating_add(1);
+            self.clicks.0 = self.clicks.0.max(fence.next_click.saturating_add(more - 1));
         }
         self.push(Block::Fence(fence));
     }
@@ -483,7 +489,7 @@ impl Reader<'_> {
         m.appear = self.clicks.resolve(std::mem::take(&mut m.appear));
         let pauses = m.pauses() as u32;
         if pauses > 0 {
-            self.clicks.0 = self.clicks.0.max(m.appear.step + pauses);
+            self.clicks.0 = self.clicks.0.max(m.appear.step.saturating_add(pauses));
         }
         if let Some(focus) = m.attrs.get("focus") {
             let zones: Vec<String> = focus
@@ -650,6 +656,8 @@ mod tests {
         assert!(matches!(&b[2], Block::Fence(f) if f.lang.is_empty() && f.content == "indented"));
         assert!(front_matter("no front matter").0.is_empty());
         assert!(front_matter("---\nunclosed\n").0.is_empty());
+        let (meta, body) = front_matter("---\r\ntitle: T\r\ntheme: paper\r\n---\r\n# One\r\n");
+        assert_eq!((meta["title"].as_str(), meta["theme"].as_str(), body), ("T", "paper", "# One\r\n"));
     }
 
     #[test]
