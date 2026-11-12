@@ -152,9 +152,30 @@ fn each_word(line: &str, mut wrap: impl FnMut(&str) -> String) -> String {
     out
 }
 
+#[test]
+fn versions_too_long_to_compare_keep_their_ends_in_common() {
+    let words = |prefix: &str| -> Vec<String> {
+        let middle = (0..5000).map(|i| format!("{prefix}{i}"));
+        ["let".to_string()].into_iter().chain(middle).chain(["end".to_string(), ";".to_string()]).collect()
+    };
+    assert_eq!(common(&words("a"), &words("b")), [(0, 0), (5001, 5001), (5002, 5002)]);
+    let short = |w: &[&str]| w.iter().map(|w| w.to_string()).collect::<Vec<_>>();
+    assert_eq!(common(&short(&["a", "b", "c"]), &short(&["b", "x", "c"])), [(1, 0), (2, 2)]);
+}
+
+/// The cells of the table that compares two versions of an animated code (4 bytes each)
+const MAX_COMPARED: usize = 1 << 24;
+
 /// Pairs (i, j) of the words common to `a` and `b`, in order (longest common subsequence)
 fn common(a: &[String], b: &[String]) -> Vec<(usize, usize)> {
     let (n, m) = (a.len(), b.len());
+    // two versions too long to compare word by word (the table would take gigabytes): only what
+    // they start and end with is common
+    if (n + 1).saturating_mul(m + 1) > MAX_COMPARED {
+        let head = a.iter().zip(b).take_while(|(x, y)| x == y).count();
+        let tail = a[head..].iter().rev().zip(b[head..].iter().rev()).take_while(|(x, y)| x == y).count();
+        return (0..head).map(|i| (i, i)).chain((1..=tail).rev().map(|k| (n - k, m - k))).collect();
+    }
     let at = |i: usize, j: usize| i * (m + 1) + j;
     let mut len = vec![0u32; (n + 1) * (m + 1)];
     for i in (0..n).rev() {
