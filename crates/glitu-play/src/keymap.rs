@@ -72,8 +72,18 @@ fn first_group(body: &str) -> Option<Vec<&str>> {
         }
         // `symbols[Group1]` (or `[1]`) then `= [ … ]`; another field (`actions[…]`) is skipped
         let field = before.rsplit(|c: char| !(c.is_ascii_alphanumeric() || c == '_')).next().unwrap_or("");
-        let after = rest[close + 1..].trim_start().strip_prefix('=')?.trim_start();
-        let list = after.strip_prefix('[')?;
+        let Some(after) = rest[close + 1..].trim_start().strip_prefix('=').map(str::trim_start) else {
+            rest = &rest[close + 1..];
+            continue;
+        };
+        // a field that is not a list (`type[Group1]= "TWO_LEVEL"`) is skipped, with its text
+        let Some(list) = after.strip_prefix('[') else {
+            rest = match after.strip_prefix('"') {
+                Some(text) => text.find('"').map_or("", |end| &text[end + 1..]),
+                None => after,
+            };
+            continue;
+        };
         let end = list.find(']')?;
         if field == "symbols" && matches!(inside.trim(), "Group1" | "group1" | "1") {
             return Some(list[..end].split(',').map(str::trim).collect());
@@ -182,6 +192,16 @@ mod tests {
         // German: `+` on its own key, `-` near the right shift, z and y swapped
         assert_eq!((de.symbol(AD12), de.symbol(AB10)), (Some("plus"), Some("minus")));
         assert_eq!((de.symbol(21), de.symbol(44)), (Some("z"), Some("y")));
+    }
+
+    #[test]
+    fn a_key_whose_type_comes_before_its_symbols() {
+        let text = "xkb_keymap { xkb_keycodes \"x\" { <A> = 38; <B> = 39; <C> = 40; }; \
+                    xkb_symbols \"x\" { key <A> { type[Group1]= \"ALPHABETIC\", symbols[Group1]= [ a, A ] }; \
+                    key <B> { type[group1]=\"TWO_LEVEL\" , actions[Group1]= [ NoAction() ], symbols[Group1]= [ s, S ] }; \
+                    key <C> { type[Group1]= \"ONE[1]\", symbols[Group1]= [ d ] }; }; };";
+        let k = Keymap::parse(text);
+        assert_eq!((k.symbol(30), k.symbol(31), k.symbol(32)), (Some("a"), Some("s"), Some("d")));
     }
 
     #[test]
