@@ -31,6 +31,9 @@ use serde_json::Value;
 /// to spare; above, the deck is damaged (or hostile) and no buffer is made for it
 pub const MAX_SIDE: u64 = 16_384;
 pub const MAX_AREA: u64 = 1 << 26;
+/// The farthest an arrow's point is from the slide's corner (px), and its widest stroke: a
+/// stroke is drawn by a rasteriser, that does not take any number
+pub const MAX_REACH: f32 = 2.0 * MAX_SIDE as f32;
 
 /// An arrow drawn along its path: the stroke that reveals it, of `width` pixels
 #[derive(Clone, Debug, PartialEq)]
@@ -171,6 +174,13 @@ impl Deck {
             return Err(format!("the slides are larger than {MAX_AREA} pixels"));
         }
         for (i, c) in v["clicks"].as_array().into_iter().flatten().enumerate() {
+            for p in c["draws"].as_array().into_iter().flatten() {
+                let points = p["points"].as_array().into_iter().flatten().filter_map(Value::as_f64);
+                let far = points.into_iter().any(|n| n.abs() > f64::from(MAX_REACH));
+                if far || !(0.0..=MAX_SIDE as f64).contains(&num(&p["width"])) {
+                    return Err(format!("click {}: an arrow is too far or too wide", i + 1));
+                }
+            }
             if c["film"].is_object() {
                 // the area of the film is in the slide: x, y, width, height, whole pixels
                 let r: Vec<u64> =
@@ -546,6 +556,18 @@ pub(crate) mod tests {
         }
         assert_eq!(deck(ok, r#", "film": { "rect": [90, 40, 10, 10], "frames": [] }"#, ""), None);
         // the backdrop: its place and its size
+        // an arrow: far from the slide, or wide
+        for arrow in [
+            r#"{ "points": [0, 0, 40000, 5], "width": 3 }"#,
+            r#"{ "points": [0, 0, 1e300, 5], "width": 3 }"#,
+            r#"{ "points": [0, -32769, 4, 5], "width": 3 }"#,
+            r#"{ "points": [0, 0, 4, 5], "width": 1e9 }"#,
+            r#"{ "points": [0, 0, 4, 5], "width": -1 }"#,
+        ] {
+            let draws = format!(r#", "draws": [ {arrow} ]"#);
+            assert!(deck(ok, &draws, "").is_some(), "{arrow}");
+        }
+        assert_eq!(deck(ok, r#", "draws": [ { "points": [-32768, 0, 32768, 5], "width": 16384 } ]"#, ""), None);
         let backdrop = |rect: &str, size: &str| format!(r#", "backdrop": {{ "rect": {rect}, "size": {size} }}"#);
         assert_eq!(deck(ok, "", &backdrop("[0, 0, 100, 50]", "[1280, 720]")), None);
         for (rect, size) in [
