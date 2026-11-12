@@ -29,7 +29,9 @@ fn compare(shot: &[u32], drawn: &[u32], alpha: &[u8], width: usize, glass: &[(i3
     for (i, (&a, &b)) in shot.iter().zip(drawn).enumerate() {
         let (x, y) = ((i % width) as i32, (i / width) as i32);
         if alpha.get(i) != Some(&0)
-            || glass.iter().any(|&(gx, gy, gw, gh)| x >= gx && x < gx + gw && y >= gy && y < gy + gh)
+            || glass
+                .iter()
+                .any(|&(gx, gy, gw, gh)| x >= gx && x < gx.saturating_add(gw) && y >= gy && y < gy.saturating_add(gh))
         {
             continue;
         }
@@ -60,7 +62,7 @@ pub fn run(path: &Path) -> Result<bool, String> {
         let drawn = match references.iter().find(|(d, _)| *d == under.dim) {
             Some((_, px)) => px.clone(),
             None => {
-                let px = Backdrop::reference(info, (w, h), under.dim).pixels;
+                let px = Backdrop::reference(info, (w, h), under.dim)?.pixels;
                 references.push((under.dim, px.clone()));
                 px
             }
@@ -135,5 +137,9 @@ mod tests {
         assert_eq!((s.compared, s.differ, s.mean), (2, 0.0, 8.0));
         let s = compare(&shot, &drawn, &[0, 0, 0, 0], 2, &[]);
         assert_eq!((s.compared, s.differ), (4, 25.0));
+        // a glass area at the edge of the numbers
+        let s =
+            compare(&shot, &drawn, &[0, 0, 0, 0], 2, &[(1, 1, i32::MAX, i32::MAX), (i32::MIN, i32::MIN, i32::MAX, 1)]);
+        assert_eq!(s.compared, 3);
     }
 }

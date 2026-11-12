@@ -29,8 +29,8 @@ use serde_json::Value;
 
 /// The largest side of a slide, in pixels, and its largest area: what a screen shows, with room
 /// to spare; above, the deck is damaged (or hostile) and no buffer is made for it
-const MAX_SIDE: u64 = 16_384;
-const MAX_AREA: u64 = 1 << 26;
+pub const MAX_SIDE: u64 = 16_384;
+pub const MAX_AREA: u64 = 1 << 26;
 
 /// An arrow drawn along its path: the stroke that reveals it, of `width` pixels
 #[derive(Clone, Debug, PartialEq)]
