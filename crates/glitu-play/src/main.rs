@@ -5,7 +5,8 @@
 mod backdrop;
 mod check;
 mod deck;
-#[cfg(any(target_os = "linux", target_os = "freebsd", target_os = "openbsd", target_os = "netbsd"))]
+// the parser is pure code: its tests run everywhere
+#[cfg(any(test, target_os = "linux", target_os = "freebsd", target_os = "openbsd", target_os = "netbsd"))]
 mod keymap;
 mod loader;
 mod player;
