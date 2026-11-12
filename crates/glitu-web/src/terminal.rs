@@ -39,6 +39,10 @@ struct Recording {
     events: Vec<(f64, Kind)>,
 }
 
+/// The largest screen a recording may announce: beyond, the page would run out of memory
+const MAX_COLS: usize = 1000;
+const MAX_ROWS: usize = 500;
+
 fn parse(text: &str, idle_limit: Option<f64>) -> Result<Recording, String> {
     let mut lines = text.lines().filter(|l| !l.trim().is_empty());
     let header: Value = serde_json::from_str(lines.next().ok_or("empty recording")?).map_err(|e| e.to_string())?;
@@ -48,6 +52,7 @@ fn parse(text: &str, idle_limit: Option<f64>) -> Result<Recording, String> {
     } else {
         (header["width"].as_u64().unwrap_or(80), header["height"].as_u64().unwrap_or(24))
     };
+    let (cols, rows) = (cols.min(MAX_COLS as u64), rows.min(MAX_ROWS as u64));
     let limit = idle_limit.or_else(|| header["idle_time_limit"].as_f64());
     let (mut raw_prev, mut time) = (0.0, 0.0);
     let mut events = Vec::new();
@@ -67,7 +72,8 @@ fn parse(text: &str, idle_limit: Option<f64>) -> Result<Recording, String> {
             "m" => Kind::Marker,
             "r" => {
                 let (c, r) = payload.split_once('x').unwrap_or(("0", "0"));
-                Kind::Resize(c.parse().unwrap_or(cols as usize), r.parse().unwrap_or(rows as usize))
+                let (c, r): (usize, usize) = (c.parse().unwrap_or(cols as usize), r.parse().unwrap_or(rows as usize));
+                Kind::Resize(c.min(MAX_COLS), r.min(MAX_ROWS))
             }
             _ => continue,
         };
@@ -575,7 +581,7 @@ pub fn install(theme: &str) {
 
 /// A terminal of this size (at least one cell: a recording may announce none)
 fn terminal(cols: usize, rows: usize) -> Terminal {
-    Terminal::new(cols.max(1), rows.max(1)).expect("a positive size")
+    Terminal::new(cols.clamp(1, MAX_COLS), rows.clamp(1, MAX_ROWS)).expect("a positive size")
 }
 
 #[cfg(test)]
@@ -636,6 +642,18 @@ mod tests {
         assert_eq!((r.cols, r.rows), (20, 5));
         assert_eq!(r.events.iter().map(|e| e.0).collect::<Vec<_>>(), [0.5, 1.5]);
         assert!(parse("", None).is_err() && parse("{}\nnot json", None).is_err());
+    }
+
+    #[test]
+    fn a_recording_announcing_an_endless_screen_gets_a_bounded_one() {
+        let r = parse(
+            "{\"version\": 2, \"width\": 4000000000, \"height\": 4000000000}\n[1, \"r\", \"9999999999x9999999999\"]",
+            None,
+        );
+        let r = r.unwrap();
+        assert_eq!((r.cols, r.rows), (MAX_COLS, MAX_ROWS));
+        assert!(matches!(r.events[0].1, Kind::Resize(MAX_COLS, MAX_ROWS)));
+        assert_eq!(terminal(usize::MAX, usize::MAX).size(), (MAX_COLS, MAX_ROWS));
     }
 
     #[test]
