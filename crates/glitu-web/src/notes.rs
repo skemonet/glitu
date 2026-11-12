@@ -121,7 +121,7 @@ fn planned() -> Vec<Option<f64>> {
 
 /// The title of a slide: its topic, otherwise its first heading
 fn title(leaf: &Element, i: usize) -> String {
-    let topic = dom::data(leaf, "header").and_then(|h| h.split('|').nth(1).map(|t| t.trim().to_string()));
+    let topic = dom::data(leaf, "header").and_then(|h| h.split_once('|').map(|(_, t)| t.trim().to_string()));
     topic
         .filter(|t| !t.is_empty())
         .or_else(|| qs(leaf, "h1, h2, h3").and_then(|h| h.text_content()).map(|t| t.trim().to_string()))
