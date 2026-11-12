@@ -166,8 +166,8 @@ fn versions_too_long_to_compare_keep_their_ends_in_common() {
 /// The cells of the table that compares two versions of an animated code (4 bytes each)
 const MAX_COMPARED: usize = 1 << 24;
 
-/// Pairs (i, j) of the words common to `a` and `b`, in order (longest common subsequence)
-fn common(a: &[String], b: &[String]) -> Vec<(usize, usize)> {
+/// Pairs (i, j) of the items common to `a` and `b`, in order (longest common subsequence)
+fn common<T: PartialEq>(a: &[T], b: &[T]) -> Vec<(usize, usize)> {
     let (n, m) = (a.len(), b.len());
     // two versions too long to compare word by word (the table would take gigabytes): only what
     // they start and end with is common
@@ -198,16 +198,52 @@ fn common(a: &[String], b: &[String]) -> Vec<(usize, usize)> {
     pairs
 }
 
-/// The words of highlighted lines, in order
-fn words_of(lines: &[String]) -> Vec<String> {
-    let mut words = Vec::new();
-    for l in lines {
-        each_word(l, |t| {
-            words.push(t.to_string());
-            String::new()
-        });
+/// The words of each highlighted line, in order
+fn words_of(lines: &[String]) -> Vec<Vec<String>> {
+    lines
+        .iter()
+        .map(|l| {
+            let mut words = Vec::new();
+            each_word(l, |t| {
+                words.push(t.to_string());
+                String::new()
+            });
+            words
+        })
+        .collect()
+}
+
+/// Pairs (i, j) of the words kept from version `a` to version `b` (indices over all their words):
+/// the lines left unchanged first, then, between two of them, the words in order. Without the
+/// lines, a word repeated far apart could pair with the wrong one (the `-` of a closing `---`
+/// with the one of `font-title` added above it).
+fn kept(a: &[Vec<String>], b: &[Vec<String>]) -> Vec<(usize, usize)> {
+    let starts = |lines: &[Vec<String>]| -> Vec<usize> {
+        lines
+            .iter()
+            .scan(0, |n, l| {
+                let start = *n;
+                *n += l.len();
+                Some(start)
+            })
+            .collect()
+    };
+    let (sa, sb) = (starts(a), starts(b));
+    let flat = |lines: &[Vec<String>]| lines.concat();
+    let mut pairs = Vec::new();
+    // the gap before each unchanged line, then after the last one
+    let anchors = common(a, b).into_iter().filter(|&(i, _)| !a[i].is_empty()).chain([(a.len(), b.len())]);
+    let (mut i0, mut j0) = (0, 0);
+    for (i, j) in anchors {
+        let (wa, wb) = (flat(&a[i0..i]), flat(&b[j0..j]));
+        let (oa, ob) = (sa.get(i0).copied().unwrap_or(0), sb.get(j0).copied().unwrap_or(0));
+        pairs.extend(common(&wa, &wb).into_iter().map(|(x, y)| (oa + x, ob + y)));
+        if i < a.len() {
+            pairs.extend((0..a[i].len()).map(|k| (sa[i] + k, sb[j] + k)));
+        }
+        (i0, j0) = (i + 1, j + 1);
     }
-    words
+    pairs
 }
 
 /// Animated code: the successive versions of a block (language, code), stacked in the same
@@ -222,14 +258,14 @@ pub fn magic_move(versions: &[(&str, &str)], first_step: u32) -> String {
             (lines(lang, &code), classes)
         })
         .collect();
-    let words: Vec<Vec<String>> = colored.iter().map(|(lines, _)| words_of(lines)).collect();
+    let words: Vec<Vec<Vec<String>>> = colored.iter().map(|(lines, _)| words_of(lines)).collect();
     let mut next_id = 0;
     let mut previous: Vec<usize> = Vec::new();
     let mut out = String::from("<pre class=\"code-wrapper magic-move\">");
     for (k, ((lang, _), (lines, classes))) in versions.iter().zip(&colored).enumerate() {
-        let mut ids: Vec<Option<usize>> = vec![None; words[k].len()];
+        let mut ids: Vec<Option<usize>> = vec![None; words[k].iter().map(Vec::len).sum()];
         if k > 0 {
-            for (i, j) in common(&words[k - 1], &words[k]) {
+            for (i, j) in kept(&words[k - 1], &words[k]) {
                 ids[j] = Some(previous[i]);
             }
         }
@@ -331,6 +367,19 @@ mod tests {
         assert_eq!(block_classes(&classes), " has-focus has-diff has-highlighted");
         let (code, classes) = annotations("x [!code unknown]");
         assert_eq!((code.as_str(), classes[0]), ("x [!code unknown]", ""));
+    }
+
+    #[test]
+    fn unchanged_lines_keep_their_words() {
+        let lines = |ls: &[&str]| -> Vec<Vec<String>> {
+            ls.iter().map(|l| l.split(' ').filter(|w| !w.is_empty()).map(String::from).collect()).collect()
+        };
+        // a closing `---` (words 3 to 5) stays on the closing line, not on the `-` of `font - title`
+        let a = lines(&["- - -", "a", "- - -"]);
+        let b = lines(&["- - -", "a", "font - title", "- - -", "x"]);
+        assert_eq!(kept(&a, &b), [(0, 0), (1, 1), (2, 2), (3, 3), (4, 7), (5, 8), (6, 9)]);
+        // inside a changed line, the words kept are still paired
+        assert_eq!(kept(&lines(&["let x = 1"]), &lines(&["let mut x = 2"])), [(0, 0), (1, 2), (2, 3)]);
     }
 
     #[test]
