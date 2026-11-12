@@ -5,7 +5,6 @@ use crate::{Canvas, Scene};
 
 pub struct Graphite;
 
-
 impl Scene for Graphite {
     fn start(&self) -> f64 {
         4.0
