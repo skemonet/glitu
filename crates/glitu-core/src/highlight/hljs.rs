@@ -98,7 +98,9 @@ fn xml(code: &str) -> Vec<String> {
             out += &xml_tag(&rest[..end]);
             rest = &rest[end..];
         } else {
-            let end = rest[1..].find('<').map_or(rest.len(), |e| e + 1);
+            // from the second character on (the first one may take several bytes)
+            let first = rest.chars().next().map_or(0, char::len_utf8);
+            let end = rest[first..].find('<').map_or(rest.len(), |e| e + first);
             out += &esc(&rest[..end]);
             rest = &rest[end..];
         }
@@ -136,7 +138,8 @@ fn xml_attributes(mut attrs: &str) -> String {
         if let Some(r) = attrs.strip_prefix('=') {
             let q = r.chars().next().unwrap_or('"');
             let len = if q == '"' || q == '\'' {
-                r[1..].find(q).map_or(r.len(), |e| e + 2)
+                // `r` is empty when nothing follows the `=`
+                r.get(1..).and_then(|v| v.find(q)).map_or(r.len(), |e| e + 2)
             } else {
                 r.find(char::is_whitespace).unwrap_or(r.len())
             };
@@ -619,6 +622,15 @@ mod tests {
     #[test]
     fn c_like_hljs() {
         assert_eq!(ours("c", include_str!("../../tests/fixtures/c.txt").trim_end()), reference("hljs-c.html"));
+    }
+
+    #[test]
+    fn html_with_text_of_several_bytes_and_unfinished_attributes() {
+        assert_eq!(ours("html", "<h1>日本語</h1>")[0].matches("日本語").count(), 1);
+        assert!(ours("html", "été <b>été</b>")[0].starts_with("été "));
+        // `href=` with nothing after it: at the end of the tag, and of the text
+        assert!(ours("html", "<a href=>x</a>")[0].contains("href"));
+        assert!(ours("xml", "<a href=")[0].contains("href"));
     }
 
     #[test]
