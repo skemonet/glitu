@@ -14,8 +14,8 @@ One markdown file, four outputs
 ```bash title="terminal" lines="1|2|3|4" @1
 glitu build -o talk.html
 glitu build --assets https://glitu.net/static
-glitu export --format site -o dist
-glitu export -o talk.pptx
+glitu build site -o dist
+glitu build pptx -o talk.pptx
 ```
 
 Note: Everything starts from the same markdown file. [click] One page to carry around, which

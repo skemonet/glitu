@@ -78,9 +78,10 @@ to release, if any), the five binaries (cross-compiled with `cargo zigbuild`) wh
 The whole presentation fits in **`slides.md`**: the text, the diagrams (skemo code), the code
 shown on screen. Only the terminal recordings (`casts/*.cast`) and the images, if any, are
 separate files. The rendering comes from a **theme** (`themes/crystal/`): a header, a text panel
-on the left, a visual on the right, the "crystal" backdrop, progress by chapter. Six other themes
+on the left, a visual on the right, the "crystal" backdrop, progress by chapter. Seven other themes
 share this template with another animated backdrop: `constellation`, `paper` (cut paper),
-`aurora`, `ascii` (amber ASCII), `blueprint` (technical drawing), `iso` (isometric).
+`aurora`, `ascii` (amber ASCII), `blueprint` (technical drawing), `iso` (isometric), `graphite`
+(charcoal with a purple glow).
 
 The `glitu` tool (Rust) compiles the markdown into a static page; the presentation engine, also
 written in Rust and compiled to WebAssembly, replaces reveal.js in the browser. No npm
@@ -360,9 +361,9 @@ protocol.
 - **PDF**: the page printed by the browser, as vectors (selectable text); with `--clicks`, one page
   per click (captures), an outline of the slide titles, page labels (the pages of one slide carry
   its number) and a `.pdfpc` file beside it with the speaker notes, for pdfpc.
-- **PNG** (`--format png`): `NN.png` per slide (`NN-c.png` per click with `--clicks`) in the
+- **PNG** (`glitu build png`): `NN.png` per slide (`NN-c.png` per click with `--clicks`) in the
   given folder (default `presentation/`).
-- **play** (`--format play`): one `.glituplay` file for `glitu-play`, the native player (see
+- **play** (`glitu build play`): one `.glituplay` file for `glitu-play`, the native player (see
   below): an uncompressed zip archive of the pictures, their animations and the markdown.
 
 ## Slow computers

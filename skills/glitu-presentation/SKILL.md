@@ -38,7 +38,7 @@ title: Kubernetes in practice        # the cover slide
 subtitle: Deploy and expose an application
 author: Ada Lovelace
 date: October 2026
-theme: crystal                       # glitu init --list-themes: crystal (default), constellation, paper, aurora, ascii, blueprint, iso, black, white
+theme: crystal                       # glitu init --list-themes: crystal (default), constellation, paper, aurora, ascii, blueprint, iso, graphite, black, white
 logo: img/logo.svg                   # optional: an image of img/ or public/, or an https:// URL
 ---
 
@@ -108,11 +108,13 @@ in the diagram or the code.
 | image beside the text | `{.image-right}` / `{.image-left}` |
 | a web page | `## Demo {.iframe url="https://…"}` |
 | elements that move between two slides | `{.animate}` on both slides |
+| zoom into a diagram's element | `## Detail {transition="dive:api"}` (back out: `surface:api`) |
 | another header label | `{kicker="Template"}`; tighter bullets `{.compact}` |
 
 ### Other content
 
-- Image: `![alt](img/x.png)`; attributes after it: `{@2}` (its click), `{caption="…"}`.
+- Image: `![alt](img/x.png)`; attributes after it: `{@2}` (its click), `{caption="…"}`,
+  `{box="x y w h"}` (place and size forced, in % of the visual's area; also on a block).
 - Caption or source under any visual: the title of an image `![](img/x.png "Source: [INSEE](https://insee.fr)")`,
   or `caption="…"` on a block (` ```skemo caption="After the K8s docs" `).
 - Video: `![](img/demo.mp4){muted}` (`autoplay`, `loop`, `nocontrols`, `poster="img/x.jpg"`).
@@ -135,7 +137,9 @@ in the diagram or the code.
 
 ## Diagrams: skemo
 
-A ` ```skemo ` block is the visual of the slide. Read [reference/skemo.md](reference/skemo.md)
+A ` ```skemo ` block is the visual of the slide; it needs the `skemo` command line
+(https://skemo.net/install). ` ```mermaid `, ` ```d2 ` and ` ```dot ` blocks work too, drawn by
+their tools if installed (`glitu config --engines`), but appear as a whole (` ```mermaid @2 `). Read [reference/skemo.md](reference/skemo.md)
 before writing one: syntax, layouts (graph, timeline, frieze, mind map), types, steps, pitfalls.
 The short form:
 
