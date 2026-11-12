@@ -241,6 +241,9 @@ struct Request {
     length: usize,
     /// `Range: bytes=…`, which a video asks for to seek and to play
     range: Option<String>,
+    /// Sent by the page of another site (its `Origin` is not the address asked, `Host`): such a
+    /// page must not move the presentation nor write durations in the markdown
+    foreign: bool,
 }
 
 /// At most this many bytes in the request line or in a header, and this many headers: a client
@@ -263,7 +266,7 @@ fn read_request(reader: &mut impl BufRead) -> std::io::Result<Request> {
     let line = read_limited_line(reader)?;
     let target = line.split_whitespace().nth(1).unwrap_or("/").to_string();
     let path = target.split(['?', '#']).next().unwrap_or("/").to_string();
-    let (mut length, mut range) = (0, None);
+    let (mut length, mut range, mut host, mut origin) = (0, None, None, None);
     for n in 0.. {
         let h = read_limited_line(reader)?;
         if h.len() <= 2 {
@@ -277,9 +280,15 @@ fn read_request(reader: &mut impl BufRead) -> std::io::Result<Request> {
             length = v.trim().parse().unwrap_or(0);
         } else if let Some(v) = lower.strip_prefix("range:") {
             range = Some(v.trim().to_string());
+        } else if let Some(v) = lower.strip_prefix("host:") {
+            host = Some(v.trim().to_string());
+        } else if let Some(v) = lower.strip_prefix("origin:") {
+            origin = Some(v.trim().to_string());
         }
     }
-    Ok(Request { post: line.starts_with("POST"), target, path, length, range })
+    // `Origin: http://localhost:8000` with `Host: localhost:8000` is the presentation itself
+    let foreign = origin.is_some_and(|o| o.split_once("://").map(|(_, address)| address.to_string()) != host);
+    Ok(Request { post: line.starts_with("POST"), target, path, length, range, foreign })
 }
 
 /// At most `max` bytes of the request body
@@ -299,6 +308,9 @@ fn handle(mut stream: TcpStream, state: &Mutex<State>) -> std::io::Result<()> {
     let req = read_request(&mut reader)?;
     match (req.path.as_str(), req.post) {
         ("/__glitu/reload", _) => events(stream, &req, state),
+        ("/__glitu/position" | "/__glitu/chrono", true) if req.foreign => {
+            stream.write_all(b"HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")
+        }
         ("/__glitu/position", true) => {
             post_position(&String::from_utf8_lossy(&read_body(&mut reader, &req, 512)?), state);
             stream.write_all(NO_CONTENT)
@@ -556,9 +568,17 @@ mod tests {
                 target: "/__glitu/position?x".into(),
                 path: "/__glitu/position".into(),
                 length: 12,
-                range: None
+                range: None,
+                foreign: false
             }
         );
+        let from = |headers: &str| {
+            read_request(&mut format!("POST /__glitu/chrono HTTP/1.1\r\n{headers}\r\n").as_bytes()).unwrap().foreign
+        };
+        assert!(!from("Host: localhost:8000\r\nOrigin: http://localhost:8000\r\n"));
+        assert!(!from("Host: 192.168.1.2:8000\r\nORIGIN: http://192.168.1.2:8000\r\n"));
+        assert!(from("Host: localhost:8000\r\nOrigin: https://example.org\r\n"));
+        assert!(from("Host: localhost:8000\r\nOrigin: null\r\n") && from("Origin: http://localhost:8000\r\n"));
         assert_eq!(read_body(&mut reader, &req, 512).unwrap(), b"{\"hash\":\"\"}x");
         assert_eq!(read_body(&mut std::io::Cursor::new("abc"), &req, 2).unwrap(), b"ab");
     }
