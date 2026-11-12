@@ -405,6 +405,34 @@ mod tests {
     }
 
     #[test]
+    fn a_window_smaller_than_the_bar_is_painted_without_panic() {
+        let dir = std::env::temp_dir().join(format!("glitu-play-test-{}-speaker", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let mut png = Vec::new();
+        let mut enc = png::Encoder::new(&mut png, 16, 9);
+        enc.set_color(png::ColorType::Rgb);
+        enc.write_header().unwrap().write_image_data(&[200; 16 * 9 * 3]).unwrap();
+        let deck = r#"{ "glitu-play": 1, "width": 16, "height": 9, "clicks": [
+            { "slide": 1, "image": "1.png", "title": "A title", "notes": ["Some notes to wrap around"] },
+            { "slide": 2, "image": "1.png" } ] }"#;
+        let file = dir.join("talk.glituplay");
+        std::fs::write(&file, crate::deck::tests::zip(&[("deck.json", deck.as_bytes()), ("1.png", &png)], b""))
+            .unwrap();
+        let deck = Deck::open(&file).unwrap();
+        let timer = Timer::default();
+        let sizes = (1..=70).step_by(3).flat_map(|w| (1..=70).step_by(3).map(move |h| (w, h)));
+        for size in sizes.chain([(1, 1), (5000, 3), (3, 5000), (200, 30)]) {
+            let mut view = SpeakerView::new(size);
+            for at in 0..2 {
+                let painted = view.paint(&deck, at, &timer, Instant::now());
+                assert!(painted.is_ok(), "{size:?}");
+                assert_eq!(view.screen.len(), size.0 as usize * size.1 as usize, "{size:?}");
+            }
+        }
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
     fn the_layout() {
         for size in [(1024, 600), (1366, 768), (1920, 1080), (640, 480)] {
             let l = layout(size);
