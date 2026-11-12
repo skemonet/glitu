@@ -2,7 +2,7 @@
 id: mermaid.chromium
 fences: [mermaid]
 tool: chromium
-install: https://glitu.net/docs/export
+install: https://glitu.net/docs/publishing/#the-browser
 runner: chromium
 options:
   theme: { type: choice, values: [default, neutral, dark, forest, base] }

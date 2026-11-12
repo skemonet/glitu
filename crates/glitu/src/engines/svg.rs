@@ -82,6 +82,7 @@ pub fn sanitize(svg: &str, prefix: &str) -> Result<String, String> {
                 }
                 started = true;
                 let parent = stack.last().map(|(n, _)| n.as_str());
+                let root = stack.is_empty();
                 let unwrapped = UNWRAPPED.contains(&name.as_str());
                 let mut keep = !dropping
                     && (allowed(&name) || unwrapped)
@@ -89,6 +90,11 @@ pub fn sanitize(svg: &str, prefix: &str) -> Result<String, String> {
                 let mut kept_attrs = Vec::new();
                 if keep && !unwrapped {
                     for (k, v) in &attrs {
+                        // a diagram is centred in its place: the root's alignment is left out
+                        // (d2 writes xMinYMin, which pins it to the top left corner)
+                        if root && k.eq_ignore_ascii_case("preserveAspectRatio") {
+                            continue;
+                        }
                         if let Some(v) = attribute(&name, k, v, &ids, prefix) {
                             kept_attrs.push((k.clone(), v));
                         } else if (k == "href" || k == "xlink:href") && matches!(name.as_str(), "use" | "image") {
@@ -480,6 +486,10 @@ mod tests {
         assert!(out.contains("<style>.b{fill:red}</style>") && out.contains("<text>&lt;script&gt;</text>"));
         assert!(out.contains("<rect/>"), "{out}");
         assert!(sanitize("<html>no svg</html>", "p-").is_err());
+        assert_eq!(
+            sanitize("<svg preserveAspectRatio=\"xMinYMin meet\" viewBox=\"0 0 9 9\"><svg preserveAspectRatio=\"none\"/></svg>", "p-").unwrap(),
+            "<svg viewBox=\"0 0 9 9\"><svg preserveAspectRatio=\"none\"/></svg>"
+        );
         // a document type and its entities
         let out =
             sanitize("<!DOCTYPE svg [<!ENTITY x SYSTEM \"file:///etc/passwd\">]><svg><text>&x;</text></svg>", "p-")

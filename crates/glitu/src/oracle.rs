@@ -91,6 +91,21 @@ fn diff(a: &raster::Rgb, b: &raster::Rgb) -> Diff {
     Diff { percent: 100.0 * n as f64 / (width * height) as f64, image, width, height }
 }
 
+/// The state of each capture, `<slide>-<click>`, with its rank among the captures of that name:
+/// the slides of a vertical stack share their names, the n-th of a name goes with the n-th
+fn state_keys(names: &[String]) -> Vec<(String, usize)> {
+    let mut seen = std::collections::HashMap::<String, usize>::new();
+    names
+        .iter()
+        .map(|n| {
+            let state = n.split_once('_').map_or(n.as_str(), |(_, s)| s).to_string();
+            let rank = seen.entry(state.clone()).or_default();
+            *rank += 1;
+            (state, *rank)
+        })
+        .collect()
+}
+
 /// Captures the rendering of `url` and compares it with the oracle, state by state
 pub fn check(url: &str, reference: &Path, limit: f64) -> Result<bool, String> {
     let cur = std::env::temp_dir().join("glitu-oracle-render");
@@ -98,14 +113,14 @@ pub fn check(url: &str, reference: &Path, limit: f64) -> Result<bool, String> {
     let index =
         fs::read_to_string(reference.join("index.json")).map_err(|e| format!("{}: {e}", reference.display()))?;
     let refs: Vec<String> = serde_json::from_str(&index).map_err(|e| e.to_string())?;
-    // matched by state (`<slide>-<click>`), not by position: a missing click fails alone
-    let state = |name: &str| name.split_once('_').map_or(name, |(_, s)| s).to_string();
+    // matched by state, not by position: a missing click fails alone
+    let (ref_keys, cur_keys) = (state_keys(&refs), state_keys(&names));
     let mut ok = refs.len() == names.len();
     if !ok {
         println!("number of states: oracle {}, rendering {}", refs.len(), names.len());
     }
-    for r in &refs {
-        let Some(c) = names.iter().find(|c| state(c) == state(r)) else {
+    for (r, key) in refs.iter().zip(&ref_keys) {
+        let Some(c) = cur_keys.iter().position(|k| k == key).map(|i| &names[i]) else {
             ok = false;
             println!("FAIL  {r}: missing from the rendering");
             continue;
@@ -119,7 +134,7 @@ pub fn check(url: &str, reference: &Path, limit: f64) -> Result<bool, String> {
         ok &= !bad;
         println!("{} {r} ↔ {c}  {:.2} %", if bad { "FAIL " } else { "ok   " }, d.percent);
     }
-    for c in names.iter().filter(|c| !refs.iter().any(|r| state(r) == state(c))) {
+    for (c, _) in names.iter().zip(&cur_keys).filter(|(_, k)| !ref_keys.contains(k)) {
         ok = false;
         println!("FAIL  {c}: not in the oracle");
     }
@@ -130,6 +145,13 @@ pub fn check(url: &str, reference: &Path, limit: f64) -> Result<bool, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn captures_are_matched_by_state_and_rank() {
+        let names: Vec<String> = ["00_0-0.png", "01_3-0.png", "02_3-0.png", "03_3-1.png"].map(String::from).into();
+        let s = |k: &str, r| (k.to_string(), r);
+        assert_eq!(state_keys(&names), [s("0-0.png", 1), s("3-0.png", 1), s("3-0.png", 2), s("3-1.png", 1)]);
+    }
 
     #[test]
     fn differences_are_counted_and_drawn() {
