@@ -388,7 +388,7 @@ impl App {
         let result = match (&mut self.show, self.deck.take()) {
             (Some(show), _) => show.resize(window, self.small).map(|_| ()),
             (None, Some(deck)) => {
-                let at = deck.clicks.iter().position(|c| c.slide >= self.options.start).unwrap_or(0);
+                let at = deck.start_click(self.options.start);
                 let wake = self.wake.clone();
                 let mut show = Show::new(deck, at, window, self.small, move || {
                     let _ = wake.send(());

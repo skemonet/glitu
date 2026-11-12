@@ -294,6 +294,12 @@ impl Deck {
         })
     }
 
+    /// The click to start at for `--start`: the first of the slide (from 1); past the last slide,
+    /// the last click (as the End key goes)
+    pub fn start_click(&self, slide: usize) -> usize {
+        self.clicks.iter().position(|c| c.slide >= slide).unwrap_or(self.clicks.len() - 1)
+    }
+
     pub fn image(&self, i: usize) -> Result<Image, String> {
         self.file(&self.clicks[i].image)
     }
@@ -512,6 +518,15 @@ pub(crate) mod tests {
         fs::write(&file, b"not an archive").unwrap();
         assert!(Deck::open(&file).err().unwrap().contains("not a .glituplay file"));
         let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn start_past_the_last_slide_opens_the_last_click() {
+        let text = r#"{ "glitu-play": 1, "width": 4, "height": 2, "clicks": [ { "slide": 1, "image": "1.png" },
+            { "slide": 2, "image": "2.png" }, { "slide": 2, "image": "3.png" }, { "slide": 3, "image": "4.png" } ] }"#;
+        let d = Deck::parse(text, Archive::default()).unwrap();
+        assert_eq!([1, 2, 3].map(|n| d.start_click(n)), [0, 1, 3]);
+        assert_eq!((d.start_click(4), d.start_click(9999)), (3, 3));
     }
 
     #[test]
