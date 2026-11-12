@@ -3,7 +3,7 @@
 The notable changes of glitu. The format follows [Keep a Changelog](https://keepachangelog.com/),
 and the versions [Semantic Versioning](https://semver.org/).
 
-## Unreleased
+## 0.2.0 — 2026-11-12
 
 ### Security
 - A presentation reads only the files of its folder: `<!-- include: -->`, `<<<` code, terminal
@@ -78,6 +78,16 @@ and the versions [Semantic Versioning](https://semver.org/).
   templates.
 - CI: format, documentation, dependency (cargo-deny), coverage and secret checks.
 - A binary for Intel Macs, `glitu-macos-x86_64`.
+- The `graphite` theme: charcoal with a purple glow and a line along the top, monospace labels.
+- `transition="dive:api"` between two slides: the previous slide's diagram grows around its
+  element `api` (or a zone `x y w h`) and the new slide's diagram comes out of it;
+  `surface:api` the other way round; going back reverses either.
+- `box="x y w h"` on a visual: its place and size forced, in % of the visual's area.
+- glitu-play, the native player for slow computers, plays `glitu build play`; binaries for
+  Linux x86_64 and ARM and Windows x86_64.
+
+### Fixed
+- The cover title and the key figure keep their descenders (no longer cut below).
 
 ## 0.1.1-rc.4 — 2026-10-31
 
