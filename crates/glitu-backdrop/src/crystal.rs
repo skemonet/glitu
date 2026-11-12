@@ -312,9 +312,9 @@ impl Crystal {
             if s <= chase.total {
                 let hp = self.chase_at(head_d);
                 if let Ok(g) = ctx.create_radial_gradient(hp.0, hp.1, 0.0, hp.0, hp.1, 14.0) {
-                    let _ = g.add_color_stop(0.0, "rgba(255,255,255,1)");
-                    let _ = g.add_color_stop(0.22, "rgba(255,255,255,0.75)");
-                    let _ = g.add_color_stop(1.0, "rgba(255,255,255,0)");
+                    g.add_color_stop(0.0, "rgba(255,255,255,1)");
+                    g.add_color_stop(0.22, "rgba(255,255,255,0.75)");
+                    g.add_color_stop(1.0, "rgba(255,255,255,0)");
                     ctx.set_shadow_blur(0.0);
                     ctx.set_fill_gradient(&g);
                     ctx.begin_path();

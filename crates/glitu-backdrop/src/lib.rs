@@ -31,10 +31,8 @@ pub enum GradientKind {
 
 impl Gradient {
     /// `color`: a CSS colour
-    #[allow(clippy::result_unit_err)] // as the canvas of the browser, whose errors carry nothing
-    pub fn add_color_stop(&self, offset: f64, color: &str) -> Result<(), ()> {
+    pub fn add_color_stop(&self, offset: f64, color: &str) {
         self.stops.borrow_mut().push((offset, color.to_string()));
-        Ok(())
     }
 }
 
@@ -252,9 +250,9 @@ pub fn veil(ctx: &dyn Canvas, w: f64, h: f64, hex: &str, a0: f64, a1: f64) {
         return;
     }
     let g = ctx.create_linear_gradient(0.0, 0.0, w, 0.0);
-    let _ = g.add_color_stop(0.0, &rgba(hex, a0));
-    let _ = g.add_color_stop(0.62, &rgba(hex, a1 + (a0 - a1) * 0.4));
-    let _ = g.add_color_stop(1.0, &rgba(hex, a1));
+    g.add_color_stop(0.0, &rgba(hex, a0));
+    g.add_color_stop(0.62, &rgba(hex, a1 + (a0 - a1) * 0.4));
+    g.add_color_stop(1.0, &rgba(hex, a1));
     ctx.set_fill_gradient(&g);
     ctx.fill_rect(0.0, 0.0, w, h);
 }
