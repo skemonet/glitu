@@ -132,12 +132,13 @@ fn icons(md: &str) -> String {
 /// `text` with the attributes of a `[text]{…}`; `seed`: what the hand-drawn stroke of its mark
 /// is drawn from (the same seed, the same stroke)
 pub(crate) fn span_html(text: &str, attrs: &str, seed: &str) -> String {
-    let mut classes: Vec<&str> = Vec::new();
+    // escaped: a class is written into an attribute
+    let mut classes: Vec<String> = Vec::new();
     let mut step = Stepped::default();
     let mut id = String::new();
     for tok in attrs.split_whitespace() {
         if let Some(c) = tok.strip_prefix('.') {
-            classes.push(c);
+            classes.push(esc(c));
         } else if let Some(name) = tok.strip_prefix('#') {
             // counterpart from one animated slide to the next
             id = format!(" data-id=\"{}\"", esc(name));
@@ -146,7 +147,7 @@ pub(crate) fn span_html(text: &str, attrs: &str, seed: &str) -> String {
         }
     }
     let a = appear(&step);
-    let Some(mark) = classes.iter().copied().find(|c| MARKS.contains(c)) else {
+    let Some(mark) = classes.iter().map(String::as_str).find(|c| MARKS.contains(c)) else {
         let class = format!("{}{}", classes.join(" "), a.class);
         let class = if class.trim().is_empty() { String::new() } else { format!(" class=\"{}\"", class.trim()) };
         return format!("<span{class}{id}{}{}>{text}{}</span>", a.attrs, a.fx, a.end);
@@ -154,7 +155,7 @@ pub(crate) fn span_html(text: &str, attrs: &str, seed: &str) -> String {
     // The mark is drawn when its fragment appears (at the click), or right away without a click
     let trigger =
         if step.step > 0 { format!("<span class=\"fragment mark-on\"{}></span>", a.attrs) } else { String::new() };
-    let others: String = classes.iter().filter(|c| **c != mark).map(|c| format!(" {c}")).collect();
+    let others: String = classes.iter().filter(|c| *c != mark).map(|c| format!(" {c}")).collect();
     format!("<span class=\"mark mark-{mark}{others}\"{id}{}>{trigger}{text}{}</span>", a.fx, mark_svg(mark, seed))
 }
 

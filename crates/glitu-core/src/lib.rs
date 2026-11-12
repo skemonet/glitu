@@ -146,4 +146,31 @@ mod tests {
         assert_eq!(c.title, "First &lt;b&gt;");
         assert_eq!(c.sections.matches("<section").count(), 2);
     }
+
+    #[test]
+    fn a_quote_in_a_class_or_a_language_stays_in_its_attribute() {
+        struct Plain;
+        impl Assets for Plain {
+            fn diagram(
+                &mut self,
+                _: &str,
+                _: &str,
+                _: &std::collections::BTreeMap<String, String>,
+            ) -> Option<Result<String, String>> {
+                None
+            }
+            fn cast(&mut self, _: &str) -> Result<String, String> {
+                unreachable!()
+            }
+        }
+        let src = "# One\n\n## Two {.a\"onclick=\"x}\n\n- [t]{.b\"onmouseover=\"y}\n- [u]{.circle .c\"onblur=\"w}\n\n\
+                   ```js\"onfocus=\"z\ncode\n```\n";
+        let c = compile(src, &header(src), &mut Plain).unwrap();
+        for attribute in ["\"onclick=", "\"onmouseover=", "\"onblur=", "\"onfocus="] {
+            assert!(!c.sections.contains(attribute), "{attribute} in {}", c.sections);
+        }
+        let src = "# One\n\n---\n\n```js\"onfocus=\"z\ncode\n```\n";
+        let c = compile(src, &header(src), &mut Plain).unwrap();
+        assert!(!c.sections.contains("\"onfocus="), "{}", c.sections);
+    }
 }
