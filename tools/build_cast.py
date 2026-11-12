@@ -15,7 +15,7 @@ PROMPT = f"{GREEN}{BOLD}me@desk{RESET}:{BLUE}{BOLD}~/glitu/tests/features{RESET}
 
 def main():
     rec = Recording(cols=72, rows=10, prompt=PROMPT)
-    rec.command("glitu build site -o dist", ["Built dist (static website, 36 files)"])
+    rec.command("glitu build site -o dist", ["Built dist (static website, 38 files)"])
     rec.pause("build")
     folders = "  ".join(f"{BLUE}{BOLD}{d}{RESET}" for d in ["fonts", "glitu", "img"])
     rec.type("ls dist")
@@ -26,9 +26,9 @@ def main():
     )
     rec.prompt()
     rec.pause("ls")
-    rec.command("glitu build -o demo.html", ["Built demo.html (2.0 MB)"])
+    rec.command("glitu build -o demo.html", ["Built demo.html (2.5 MB)"])
     rec.pause("standalone")
-    rec.command("glitu build pdf -o demo.pdf", ["Built demo.pdf (37 pages)"], first_dt=2.5)
+    rec.command("glitu build pdf -o demo.pdf", ["Built demo.pdf (48 pages)"], first_dt=2.5)
     rec.save(DEST, title="glitu build")
 
 

@@ -30,9 +30,9 @@ and the versions [Semantic Versioning](https://semver.org/).
   impossible size, images missing from the archive or of another size than the slides.
 
 ### Fixed
-- A d2 diagram is centred in its place, like the others (d2 pinned it to the top left corner).
-- `glitu oracle check` matches the slides of a vertical stack one by one (they share their state
-  names).
+- Animated code (`magic-move`) keeps the unchanged lines in place: a word repeated far away no
+  longer travels there (the `-` of a closing `---` flew to the `font-title` lines added above it).
+- The screenshots of the website's home page show the current demo (the cover title no longer cut).
 - `glitu-play`: an image that cannot be prepared is reported instead of freezing the player; the
   speaker view in a window smaller than its bar no longer crashes; `--start` past the last slide
   opens the last click instead of the first; on Wayland, keys whose keymap names their type
@@ -48,6 +48,13 @@ and the versions [Semantic Versioning](https://semver.org/).
 - A terminal recording announcing an endless screen is shown on a bounded one (1000 × 500); click
   numbers near the largest one and a `data-autoslide` that is not a number are read safely.
 - `tools/ci.sh` passes on macOS.
+
+## 0.2.1 — 2026-11-12
+
+### Fixed
+- A d2 diagram is centred in its place, like the others (d2 pinned it to the top left corner).
+- `glitu oracle check` matches the slides of a vertical stack one by one (they share their state
+  names).
 
 ### Changed
 - The demo shows the eight template themes and a diagram of each engine (Mermaid, D2, Graphviz);

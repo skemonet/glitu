@@ -47,12 +47,12 @@ Note: The deck is one markdown file, and its front matter. [click] One include p
 ### A skemo block
 
 - The presentation, then the tool @1
-- The compiler and skemo @2
+- The compiler and the diagram tools @2
 - The engine in the browser @3
 - What you get @4
 - Where the engine is published @5
 
-<<< architecture.md#L10-L42 pug file="chapters/architecture.md" lines="2-11|12-15,21-23|16-19|25-28|30-33" @1
+<<< architecture.md#L10-L42 pug file="chapters/architecture.md" lines="2-10,12|11,13-15,21-23|16-19|25-28|30-33" @1
 
 Note: A skemo block: cards, zones and arrows, each with the click at which it appears. These are
 the lines of the architecture slide, read from its file.
