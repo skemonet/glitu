@@ -210,6 +210,10 @@ impl Fences {
     }
 }
 
+/// The files a presentation may read in all, a file included twice counting twice: a few files
+/// including each other many times would otherwise grow without end
+const MAX_FILES: usize = 4096;
+
 /// The files read so far, and where each line of the result comes from
 struct Reader<'a> {
     /// The files being included, to refuse a loop
@@ -227,6 +231,9 @@ impl Reader<'_> {
         if self.stack.contains(&key) {
             let chain: Vec<String> = self.stack.iter().chain([&key]).map(|p| p.display().to_string()).collect();
             return Err(format!("inclusion loop: {}", chain.join(" → ")));
+        }
+        if self.files.len() >= MAX_FILES {
+            return Err(format!("{}: more than {MAX_FILES} files included", path.display()));
         }
         let text = fs::read_to_string(path).map_err(|e| format!("{}: {e}", path.display()))?;
         // An included file: without its front matter
@@ -536,6 +543,17 @@ mod tests {
         assert_eq!(back[1].1, fs::read_to_string(dir.join("ch/a.md")).unwrap());
         fs::write(dir.join("ch/b.md"), "<!-- include: a.md -->\n").unwrap();
         assert!(read(&dir.join("slides.md")).err().unwrap().contains("inclusion loop"));
+        fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn files_including_each_other_many_times_are_refused() {
+        let dir = temp("include-many");
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(dir.join("slides.md"), "<!-- include: a.md -->\n".repeat(100)).unwrap();
+        fs::write(dir.join("a.md"), "<!-- include: b.md -->\n".repeat(100)).unwrap();
+        fs::write(dir.join("b.md"), "# B\n").unwrap();
+        assert!(read(&dir.join("slides.md")).err().unwrap().contains("files included"));
         fs::remove_dir_all(&dir).unwrap();
     }
 
