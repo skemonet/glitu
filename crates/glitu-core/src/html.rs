@@ -83,23 +83,30 @@ fn outside_code(md: &str, f: impl Fn(&str) -> String) -> String {
 /// `[text]{…}` → `<span>` (see `span_html`); a link `[x](…)` stays a link
 fn brackets(md: &str) -> String {
     let mut out = String::with_capacity(md.len());
-    let mut rest = md;
-    while let Some(open) = rest.find('[') {
-        let span = rest[open..].find(']').and_then(|c| {
-            let attrs = rest[open + c + 1..].strip_prefix('{')?;
-            let end = attrs.find('}')?;
-            Some((&rest[open + 1..open + c], &attrs[..end], open + c + 1 + end + 2))
-        });
-        let Some((text, attrs, len)) = span else {
-            out += &rest[..open + 1];
-            rest = &rest[open + 1..];
+    let mut at = 0;
+    // the first `]` found, kept for the next `[` before it: a line of `[` is read once, not once
+    // per bracket
+    let mut close: Option<usize> = None;
+    while let Some(open) = md[at..].find('[').map(|o| at + o) {
+        let c = match close {
+            Some(c) if c > open => Some(c),
+            _ => md[open..].find(']').map(|c| open + c),
+        };
+        // no `]` any more, or no `}`: no span any more
+        let Some(c) = c else { break };
+        close = Some(c);
+        let Some(attrs) = md[c + 1..].strip_prefix('{') else {
+            out += &md[at..open + 1];
+            at = open + 1;
             continue;
         };
-        out += &rest[..open];
-        out += &span_html(text, attrs, text);
-        rest = &rest[len..];
+        let Some(end) = attrs.find('}') else { break };
+        let text = &md[open + 1..c];
+        out += &md[at..open];
+        out += &span_html(text, &attrs[..end], text);
+        at = c + 1 + end + 2;
     }
-    out + rest
+    out + &md[at..]
 }
 
 /// `:mdi:github:` → `<i class="icon" data-icon="mdi:github"></i>`, which the build replaces with

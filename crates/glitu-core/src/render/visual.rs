@@ -234,7 +234,8 @@ fn zones_html(focus: &str, video: bool, seed: &str) -> Result<String, String> {
         if let Some(until) = markers.iter().find(|m| !m.highlights()).and_then(|m| m.until)
             && !inner.contains("fragment until")
         {
-            inner += &format!("<span class=\"fragment until\" data-fragment-index=\"{}\"></span>", until + 1);
+            inner +=
+                &format!("<span class=\"fragment until\" data-fragment-index=\"{}\"></span>", until.saturating_add(1));
         }
         let timed = match time {
             Some((a, b)) => format!(
