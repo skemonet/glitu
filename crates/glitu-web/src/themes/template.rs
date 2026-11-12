@@ -12,7 +12,8 @@ use crate::engine::{self, Ev};
 
 fn header(slide: &Element, logo: &str) {
     let spec = data(slide, "header").unwrap_or_default();
-    let mut parts = spec.split('|').map(str::trim);
+    // the topic is the slide's title: it may hold a `|` of its own
+    let mut parts = spec.splitn(2, '|').map(str::trim);
     let (kicker, topic) = (parts.next().unwrap_or(""), parts.next().unwrap_or(""));
     let el = dom::create("header");
     el.set_class_name("tpl-header");
