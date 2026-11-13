@@ -265,9 +265,10 @@ fn rename(id: &str, ids: &BTreeSet<String>, prefix: &str) -> String {
     if ids.contains(id) { format!("{prefix}{id}") } else { id.to_string() }
 }
 
-/// Text for the page: `&`, `<`, `>` (and `"` in an attribute) escaped, after the entities are read
-fn escape(raw: &str, attr: bool) -> String {
-    let text = unescape(raw);
+/// Text for the page: `&`, `<`, `>` (and `"` in an attribute) escaped. The entities were read
+/// once, by `tokenize`, before the checks: reading them again here would let `&amp;#114;` or an
+/// entity in a stylesheet show the page what the checks did not see
+fn escape(text: &str, attr: bool) -> String {
     let mut out = String::with_capacity(text.len());
     for c in text.chars() {
         match c {
@@ -289,7 +290,8 @@ pub fn unescape(s: &str) -> String {
     while let Some(at) = rest.find('&') {
         out.push_str(&rest[..at]);
         rest = &rest[at..];
-        let end = rest[..rest.len().min(12)].find(';');
+        // by bytes: the twelfth one may fall inside a character
+        let end = rest.bytes().take(12).position(|b| b == b';');
         let decoded = end.and_then(|e| {
             let name = &rest[1..e];
             let c = match name {
@@ -329,7 +331,7 @@ enum Token {
         closed: bool,
     },
     Close(String),
-    /// Raw text (entities not read), a CDATA section's content escaped
+    /// Text, its entities read (a CDATA section's content as it is)
     Text(String),
 }
 
@@ -340,18 +342,18 @@ fn tokenize(s: &str) -> Result<Vec<Token>, String> {
     let mut rest = s;
     while !rest.is_empty() {
         let Some(at) = rest.find('<') else {
-            out.push(Token::Text(rest.to_string()));
+            out.push(Token::Text(unescape(rest)));
             break;
         };
         if at > 0 {
-            out.push(Token::Text(rest[..at].to_string()));
+            out.push(Token::Text(unescape(&rest[..at])));
         }
         rest = &rest[at..];
         if let Some(r) = rest.strip_prefix("<!--") {
             rest = r.find("-->").map_or("", |e| &r[e + 3..]);
         } else if let Some(r) = rest.strip_prefix("<![CDATA[") {
             let end = r.find("]]>").unwrap_or(r.len());
-            out.push(Token::Text(r[..end].replace('&', "&amp;").replace('<', "&lt;")));
+            out.push(Token::Text(r[..end].to_string()));
             rest = r.get(end + 3..).unwrap_or("");
         } else if rest.starts_with("<?") {
             rest = rest.find("?>").map_or("", |e| &rest[e + 2..]);
@@ -503,5 +505,39 @@ mod tests {
         let out = sanitize(svg, "g2-").unwrap();
         assert!(out.contains("id=\"g2-mermaid-1\"") && out.contains("#g2-mermaid-1 .node rect{fill:#fff}"), "{out}");
         assert!(out.contains("data:font/woff2"));
+    }
+
+    #[test]
+    fn an_ampersand_before_text_of_several_bytes_is_plain_text() {
+        // the twelfth byte after the `&` falls inside a character
+        let out = sanitize("<svg><text>R&ab 日本語日本</text><g aria-label=\"R&ab 日本語日本\"/></svg>", "p-").unwrap();
+        assert_eq!(out, "<svg><text>R&amp;ab 日本語日本</text><g aria-label=\"R&amp;ab 日本語日本\"/></svg>");
+    }
+
+    /// What the page reads is what was checked: entities are read once, before the checks
+    #[test]
+    fn entities_do_not_hide_an_address_from_the_checks() {
+        for svg in [
+            "<svg><style>@im&#112;ort 'http://evil.net/x.css';</style></svg>",
+            "<svg><style>.a{background:u&#114;l(http://evil.net/q)}</style></svg>",
+            "<svg><style>.a{background:u&#92;72l(http://evil.net/q)}</style></svg>",
+            "<svg><rect fill=\"u&amp;#114;l(http://evil.net/a)\"/></svg>",
+            "<svg><rect style=\"background:u&amp;#114;l(http://evil.net/p)\"/></svg>",
+            "<svg><a href=\"&amp;#106;avascript:alert(1)\"><text>t</text></a></svg>",
+        ] {
+            let out = sanitize(svg, "p-").unwrap();
+            let read = unescape(&out).to_ascii_lowercase();
+            assert!(
+                !read.contains("url(") && !read.contains("@import") && !read.contains("javascript:"),
+                "{svg} → {out}"
+            );
+            assert!(!read.contains('\\'), "{svg} → {out}");
+        }
+        // an entity written twice stays text, as written
+        let out = sanitize("<svg><text>&amp;lt;b&amp;gt; &amp;#65;</text></svg>", "p-").unwrap();
+        assert_eq!(out, "<svg><text>&amp;lt;b&amp;gt; &amp;#65;</text></svg>");
+        // a CDATA section is text, entities not read
+        let out = sanitize("<svg><text><![CDATA[a < b &amp; c]]></text></svg>", "p-").unwrap();
+        assert_eq!(out, "<svg><text>a &lt; b &amp;amp; c</text></svg>");
     }
 }

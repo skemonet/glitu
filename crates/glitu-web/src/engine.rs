@@ -140,6 +140,10 @@ pub fn init(config: Config) {
     for hidden in qsa(&slides_element(), "section[data-visibility=\"hidden\"]") {
         hidden.remove();
     }
+    // No slide left (every one of them hidden): an empty one, the engine always has a current slide
+    if qsa(&slides_element(), ":scope > section").is_empty() {
+        let _ = slides_element().append_child(&dom::create("section"));
+    }
     let search = dom::window().location().search().unwrap_or_default();
     let receiver = search.contains("receiver");
     // Scroll view: asked for (`?view=scroll`), or by default on a phone screen, except for the

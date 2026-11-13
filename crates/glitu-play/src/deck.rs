@@ -27,6 +27,14 @@ use std::path::{Path, PathBuf};
 
 use serde_json::Value;
 
+/// The largest side of a slide, in pixels, and its largest area: what a screen shows, with room
+/// to spare; above, the deck is damaged (or hostile) and no buffer is made for it
+pub const MAX_SIDE: u64 = 16_384;
+pub const MAX_AREA: u64 = 1 << 26;
+/// The farthest an arrow's point is from the slide's corner (px), and its widest stroke: a
+/// stroke is drawn by a rasteriser, that does not take any number
+pub const MAX_REACH: f32 = 2.0 * MAX_SIDE as f32;
+
 /// An arrow drawn along its path: the stroke that reveals it, of `width` pixels
 #[derive(Clone, Debug, PartialEq)]
 pub struct Draw {
@@ -119,7 +127,37 @@ impl Deck {
         let at = |e: String| format!("{}: {e}", path.display());
         let archive = Archive { path: path.to_path_buf(), entries: zip_entries(path).map_err(at)? };
         let text = String::from_utf8(archive.read("deck.json").map_err(at)?).map_err(|e| at(e.to_string()))?;
-        Deck::parse(&text, archive).map_err(at)
+        let deck = Deck::parse(&text, archive).map_err(at)?;
+        deck.check_files().map_err(at)?;
+        Ok(deck)
+    }
+
+    /// The images named by the clicks are in the archive, the slides' own size
+    fn check_files(&self) -> Result<(), String> {
+        let names = self.clicks.iter().flat_map(|c| {
+            let film = c.film.iter().flat_map(|f| f.frames.iter().map(|f| f.1.as_str()));
+            let alpha = c.under.iter().map(|u| u.alpha.as_str());
+            let stages = c.stages.iter().flat_map(|(a, b)| [a.as_str(), b.as_str()]);
+            [c.image.as_str()].into_iter().chain(stages).chain(alpha).chain(film)
+        });
+        for name in names {
+            if !self.archive.entries.contains_key(name) {
+                return Err(format!("{name}: missing from the archive"));
+            }
+        }
+        // the slides are the size of the deck
+        for c in &self.clicks {
+            let slides =
+                [c.image.as_str()].into_iter().chain(c.stages.iter().flat_map(|(a, b)| [a.as_str(), b.as_str()]));
+            for name in slides {
+                let (w, h) = self.archive.png_size(name)?;
+                if (w, h) != (self.width, self.height) {
+                    let (dw, dh) = (self.width, self.height);
+                    return Err(format!("{name}: {w} × {h} pixels, the slides are {dw} × {dh}"));
+                }
+            }
+        }
+        Ok(())
     }
 
     pub fn parse(text: &str, archive: Archive) -> Result<Deck, String> {
@@ -128,6 +166,36 @@ impl Deck {
             return Err("not a presentation of `glitu build play` (or of another version)".into());
         }
         let num = |v: &Value| v.as_f64().unwrap_or(0.0);
+        let side = |key: &str| v[key].as_u64().filter(|n| (1..=MAX_SIDE).contains(n));
+        let (Some(width), Some(height)) = (side("width"), side("height")) else {
+            return Err(format!("the size of the slides is missing, or not between 1 and {MAX_SIDE} pixels"));
+        };
+        if width * height > MAX_AREA {
+            return Err(format!("the slides are larger than {MAX_AREA} pixels"));
+        }
+        for (i, c) in v["clicks"].as_array().into_iter().flatten().enumerate() {
+            for p in c["draws"].as_array().into_iter().flatten() {
+                let points = p["points"].as_array().into_iter().flatten().filter_map(Value::as_f64);
+                let far = points.into_iter().any(|n| n.abs() > f64::from(MAX_REACH));
+                if far || !(0.0..=MAX_SIDE as f64).contains(&num(&p["width"])) {
+                    return Err(format!("click {}: an arrow is too far or too wide", i + 1));
+                }
+            }
+            if c["film"].is_object() {
+                // the area of the film is in the slide: x, y, width, height, whole pixels
+                let r: Vec<u64> =
+                    c["film"]["rect"].as_array().into_iter().flatten().filter_map(Value::as_u64).collect();
+                let inside = r.len() == 4
+                    && c["film"]["rect"].as_array().is_some_and(|a| a.len() == 4)
+                    && r[2] >= 1
+                    && r[3] >= 1
+                    && r[0].saturating_add(r[2]) <= width
+                    && r[1].saturating_add(r[3]) <= height;
+                if !inside {
+                    return Err(format!("click {}: the area of its film is not inside the slide", i + 1));
+                }
+            }
+        }
         let clicks: Vec<Click> = v["clicks"]
             .as_array()
             .into_iter()
@@ -191,23 +259,45 @@ impl Deck {
         if clicks.is_empty() {
             return Err("no click in the deck".into());
         }
+        let backdrop = v["backdrop"].is_object().then(|| {
+            let b = &v["backdrop"];
+            let r = |i: usize| num(&b["rect"][i]) as f32;
+            BackdropInfo {
+                scene: b["scene"].as_str().unwrap_or("crystal").to_string(),
+                seed: b["seed"].as_i64().unwrap_or(0) as i32,
+                rect: (r(0), r(1), r(2), r(3)),
+                size: (num(&b["size"][0]), num(&b["size"][1])),
+            }
+        });
+        if let Some(b) = &backdrop {
+            // its place in the images, and its size: a canvas is made of them
+            let side = |n: f64| (1.0..=MAX_SIDE as f64).contains(&n.round());
+            let (w, h) = (f64::from(b.rect.2), f64::from(b.rect.3));
+            let placed = b.rect.0.abs() <= MAX_SIDE as f32 && b.rect.1.abs() <= MAX_SIDE as f32;
+            if !(placed
+                && side(w)
+                && side(h)
+                && side(b.size.0)
+                && side(b.size.1)
+                && w.round() * h.round() <= MAX_AREA as f64)
+            {
+                return Err("the animated backdrop has a place or a size out of range".into());
+            }
+        }
         Ok(Deck {
             archive,
             title: v["title"].as_str().unwrap_or("").to_string(),
-            width: v["width"].as_u64().unwrap_or(0) as u32,
-            height: v["height"].as_u64().unwrap_or(0) as u32,
+            width: width as u32,
+            height: height as u32,
             clicks,
-            backdrop: v["backdrop"].is_object().then(|| {
-                let b = &v["backdrop"];
-                let r = |i: usize| num(&b["rect"][i]) as f32;
-                BackdropInfo {
-                    scene: b["scene"].as_str().unwrap_or("crystal").to_string(),
-                    seed: b["seed"].as_i64().unwrap_or(0) as i32,
-                    rect: (r(0), r(1), r(2), r(3)),
-                    size: (num(&b["size"][0]), num(&b["size"][1])),
-                }
-            }),
+            backdrop,
         })
+    }
+
+    /// The click to start at for `--start`: the first of the slide (from 1); past the last slide,
+    /// the last click (as the End key goes)
+    pub fn start_click(&self, slide: usize) -> usize {
+        self.clicks.iter().position(|c| c.slide >= slide).unwrap_or(self.clicks.len() - 1)
     }
 
     pub fn image(&self, i: usize) -> Result<Image, String> {
@@ -230,8 +320,33 @@ impl Deck {
 impl Archive {
     /// The bytes of the entry `name`
     pub fn read(&self, name: &str) -> Result<Vec<u8>, String> {
+        let (mut f, start, size) = self.locate(name)?;
+        let mut bytes = vec![0; size];
+        f.seek(SeekFrom::Start(start)).and_then(|_| f.read_exact(&mut bytes)).map_err(|e| e.to_string())?;
+        Ok(bytes)
+    }
+
+    /// The size in pixels of the PNG `name`, from its header alone
+    fn png_size(&self, name: &str) -> Result<(u32, u32), String> {
+        let (mut f, start, size) = self.locate(name)?;
+        // the signature, then the header chunk: its length and name, the width and the height
+        let mut head = [0u8; 24];
+        if size < head.len() {
+            return Err(format!("{name}: not a PNG image"));
+        }
+        f.seek(SeekFrom::Start(start)).and_then(|_| f.read_exact(&mut head)).map_err(|e| e.to_string())?;
+        if head[..8] != [0x89, b'P', b'N', b'G', 0x0d, 0x0a, 0x1a, 0x0a] || &head[12..16] != b"IHDR" {
+            return Err(format!("{name}: not a PNG image"));
+        }
+        let at = |i: usize| u32::from_be_bytes([head[i], head[i + 1], head[i + 2], head[i + 3]]);
+        Ok((at(16), at(20)))
+    }
+
+    /// The file, where the bytes of the entry `name` start, and their number
+    fn locate(&self, name: &str) -> Result<(fs::File, u64, usize), String> {
         let &(offset, size) = self.entries.get(name).ok_or_else(|| format!("{name}: missing from the archive"))?;
         let mut f = fs::File::open(&self.path).map_err(|e| e.to_string())?;
+        let len = f.metadata().map_err(|e| e.to_string())?.len();
         // the local header: 30 bytes, then the name and an extra field of their own lengths
         let mut head = [0u8; 30];
         f.seek(SeekFrom::Start(offset)).and_then(|_| f.read_exact(&mut head)).map_err(|e| e.to_string())?;
@@ -239,10 +354,13 @@ impl Archive {
             return Err(format!("{name}: damaged archive"));
         }
         let skip =
-            i64::from(u16::from_le_bytes([head[26], head[27]])) + i64::from(u16::from_le_bytes([head[28], head[29]]));
-        let mut bytes = vec![0; size];
-        f.seek(SeekFrom::Current(skip)).and_then(|_| f.read_exact(&mut bytes)).map_err(|e| e.to_string())?;
-        Ok(bytes)
+            u64::from(u16::from_le_bytes([head[26], head[27]])) + u64::from(u16::from_le_bytes([head[28], head[29]]));
+        // the size comes from the file: it must fit in the file before a buffer is made for it
+        let start = offset + 30 + skip;
+        if start.checked_add(size as u64).is_none_or(|end| end > len) {
+            return Err(format!("{name}: damaged archive"));
+        }
+        Ok((f, start, size))
     }
 }
 
@@ -262,6 +380,10 @@ fn zip_entries(path: &Path) -> Result<HashMap<String, (u64, usize)>, String> {
     let u16_at = |b: &[u8], i: usize| u16::from_le_bytes([b[i], b[i + 1]]) as usize;
     let u32_at = |b: &[u8], i: usize| u32::from_le_bytes([b[i], b[i + 1], b[i + 2], b[i + 3]]) as usize;
     let (count, size, offset) = (u16_at(&tail, end + 10), u32_at(&tail, end + 12), u32_at(&tail, end + 16));
+    // the directory lies in the file, and holds `count` entries of 46 bytes at least
+    if offset as u64 + size as u64 > len || count * 46 > size {
+        return Err("damaged archive".into());
+    }
     let mut central = vec![0; size];
     f.seek(SeekFrom::Start(offset as u64)).and_then(|_| f.read_exact(&mut central)).map_err(|e| e.to_string())?;
     let mut entries = HashMap::new();
@@ -280,6 +402,10 @@ fn zip_entries(path: &Path) -> Result<HashMap<String, (u64, usize)>, String> {
             return Err(format!(
                 "{name}: compressed entry; the player reads the archive as glitu writes it (export it again)"
             ));
+        }
+        // the entry (its header of 30 bytes at least, then its bytes) lies in the file
+        if (local + 30).checked_add(stored as u64).is_none_or(|end| end > len) {
+            return Err(format!("{name}: damaged archive"));
         }
         entries.insert(name, (local, stored));
         at += 46 + name_len + extra + comment;
@@ -304,7 +430,7 @@ pub fn decode(bytes: &[u8]) -> Result<Image, String> {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
 
     #[test]
@@ -312,7 +438,7 @@ mod tests {
         let text = r#"{ "glitu-play": 1, "title": "T", "width": 4, "height": 2, "clicks": [
             { "slide": 1, "image": "001.png", "title": "Intro", "notes": ["n"], "draws": [ { "points": [0, 1, 2, 3], "width": 5, "delay": 0, "duration": 600 } ],
               "fades": [ { "rect": [1, 2, 3, 4], "delay": 560, "duration": 120 } ], "base": "a.png", "drawn": "b.png",
-              "film": { "rect": [1, 2, 3, 4], "frames": [ { "t": 62, "image": "f/1.png" } ] },
+              "film": { "rect": [1, 0, 3, 2], "frames": [ { "t": 62, "image": "f/1.png" } ] },
               "motion": "chase", "dim": 0.6, "glass": [[1, 2, 3, 4, 5, 6]], "alpha": "001-alpha.png" },
             { "slide": 2, "image": "002.png", "draws": null, "fades": null } ] }"#;
         let d = Deck::parse(text, Archive::default()).unwrap();
@@ -321,7 +447,7 @@ mod tests {
         assert_eq!(d.clicks[0].draws[0].points, [(0.0, 1.0), (2.0, 3.0)]);
         assert_eq!(d.clicks[0].fades[0].rect, (1.0, 2.0, 3.0, 4.0));
         assert_eq!(d.clicks[0].stages, Some(("a.png".into(), "b.png".into())));
-        assert_eq!(d.clicks[0].film, Some(Film { rect: (1, 2, 3, 4), frames: vec![(62.0, "f/1.png".into())] }));
+        assert_eq!(d.clicks[0].film, Some(Film { rect: (1, 0, 3, 2), frames: vec![(62.0, "f/1.png".into())] }));
         assert!(d.clicks[1].film.is_none() && d.clicks[1].under.is_none() && d.backdrop.is_none());
         let u = d.clicks[0].under.as_ref().unwrap();
         assert_eq!((u.motion.as_str(), u.dim, u.glass[0][4], u.alpha.as_str()), ("chase", 0.6, 5.0, "001-alpha.png"));
@@ -335,7 +461,7 @@ mod tests {
     }
 
     /// A stored zip archive, as `glitu build play` writes it (the CRC is not checked: left at zero)
-    fn zip(files: &[(&str, &[u8])], comment: &[u8]) -> Vec<u8> {
+    pub(crate) fn zip(files: &[(&str, &[u8])], comment: &[u8]) -> Vec<u8> {
         let (mut data, mut central) = (Vec::new(), Vec::new());
         for (name, bytes) in files {
             let offset = data.len() as u32;
@@ -391,6 +517,161 @@ mod tests {
         assert!(d.file("002.png").err().unwrap().contains("missing"));
         fs::write(&file, b"not an archive").unwrap();
         assert!(Deck::open(&file).err().unwrap().contains("not a .glituplay file"));
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn start_past_the_last_slide_opens_the_last_click() {
+        let text = r#"{ "glitu-play": 1, "width": 4, "height": 2, "clicks": [ { "slide": 1, "image": "1.png" },
+            { "slide": 2, "image": "2.png" }, { "slide": 2, "image": "3.png" }, { "slide": 3, "image": "4.png" } ] }"#;
+        let d = Deck::parse(text, Archive::default()).unwrap();
+        assert_eq!([1, 2, 3].map(|n| d.start_click(n)), [0, 1, 3]);
+        assert_eq!((d.start_click(4), d.start_click(9999)), (3, 3));
+    }
+
+    #[test]
+    fn a_deck_with_a_size_out_of_range_is_refused() {
+        let deck = |size: &str, film: &str, backdrop: &str| {
+            let text = format!(
+                r#"{{ "glitu-play": 1, {size} "clicks": [ {{ "slide": 1, "image": "1.png" {film} }} ] {backdrop} }}"#
+            );
+            Deck::parse(&text, Archive::default()).err()
+        };
+        let ok = r#""width": 100, "height": 50,"#;
+        assert_eq!(deck(ok, "", ""), None);
+        // the slides: missing, null, huge, too wide for their area
+        for size in [
+            "",
+            r#""width": 100,"#,
+            r#""width": 0, "height": 50,"#,
+            r#""width": 100, "height": 0,"#,
+            r#""width": 4294967396, "height": 50,"#,
+            r#""width": 16385, "height": 50,"#,
+            r#""width": 16384, "height": 16384,"#,
+            r#""width": -1, "height": 50,"#,
+        ] {
+            assert!(deck(size, "", "").is_some(), "{size}");
+        }
+        // the film: outside the slide, empty, huge, not whole
+        for rect in [
+            "[0, 0, 101, 50]",
+            "[1, 0, 100, 50]",
+            "[0, 0, 0, 10]",
+            "[0, 0, 10, 0]",
+            "[4294967297, 0, 10, 10]",
+            "[0, 18446744073709551615, 10, 10]",
+            "[0, 0, 10]",
+            "[0, 0, 10, 10, 10]",
+            "[0, 0, 1.5, 10]",
+            "[0, 0, -1, 10]",
+            "null",
+        ] {
+            let film = format!(r#", "film": {{ "rect": {rect}, "frames": [] }}"#);
+            assert!(deck(ok, &film, "").is_some(), "{rect}");
+        }
+        assert_eq!(deck(ok, r#", "film": { "rect": [90, 40, 10, 10], "frames": [] }"#, ""), None);
+        // the backdrop: its place and its size
+        // an arrow: far from the slide, or wide
+        for arrow in [
+            r#"{ "points": [0, 0, 40000, 5], "width": 3 }"#,
+            r#"{ "points": [0, 0, 1e300, 5], "width": 3 }"#,
+            r#"{ "points": [0, -32769, 4, 5], "width": 3 }"#,
+            r#"{ "points": [0, 0, 4, 5], "width": 1e9 }"#,
+            r#"{ "points": [0, 0, 4, 5], "width": -1 }"#,
+        ] {
+            let draws = format!(r#", "draws": [ {arrow} ]"#);
+            assert!(deck(ok, &draws, "").is_some(), "{arrow}");
+        }
+        assert_eq!(deck(ok, r#", "draws": [ { "points": [-32768, 0, 32768, 5], "width": 16384 } ]"#, ""), None);
+        let backdrop = |rect: &str, size: &str| format!(r#", "backdrop": {{ "rect": {rect}, "size": {size} }}"#);
+        assert_eq!(deck(ok, "", &backdrop("[0, 0, 100, 50]", "[1280, 720]")), None);
+        for (rect, size) in [
+            ("[0, 0, 0, 50]", "[1280, 720]"),
+            ("[0, 0, 100, 50]", "[0, 720]"),
+            ("[0, 0, 100, 50]", "[1280, 0]"),
+            ("[0, 0, 100, 50]", "[1e300, 720]"),
+            ("[0, 0, 1e30, 50]", "[1280, 720]"),
+            ("[0, 0, 16384, 16384]", "[1280, 720]"),
+            ("[1e30, 0, 100, 50]", "[1280, 720]"),
+            ("[]", "[]"),
+        ] {
+            assert!(deck(ok, "", &backdrop(rect, size)).is_some(), "{rect} {size}");
+        }
+    }
+
+    #[test]
+    fn a_deck_naming_missing_images_or_another_size_is_refused() {
+        let dir = folder("images");
+        let png = |w: u32, h: u32| {
+            let mut out = Vec::new();
+            let mut enc = png::Encoder::new(&mut out, w, h);
+            enc.set_color(png::ColorType::Rgb);
+            enc.write_header().unwrap().write_image_data(&vec![0; (w * h * 3) as usize]).unwrap();
+            out
+        };
+        let open = |deck: &str, files: &[(&str, &[u8])]| {
+            let mut all = vec![("deck.json", deck.as_bytes())];
+            all.extend_from_slice(files);
+            let file = dir.join("talk.glituplay");
+            fs::write(&file, zip(&all, b"")).unwrap();
+            Deck::open(&file).err()
+        };
+        let head = r#"{ "glitu-play": 1, "width": 4, "height": 2, "clicks": [ { "slide": 1, "image": "1.png""#;
+        let (ok, wide, not_png) = (png(4, 2), png(8, 2), b"short".to_vec());
+        assert_eq!(open(&format!("{head} }} ] }}"), &[("1.png", &ok)]), None);
+        let e = open(&format!("{head} }} ] }}"), &[]).unwrap();
+        assert!(e.contains("1.png: missing"), "{e}");
+        let e = open(&format!("{head} }} ] }}"), &[("1.png", &wide)]).unwrap();
+        assert!(e.contains("1.png: 8 × 2 pixels, the slides are 4 × 2"), "{e}");
+        let e = open(&format!("{head} }} ] }}"), &[("1.png", &not_png)]).unwrap();
+        assert!(e.contains("not a PNG"), "{e}");
+        let staged = format!(r#"{head}, "base": "b.png", "drawn": "d.png" }} ] }}"#);
+        let e = open(&staged, &[("1.png", &ok), ("b.png", &ok)]).unwrap();
+        assert!(e.contains("d.png: missing"), "{e}");
+        let e = open(&staged, &[("1.png", &ok), ("b.png", &ok), ("d.png", &wide)]).unwrap();
+        assert!(e.contains("d.png: 8 × 2"), "{e}");
+        let film = format!(
+            r#"{head}, "film": {{ "rect": [0, 0, 2, 2], "frames": [ {{ "t": 1, "image": "f.png" }} ] }} }} ] }}"#
+        );
+        let e = open(&film, &[("1.png", &ok)]).unwrap();
+        assert!(e.contains("f.png: missing"), "{e}");
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    /// A fresh folder for a test
+    fn folder(name: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("glitu-play-test-{}-{name}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    fn put(bytes: &mut [u8], at: usize, v: u32) {
+        bytes[at..at + 4].copy_from_slice(&v.to_le_bytes());
+    }
+
+    #[test]
+    fn an_archive_announcing_sizes_larger_than_itself_is_refused() {
+        let dir = folder("sizes");
+        let deck = br#"{ "glitu-play": 1, "width": 1, "height": 1, "clicks": [ { "slide": 1, "image": "1.png" } ] }"#;
+        let good = zip(&[("deck.json", deck)], b"");
+        let end = good.len() - 22;
+        let central = u32::from_le_bytes(good[end + 16..end + 20].try_into().unwrap()) as usize;
+        let mut bad = Vec::new();
+        // the central directory, then an entry, larger than the file; more entries than it holds
+        for (at, v) in [(end + 12, 0xffff_fff0), (central + 20, 0xffff_fff0), (end + 10, 9)] {
+            let mut z = good.clone();
+            put(&mut z, at, v);
+            bad.push(z);
+        }
+        let mut z = good.clone();
+        put(&mut z, end + 16, 0xffff_fff0);
+        bad.push(z);
+        for z in bad {
+            let file = dir.join("talk.glituplay");
+            fs::write(&file, &z).unwrap();
+            let e = Deck::open(&file).err().unwrap_or_default();
+            assert!(e.contains("damaged archive"), "{e}");
+        }
         let _ = fs::remove_dir_all(&dir);
     }
 

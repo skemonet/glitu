@@ -30,10 +30,10 @@ impl Scene for Aurora {
                     let s = ctx.layer(1, 128);
                     let g = s.canvas();
                     let gr = g.create_linear_gradient(0.0, 0.0, 0.0, 128.0);
-                    let _ = gr.add_color_stop(0.0, &rgba(c, 0.0));
-                    let _ = gr.add_color_stop(0.78, &rgba(c, 0.9));
-                    let _ = gr.add_color_stop(0.86, "rgba(255,255,255,.8)");
-                    let _ = gr.add_color_stop(1.0, &rgba(c, 0.0));
+                    gr.add_color_stop(0.0, &rgba(c, 0.0));
+                    gr.add_color_stop(0.78, &rgba(c, 0.9));
+                    gr.add_color_stop(0.86, "rgba(255,255,255,.8)");
+                    gr.add_color_stop(1.0, &rgba(c, 0.0));
                     g.set_fill_gradient(&gr);
                     g.fill_rect(0.0, 0.0, 1.0, 128.0);
                     s
@@ -47,8 +47,8 @@ impl Scene for Aurora {
     fn draw(&self, ctx: &dyn Canvas, w: f64, h: f64, t: f64, dim: f64) {
         let k = w / 480.0;
         let g = ctx.create_linear_gradient(0.0, 0.0, 0.0, h);
-        let _ = g.add_color_stop(0.0, "#02040c");
-        let _ = g.add_color_stop(1.0, "#0b1834");
+        g.add_color_stop(0.0, "#02040c");
+        g.add_color_stop(1.0, "#0b1834");
         ctx.set_fill_gradient(&g);
         ctx.fill_rect(0.0, 0.0, w, h);
         for &(x, y, a, ph) in &self.stars {

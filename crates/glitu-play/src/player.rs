@@ -254,7 +254,7 @@ impl ApplicationHandler<Wake> for App {
             Err(e) => return self.fail(el, e.to_string()),
         };
         let size = window.inner_size();
-        let at = deck.clicks.iter().position(|c| c.slide >= self.options.start).unwrap_or(0);
+        let at = deck.start_click(self.options.start);
         let proxy = self.proxy.clone();
         let wake = move || {
             let _ = proxy.send_event(Wake);

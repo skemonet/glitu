@@ -624,6 +624,11 @@ impl Show {
     }
 
     /// `screen` may be sent
+    // the Wayland front-end only: unused where it is not built (macOS, Windows)
+    #[cfg_attr(
+        not(any(target_os = "linux", target_os = "freebsd", target_os = "openbsd", target_os = "netbsd")),
+        allow(dead_code)
+    )]
     pub fn whole(&self) -> bool {
         self.whole
     }
@@ -739,6 +744,11 @@ impl Show {
     /// Draws a frame of the animation running at the slide's size into `buf`, a buffer of that
     /// size; `holds`: it shows a frame of this animation already (only the moving pixels are
     /// drawn again)
+    // the Wayland front-end only: unused where it is not built (macOS, Windows)
+    #[cfg_attr(
+        not(any(target_os = "linux", target_os = "freebsd", target_os = "openbsd", target_os = "netbsd")),
+        allow(dead_code)
+    )]
     pub fn compose_small(&mut self, buf: &mut [u32], holds: bool, t: f64) -> Result<(), String> {
         if !holds || buf.len() != self.small_base.len() {
             if buf.len() != self.small_base.len() {

@@ -234,7 +234,8 @@ fn zones_html(focus: &str, video: bool, seed: &str) -> Result<String, String> {
         if let Some(until) = markers.iter().find(|m| !m.highlights()).and_then(|m| m.until)
             && !inner.contains("fragment until")
         {
-            inner += &format!("<span class=\"fragment until\" data-fragment-index=\"{}\"></span>", until + 1);
+            inner +=
+                &format!("<span class=\"fragment until\" data-fragment-index=\"{}\"></span>", until.saturating_add(1));
         }
         let timed = match time {
             Some((a, b)) => format!(
@@ -484,7 +485,10 @@ fn cast_html(text: &str, title: &str, n: u32) -> String {
     format!(
         "<div class=\"window\">{title}<div class=\"cast-stage\" data-cast=\"#cast-{n}\" data-idle-time-limit=\"1\">{steps}</div></div>\
          <script type=\"text/plain\" id=\"cast-{n}\">{}</script>",
-        text.trim().replace("</", "<\\/")
+        // a recording is JSON: `<` only occurs in its strings, where `<` says the same. No
+        // `</script>` can end the element, and no `<!--<script>` can keep it open to the end
+        // of the page
+        text.trim().replace('<', "\\u003c")
     )
 }
 
@@ -501,6 +505,16 @@ mod tests {
         fn cast(&mut self, _: &str) -> Result<String, String> {
             Ok("{\"version\": 2}\n[0.5, \"o\", \"$ \"]\n[1.0, \"m\", \"\"]\n[2.0, \"o\", \"</x>\"]".into())
         }
+    }
+
+    /// A recording is text in a `<script>`: nothing in it may open or close an element
+    #[test]
+    fn a_recording_cannot_swallow_the_page() {
+        let html = cast_html("{\"version\": 2}\n[1.0, \"o\", \"<!--<script></script>\"]", "", 1);
+        let inner = html.split("id=\"cast-1\">").nth(1).unwrap().strip_suffix("</script>").unwrap();
+        assert!(!inner.contains('<'), "{inner}");
+        // and it is still the same JSON
+        assert!(inner.contains("\\u003c!--\\u003cscript>"), "{inner}");
     }
 
     #[test]
@@ -687,7 +701,7 @@ mod tests {
         let block = Block::Image(Media::at("demo.cast", "Demo"));
         let html = visual_html(&block, &mut Svg(""), &mut seen).unwrap();
         assert_eq!(html.matches("cast-step").count(), 2);
-        assert!(html.contains("data-cast=\"#cast-1\"") && html.contains("<\\/x>"));
+        assert!(html.contains("data-cast=\"#cast-1\"") && html.contains("\\u003c/x>"));
         let image = Block::Image(Media::at("a.png", "A"));
         assert_eq!(
             visual_html(&image, &mut Svg(""), &mut seen).unwrap(),

@@ -5,10 +5,49 @@ and the versions [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+### Security
+- The SVG sanitizer reads the entities of a diagram once, before its checks: an address written
+  with entities (`&#106;avascript:`) no longer passes them, and an `&` before accented text no
+  longer stops the build.
+- A quote in a class or in the language of a code block stays inside its attribute, and a terminal
+  recording holding `<!--` or `<script` can no longer swallow the rest of the page.
+- A folder given to glitu no longer reads a markdown file that is a symbolic link out of the
+  folder, unless the file is named on the command line.
+- The preview server bounds the length of a request's lines, their number and the time to send
+  them; a damaged `%` sequence in an address no longer stops it.
+- The browser is not looked for in the relative entries of `PATH`.
+- Files including each other many times (`<!-- include: -->`) are refused past 4096 files read.
+- The preview server refuses the positions and the rehearsal durations sent by the page of another
+  site (a page open in the same browser could write `⏳` durations into the markdown).
+- The name of a font (`font:`) or of an icon (`:mdi:github:`) is checked before it goes into an
+  address and a stylesheet; a quote in a slide's `background` address stays inside its quotes.
+- The browser's profile is a private folder (0700) with a name nobody can foresee, no longer
+  `glitu-browser-<pid>-<port>` in the shared temporary folder.
+- A diagram tool installed in `/bin` or in `~/bin` no longer reads the whole disk or the whole home
+  folder: its `bin` folder only.
+- `glitu-play` refuses a damaged or hostile `.glituplay` file with a message instead of crashing or
+  asking for gigabytes: sizes larger than the file, slides, films, arrows or a backdrop of an
+  impossible size, images missing from the archive or of another size than the slides.
+
 ### Fixed
 - A d2 diagram is centred in its place, like the others (d2 pinned it to the top left corner).
 - `glitu oracle check` matches the slides of a vertical stack one by one (they share their state
   names).
+- `glitu-play`: an image that cannot be prepared is reported instead of freezing the player; the
+  speaker view in a window smaller than its bar no longer crashes; `--start` past the last slide
+  opens the last click instead of the first; on Wayland, keys whose keymap names their type
+  before their symbols are no longer dropped.
+- `html` and `xml` code of a reveal-md presentation with accented text or an unfinished attribute
+  no longer stops the build.
+- A slide's title holding a `|` is whole in the header and in the speaker view.
+- A front matter whose lines end the Windows way (`\r\n`) is read: it was taken for text.
+- Two long versions of an animated code no longer take gigabytes of memory to compare (12 000
+  words each: 620 MB, 45 MB now); beyond about 4000 words each, only what they start and end with
+  moves from one version to the next.
+- A reveal-md presentation whose slides are all hidden no longer stops the engine in the browser.
+- A terminal recording announcing an endless screen is shown on a bounded one (1000 × 500); click
+  numbers near the largest one and a `data-autoslide` that is not a number are read safely.
+- `tools/ci.sh` passes on macOS.
 
 ### Changed
 - The demo shows the eight template themes and a diagram of each engine (Mermaid, D2, Graphviz);

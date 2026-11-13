@@ -5,7 +5,7 @@
 use glitu_backdrop::crystal::{Crystal, Options};
 use glitu_backdrop::{Canvas, DIMMING, EASING, Motion, Scene};
 
-use crate::deck::{BackdropInfo, Image};
+use crate::deck::{BackdropInfo, Image, MAX_AREA, MAX_SIDE};
 use crate::resample::resample;
 use crate::skia::Skia;
 
@@ -35,8 +35,8 @@ pub struct Backdrop {
 
 impl Backdrop {
     /// The backdrop of the deck, for images of `out` pixels (the backdrop's rectangle in the
-    /// window); at its first instant, still
-    pub fn new(info: &BackdropInfo, out: (u32, u32)) -> Backdrop {
+    /// window); at its first instant, still. A size that no canvas can have is refused
+    pub fn new(info: &BackdropInfo, out: (u32, u32)) -> Result<Backdrop, String> {
         let (w, h) = info.size;
         let screen = f64::from(out.0) / w;
         let (kind, scale, t) = match glitu_backdrop::scene(&info.scene) {
@@ -46,14 +46,24 @@ impl Backdrop {
             }
             None => (Kind::Crystal(Box::new(Crystal::new(Options::default(), info.seed))), screen, 0.0),
         };
-        let canvas = Skia::new((w * scale + 0.5).floor() as u32, (h * scale + 0.5).floor() as u32);
+        let (cw, ch) = ((w * scale + 0.5).floor(), (h * scale + 0.5).floor());
+        let side = 1.0..=MAX_SIDE as f64;
+        if !(side.contains(&cw)
+            && side.contains(&ch)
+            && cw * ch <= MAX_AREA as f64
+            && side.contains(&w)
+            && side.contains(&h))
+        {
+            return Err(format!("the animated backdrop of {w} × {h} px would be a canvas of {cw} × {ch} pixels"));
+        }
+        let canvas = Skia::new(cw as u32, ch as u32);
         let mut b =
             Backdrop { kind, size: (w, h), out, scale, canvas, rate: 0.0, target: 0.0, dim: 0.0, dim_to: 0.0, t };
         match &mut b.kind {
             Kind::Crystal(c) => c.build(w, h),
             Kind::Scene(s) => s.build(&b.canvas, w, h),
         }
-        b
+        Ok(b)
     }
 
     /// Frames per second when it runs
@@ -107,10 +117,10 @@ impl Backdrop {
 
     /// The image that the browser drew under the click's screenshot: the first instant, the
     /// click's dimming (the export keeps the backdrop still)
-    pub fn reference(info: &BackdropInfo, out: (u32, u32), dim: f64) -> Image {
-        let mut b = Backdrop::new(info, out);
+    pub fn reference(info: &BackdropInfo, out: (u32, u32), dim: f64) -> Result<Image, String> {
+        let mut b = Backdrop::new(info, out)?;
         b.set(Motion::Still, dim, true);
-        b.render()
+        Ok(b.render())
     }
 
     fn render_at(&self, t: f64, dim: f64) -> Image {
@@ -141,6 +151,24 @@ impl Backdrop {
 mod tests {
     use super::*;
 
+    #[test]
+    fn a_backdrop_of_an_impossible_size_is_refused() {
+        let info = |scene: &str, size: (f64, f64)| BackdropInfo {
+            scene: scene.into(),
+            seed: 1,
+            rect: (0.0, 0.0, 100.0, 50.0),
+            size,
+        };
+        for scene in ["crystal", "aurora"] {
+            assert!(Backdrop::new(&info(scene, (200.0, 100.0)), (100, 50)).is_ok());
+            for size in [(0.0, 100.0), (200.0, 0.0), (f64::NAN, 100.0), (1.0, 1e9), (1e300, 1e300), (-5.0, 100.0)] {
+                assert!(Backdrop::new(&info(scene, size), (100, 50)).is_err(), "{scene} {size:?}");
+            }
+            assert!(Backdrop::new(&info(scene, (200.0, 100.0)), (u32::MAX, 50)).is_err());
+            assert!(Backdrop::reference(&info(scene, (0.0, 0.0)), (100, 50), 0.0).is_err());
+        }
+    }
+
     /// `cargo test --release -p glitu-play frame_time -- --ignored --nocapture`: the time of one frame
     #[test]
     #[ignore]
@@ -149,7 +177,7 @@ mod tests {
             let info =
                 BackdropInfo { scene: scene.into(), seed: 1, rect: (0.0, 0.0, 1024.0, 576.0), size: (1280.0, 720.0) };
             for out in [(1024, 576), (512, 288)] {
-                let mut b = Backdrop::new(&info, out);
+                let mut b = Backdrop::new(&info, out).unwrap();
                 b.set(Motion::Animated { chase: true }, 0.0, true);
                 let n = 20;
                 let start = std::time::Instant::now();

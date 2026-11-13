@@ -355,7 +355,8 @@ fn with_settings(section: &str, head: &Head) -> String {
         style.push(if color {
             format!("background:{bg}")
         } else {
-            format!("background:url('{bg}') center/cover no-repeat")
+            // the address stays inside its quotes
+            format!("background:url('{}') center/cover no-repeat", bg.replace('\\', "\\\\").replace('\'', "\\'"))
         });
     }
     if let Some(z) = head.attrs.get("zoom").and_then(|z| z.parse::<f64>().ok()) {
@@ -482,7 +483,7 @@ fn panel_slide_html(header: &str, classes: &[String], groups: &[Group], stage: &
     let stage = stage_html("stage", stage);
     format!(
         "<section data-header=\"{header}\" data-layout=\"{PANEL}\"><div class=\"{}\">{inner}</div>{stage}{aside}</section>",
-        classes.join(" ")
+        esc(&classes.join(" "))
     )
 }
 

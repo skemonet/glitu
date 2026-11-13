@@ -146,4 +146,75 @@ mod tests {
         assert_eq!(c.title, "First &lt;b&gt;");
         assert_eq!(c.sections.matches("<section").count(), 2);
     }
+
+    #[test]
+    fn a_quote_in_a_class_or_a_language_stays_in_its_attribute() {
+        struct Plain;
+        impl Assets for Plain {
+            fn diagram(
+                &mut self,
+                _: &str,
+                _: &str,
+                _: &std::collections::BTreeMap<String, String>,
+            ) -> Option<Result<String, String>> {
+                None
+            }
+            fn cast(&mut self, _: &str) -> Result<String, String> {
+                unreachable!()
+            }
+        }
+        let src = "# One\n\n## Two {.a\"onclick=\"x}\n\n- [t]{.b\"onmouseover=\"y}\n- [u]{.circle .c\"onblur=\"w}\n\n\
+                   ```js\"onfocus=\"z\ncode\n```\n";
+        let c = compile(src, &header(src), &mut Plain).unwrap();
+        for attribute in ["\"onclick=", "\"onmouseover=", "\"onblur=", "\"onfocus="] {
+            assert!(!c.sections.contains(attribute), "{attribute} in {}", c.sections);
+        }
+        let src = "# One\n\n---\n\n```js\"onfocus=\"z\ncode\n```\n";
+        let c = compile(src, &header(src), &mut Plain).unwrap();
+        assert!(!c.sections.contains("\"onfocus="), "{}", c.sections);
+    }
+
+    /// The slides of a presentation without diagram nor recording
+    fn sections(src: &str) -> String {
+        struct Plain;
+        impl Assets for Plain {
+            fn diagram(
+                &mut self,
+                _: &str,
+                _: &str,
+                _: &std::collections::BTreeMap<String, String>,
+            ) -> Option<Result<String, String>> {
+                None
+            }
+            fn cast(&mut self, _: &str) -> Result<String, String> {
+                unreachable!()
+            }
+        }
+        compile(src, &header(src), &mut Plain).map(|c| c.sections).unwrap_or_else(|e| e)
+    }
+
+    #[test]
+    fn the_largest_click_numbers_do_not_overflow() {
+        let max = u32::MAX;
+        let src = format!(
+            "# One\n\n## Two\n\n- a @{max}\n- b @+1\n- c @+{max}-{max}\n- d @1-{max}\n\n[x]{{@{max}-{max} .circle}} @+{max}\n\n\
+             ```js {{@{max} lines=\"1|2|3\"}}\na\nb\n```\n\n## Three\n\n- a @{max}\n\n```js {{lines=\"1|2\"}}\na\n```\n\n\
+             ![i](a.png){{@{max} pauses=\"0:12 0:20\"}}\n\n## Four\n\n![i](a.png) {{zones}}\n\n- [1,2 3,4]{{@{max}-{max}}} z\n\n\
+             ## Five\n\nfirst [click] second [click:{max}] third [click] fourth\n"
+        );
+        assert!(sections(&src).contains("<section"));
+    }
+
+    #[test]
+    fn a_background_address_stays_inside_its_quotes() {
+        let s = sections("# One\n\n## Two {background=\"a').png\"}\n\ntext\n");
+        assert!(s.contains("url('a\\&#39;).png')") || s.contains("url('a\\').png')"), "{s}");
+    }
+
+    #[test]
+    fn brackets_without_end_are_plain_text() {
+        let s = sections(&format!("# One\n\n## Two\n\n{} [a]{{.b}} [c] [d]{{.e\n", "[".repeat(50)));
+        // as before: the first `[` goes with the first `]`
+        assert!(s.contains(&format!("<span class=\"b\">{} [a</span> [c] [d]{{.e", "[".repeat(49))), "{s}");
+    }
 }

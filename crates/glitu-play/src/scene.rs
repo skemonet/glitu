@@ -13,7 +13,7 @@ use tiny_skia::{FillRule, LineCap, LineJoin, Mask, PathBuilder, Stroke, Transfor
 
 use std::sync::Arc;
 
-use crate::deck::{Draw, Fade, Image};
+use crate::deck::{Draw, Fade, Image, MAX_REACH, MAX_SIDE};
 
 /// The `ease` curve of CSS: cubic-bezier(.25, .1, .25, 1)
 pub fn ease(t: f64) -> f64 {
@@ -120,17 +120,27 @@ fn paint(mask: &mut Mask, origin: (i32, i32), draw: &Draw, length: Option<f32>) 
 }
 
 impl Reveal {
-    fn new(draw: &Draw) -> Option<Reveal> {
-        let pad = draw.width / 2.0 + 2.0;
-        let xs = draw.points.iter().map(|p| p.0);
-        let ys = draw.points.iter().map(|p| p.1);
-        let (x0, x1) = (xs.clone().fold(f32::INFINITY, f32::min), xs.fold(f32::NEG_INFINITY, f32::max));
-        let (y0, y1) = (ys.clone().fold(f32::INFINITY, f32::min), ys.fold(f32::NEG_INFINITY, f32::max));
-        if !x0.is_finite() || !y0.is_finite() {
+    /// `size`: of the slide; the mask covers the box of the path cut at it (nothing outside is
+    /// ever looked at), whatever the file says of the path
+    fn new(draw: &Draw, size: (u32, u32)) -> Option<Reveal> {
+        let pad = f64::from(draw.width) / 2.0 + 2.0;
+        let xs = draw.points.iter().map(|p| f64::from(p.0));
+        let ys = draw.points.iter().map(|p| f64::from(p.1));
+        let (x0, x1) = (xs.clone().fold(f64::INFINITY, f64::min), xs.fold(f64::NEG_INFINITY, f64::max));
+        let (y0, y1) = (ys.clone().fold(f64::INFINITY, f64::min), ys.fold(f64::NEG_INFINITY, f64::max));
+        let reach = f64::from(MAX_REACH);
+        let near = [x0, x1, y0, y1].iter().all(|v| v.abs() <= reach);
+        if !near || !(0.0..=MAX_SIDE as f64).contains(&f64::from(draw.width)) {
             return None;
         }
-        let origin = ((x0 - pad).floor() as i32, (y0 - pad).floor() as i32);
-        let mask = Mask::new((x1 - x0 + 2.0 * pad).ceil() as u32 + 1, (y1 - y0 + 2.0 * pad).ceil() as u32 + 1)?;
+        let (left, top) = ((x0 - pad).floor().max(0.0), (y0 - pad).floor().max(0.0));
+        let right = ((x1 + pad).ceil() + 1.0).min(f64::from(size.0));
+        let bottom = ((y1 + pad).ceil() + 1.0).min(f64::from(size.1));
+        if right <= left || bottom <= top {
+            return None;
+        }
+        let origin = (left as i32, top as i32);
+        let mask = Mask::new((right - left) as u32, (bottom - top) as u32)?;
         let length = draw.points.windows(2).map(|w| (w[1].0 - w[0].0).hypot(w[1].1 - w[0].1)).sum();
         Some(Reveal { draw: draw.clone(), length, origin, mask })
     }
@@ -222,7 +232,8 @@ impl Transition {
         fades: &[Fade],
         global: f64,
     ) -> Transition {
-        let mut reveals: Vec<Reveal> = draws.iter().filter_map(Reveal::new).collect();
+        let size = (to.width, to.height);
+        let mut reveals: Vec<Reveal> = draws.iter().filter_map(|d| Reveal::new(d, size)).collect();
         for r in &mut reveals {
             paint(&mut r.mask, r.origin, &r.draw, None);
         }
@@ -392,6 +403,30 @@ mod tests {
         );
         tr.render(600.0, &mut frame, 40, (0, 0));
         assert_eq!(frame, b.pixels);
+    }
+
+    #[test]
+    fn an_arrow_far_larger_than_the_slide_makes_no_larger_mask() {
+        let (a, mut b) = (image(40, 10, 0), image(40, 10, 0));
+        for x in 2..38 {
+            b.pixels[5 * 40 + x] = 0xffffff;
+        }
+        let huge = [1e12_f32, 4e9, 3e38, f32::MAX, 30_000.0];
+        let paths = huge.iter().flat_map(|&h| {
+            [vec![(2.0, 5.5), (h, 5.5)], vec![(-h, -h), (h, h)], vec![(2.0, 5.5), (38.0, 5.5)], vec![(h, h), (h, h)]]
+        });
+        for (i, points) in paths.enumerate() {
+            // the width too: nothing a file says makes a mask larger than the slide
+            let width = if i % 3 == 0 { huge[i % 5] } else { 3.0 };
+            let draw = Draw { points, width, delay: 0.0, duration: 600.0 };
+            let (a, b) = (Arc::new(a.clone()), Arc::new(b.clone()));
+            let mut tr = Transition::new(a.clone(), Some((a.clone(), b.clone())), b.clone(), &[draw], &[], 300.0);
+            assert!(tr.reveals.iter().all(|r| r.mask.width() as usize * r.mask.height() as usize <= 40 * 10));
+            let mut frame = a.pixels.clone();
+            tr.render(200.0, &mut frame, 40, (0, 0));
+            tr.render(600.0, &mut frame, 40, (0, 0));
+            assert_eq!(frame, b.pixels, "{i}");
+        }
     }
 
     #[test]

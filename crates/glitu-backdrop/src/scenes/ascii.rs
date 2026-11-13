@@ -47,8 +47,8 @@ impl Scene for Ascii {
             y += ch;
         }
         if let Ok(g) = ctx.create_radial_gradient(w / 2.0, h / 2.0, h * 0.3, w / 2.0, h / 2.0, w * 0.75) {
-            let _ = g.add_color_stop(0.0, "rgba(0,0,0,0)");
-            let _ = g.add_color_stop(1.0, "rgba(0,0,0,.55)");
+            g.add_color_stop(0.0, "rgba(0,0,0,0)");
+            g.add_color_stop(1.0, "rgba(0,0,0,.55)");
             ctx.set_fill_gradient(&g);
             ctx.fill_rect(0.0, 0.0, w, h);
         }

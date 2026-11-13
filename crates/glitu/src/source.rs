@@ -80,8 +80,18 @@ pub fn inputs(args: &[PathBuf]) -> Result<Vec<PathBuf>, String> {
 /// README, CHANGELOG, LICENSE and the names starting with `_` or `.`
 pub fn markdown_in(dir: &Path) -> Result<Vec<PathBuf>, String> {
     let at = |name: &std::ffi::OsStr| if dir == Path::new(".") { PathBuf::from(name) } else { dir.join(name) };
+    // these files are found, not named by the user: a link leading out of the folder is refused
+    let inside = Reads::only(dir);
+    let found = |name: &str| -> Result<PathBuf, String> {
+        if inside.contains(&dir.join(name)) {
+            return Ok(at(name.as_ref()));
+        }
+        Err(format!(
+            "{name}: a symbolic link out of the presentation's folder; to use it anyway, name it on the command line"
+        ))
+    };
     if dir.join("slides.md").is_file() {
-        return Ok(vec![at("slides.md".as_ref())]);
+        return Ok(vec![found("slides.md")?]);
     }
     let entries = fs::read_dir(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
     let mut names: Vec<String> = entries
@@ -97,7 +107,7 @@ pub fn markdown_in(dir: &Path) -> Result<Vec<PathBuf>, String> {
             if dir == Path::new(".") { "this folder".to_string() } else { dir.display().to_string() }
         ));
     }
-    Ok(names.iter().map(|n| at(n.as_ref())).collect())
+    names.iter().map(|n| found(n)).collect()
 }
 
 /// A file of the folder that is not part of the presentation, unless named on the command line
@@ -200,6 +210,10 @@ impl Fences {
     }
 }
 
+/// The files a presentation may read in all, a file included twice counting twice: a few files
+/// including each other many times would otherwise grow without end
+const MAX_FILES: usize = 4096;
+
 /// The files read so far, and where each line of the result comes from
 struct Reader<'a> {
     /// The files being included, to refuse a loop
@@ -217,6 +231,9 @@ impl Reader<'_> {
         if self.stack.contains(&key) {
             let chain: Vec<String> = self.stack.iter().chain([&key]).map(|p| p.display().to_string()).collect();
             return Err(format!("inclusion loop: {}", chain.join(" → ")));
+        }
+        if self.files.len() >= MAX_FILES {
+            return Err(format!("{}: more than {MAX_FILES} files included", path.display()));
         }
         let text = fs::read_to_string(path).map_err(|e| format!("{}: {e}", path.display()))?;
         // An included file: without its front matter
@@ -467,6 +484,32 @@ mod tests {
         assert!(markdown_in(&empty).unwrap_err().contains("no markdown file"));
     }
 
+    /// The files glitu finds by itself in a folder are not the user's choice: a link among them
+    /// that leads out of the folder is refused (a cloned folder would publish `~/.ssh/…`)
+    #[cfg(unix)]
+    #[test]
+    fn a_folder_does_not_read_markdown_linked_from_outside() {
+        use std::os::unix::fs::symlink;
+        let base = temp("linked");
+        fs::write(base.join("secret.txt"), "SECRET\n").unwrap();
+        for link in ["leak.md", "slides.md"] {
+            let dir = base.join(format!("talk-{link}"));
+            fs::create_dir_all(&dir).unwrap();
+            fs::write(dir.join("01-intro.md"), "# Intro\n").unwrap();
+            symlink("../secret.txt", dir.join(link)).unwrap();
+            let err = markdown_in(&dir).unwrap_err();
+            assert!(err.contains(link) && err.contains("symbolic link"), "{err}");
+            // named by the user, it is their choice
+            assert_eq!(inputs(&[dir.join(link)]).unwrap(), [dir.join(link)]);
+        }
+        // a link that stays in the folder is a file like another
+        let dir = base.join("talk-inside");
+        fs::create_dir_all(dir.join("parts")).unwrap();
+        fs::write(dir.join("parts/a.txt"), "# A\n").unwrap();
+        symlink("parts/a.txt", dir.join("a.md")).unwrap();
+        assert_eq!(markdown_in(&dir).unwrap(), [dir.join("a.md")]);
+    }
+
     #[test]
     fn natural_order() {
         let mut v = ["b10.md", "B2.md", "a.md", "b02x.md", "b1.md"];
@@ -500,6 +543,17 @@ mod tests {
         assert_eq!(back[1].1, fs::read_to_string(dir.join("ch/a.md")).unwrap());
         fs::write(dir.join("ch/b.md"), "<!-- include: a.md -->\n").unwrap();
         assert!(read(&dir.join("slides.md")).err().unwrap().contains("inclusion loop"));
+        fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn files_including_each_other_many_times_are_refused() {
+        let dir = temp("include-many");
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(dir.join("slides.md"), "<!-- include: a.md -->\n".repeat(100)).unwrap();
+        fs::write(dir.join("a.md"), "<!-- include: b.md -->\n".repeat(100)).unwrap();
+        fs::write(dir.join("b.md"), "# B\n").unwrap();
+        assert!(read(&dir.join("slides.md")).err().unwrap().contains("files included"));
         fs::remove_dir_all(&dir).unwrap();
     }
 

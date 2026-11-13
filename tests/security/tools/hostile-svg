@@ -1,9 +1,11 @@
 #!/bin/sh
 # a tool fed with a hostile source: its SVG carries scripts and external references
+# (printed from this file, not from a here-document: on macOS the shell writes those into the
+# user's temporary folder, where the confined tool may not write)
 cat >/dev/null
-cat <<'SVG'
+sed -n '/^<svg/,$p' "$0"
+exit
 <svg xmlns="http://www.w3.org/2000/svg" onload="alert('GLITU-XSS-1')"><script>alert('GLITU-XSS-2')</script>
 <a href="javascript:alert('GLITU-XSS-3')"><text>link</text></a><foreignObject><iframe src="https://evil.example/GLITU-XSS-4"/></foreignObject>
 <image href="file:///etc/passwd"/><use href="https://evil.example/x.svg#GLITU-XSS-5"/><style>@import url(https://evil.example/GLITU-XSS-6.css);</style>
 <rect style="fill:url(https://evil.example/GLITU-XSS-7)"/><text>kept</text></svg>
-SVG

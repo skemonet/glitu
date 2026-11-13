@@ -83,23 +83,30 @@ fn outside_code(md: &str, f: impl Fn(&str) -> String) -> String {
 /// `[text]{…}` → `<span>` (see `span_html`); a link `[x](…)` stays a link
 fn brackets(md: &str) -> String {
     let mut out = String::with_capacity(md.len());
-    let mut rest = md;
-    while let Some(open) = rest.find('[') {
-        let span = rest[open..].find(']').and_then(|c| {
-            let attrs = rest[open + c + 1..].strip_prefix('{')?;
-            let end = attrs.find('}')?;
-            Some((&rest[open + 1..open + c], &attrs[..end], open + c + 1 + end + 2))
-        });
-        let Some((text, attrs, len)) = span else {
-            out += &rest[..open + 1];
-            rest = &rest[open + 1..];
+    let mut at = 0;
+    // the first `]` found, kept for the next `[` before it: a line of `[` is read once, not once
+    // per bracket
+    let mut close: Option<usize> = None;
+    while let Some(open) = md[at..].find('[').map(|o| at + o) {
+        let c = match close {
+            Some(c) if c > open => Some(c),
+            _ => md[open..].find(']').map(|c| open + c),
+        };
+        // no `]` any more, or no `}`: no span any more
+        let Some(c) = c else { break };
+        close = Some(c);
+        let Some(attrs) = md[c + 1..].strip_prefix('{') else {
+            out += &md[at..open + 1];
+            at = open + 1;
             continue;
         };
-        out += &rest[..open];
-        out += &span_html(text, attrs, text);
-        rest = &rest[len..];
+        let Some(end) = attrs.find('}') else { break };
+        let text = &md[open + 1..c];
+        out += &md[at..open];
+        out += &span_html(text, &attrs[..end], text);
+        at = c + 1 + end + 2;
     }
-    out + rest
+    out + &md[at..]
 }
 
 /// `:mdi:github:` → `<i class="icon" data-icon="mdi:github"></i>`, which the build replaces with
@@ -132,12 +139,13 @@ fn icons(md: &str) -> String {
 /// `text` with the attributes of a `[text]{…}`; `seed`: what the hand-drawn stroke of its mark
 /// is drawn from (the same seed, the same stroke)
 pub(crate) fn span_html(text: &str, attrs: &str, seed: &str) -> String {
-    let mut classes: Vec<&str> = Vec::new();
+    // escaped: a class is written into an attribute
+    let mut classes: Vec<String> = Vec::new();
     let mut step = Stepped::default();
     let mut id = String::new();
     for tok in attrs.split_whitespace() {
         if let Some(c) = tok.strip_prefix('.') {
-            classes.push(c);
+            classes.push(esc(c));
         } else if let Some(name) = tok.strip_prefix('#') {
             // counterpart from one animated slide to the next
             id = format!(" data-id=\"{}\"", esc(name));
@@ -146,7 +154,7 @@ pub(crate) fn span_html(text: &str, attrs: &str, seed: &str) -> String {
         }
     }
     let a = appear(&step);
-    let Some(mark) = classes.iter().copied().find(|c| MARKS.contains(c)) else {
+    let Some(mark) = classes.iter().map(String::as_str).find(|c| MARKS.contains(c)) else {
         let class = format!("{}{}", classes.join(" "), a.class);
         let class = if class.trim().is_empty() { String::new() } else { format!(" class=\"{}\"", class.trim()) };
         return format!("<span{class}{id}{}{}>{text}{}</span>", a.attrs, a.fx, a.end);
@@ -154,7 +162,7 @@ pub(crate) fn span_html(text: &str, attrs: &str, seed: &str) -> String {
     // The mark is drawn when its fragment appears (at the click), or right away without a click
     let trigger =
         if step.step > 0 { format!("<span class=\"fragment mark-on\"{}></span>", a.attrs) } else { String::new() };
-    let others: String = classes.iter().filter(|c| **c != mark).map(|c| format!(" {c}")).collect();
+    let others: String = classes.iter().filter(|c| *c != mark).map(|c| format!(" {c}")).collect();
     format!("<span class=\"mark mark-{mark}{others}\"{id}{}>{trigger}{text}{}</span>", a.fx, mark_svg(mark, seed))
 }
 
