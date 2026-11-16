@@ -30,6 +30,8 @@ and the versions [Semantic Versioning](https://semver.org/).
   impossible size, images missing from the archive or of another size than the slides.
 
 ### Fixed
+- A version of an animated code (`magic-move`) can hold a code block: a fence closes the version only
+  when it is as long as the version's own.
 - Animated code (`magic-move`) keeps the unchanged lines in place: a word repeated far away no
   longer travels there (the `-` of a closing `---` flew to the `font-title` lines added above it).
 - The screenshots of the website's home page show the current demo (the cover title no longer cut).

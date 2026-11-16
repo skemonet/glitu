@@ -192,16 +192,21 @@ impl Fence {
         if self.lang != "magic-move" && !self.attrs.contains_key("magic-move") {
             return None;
         }
-        let (mut versions, mut open): (Vec<Fence>, Option<(&str, Vec<&str>)>) = (Vec::new(), None);
+        // a version opened by n backticks holds blocks of fewer, and closes on n or more alone
+        let mut versions = Vec::new();
+        // the open version: its fence's length, its info string, its lines
+        let mut open: Option<(usize, &str, Vec<&str>)> = None;
         for line in self.content.lines() {
             let t = line.trim();
+            let run = t.len() - t.trim_start_matches('`').len();
             match open.as_mut() {
-                None => open = t.strip_prefix("```").map(|info| (info, Vec::new())),
-                Some(_) if t.len() >= 3 && t.bytes().all(|b| b == b'`') => {
-                    let (info, body) = open.take().unwrap_or_default();
+                None if run >= 3 => open = Some((run, &t[run..], Vec::new())),
+                None => {}
+                Some((n, ..)) if run >= *n && run == t.len() => {
+                    let (_, info, body) = open.take().unwrap_or_default();
                     versions.push(fence_of(info, body.join("\n")));
                 }
-                Some((_, body)) => body.push(line),
+                Some((.., body)) => body.push(line),
             }
         }
         Some(versions)
@@ -682,5 +687,14 @@ mod tests {
         );
         assert_eq!((f.next_click, f.attrs["title"].as_str()), (2, "x"));
         assert!(matches!(&b[2], Block::List(l) if l[0].step == 4));
+    }
+
+    #[test]
+    fn an_animated_code_version_can_hold_a_code_block() {
+        let d = parse("## S\n\n`````md magic-move\n````md\n# A\n````\n````md\n# A\n\n```rust\nx\n```\n````\n`````\n");
+        let Block::Fence(f) = &d.slides[0].blocks[0] else { panic!() };
+        let v = f.versions().unwrap();
+        assert_eq!(v.iter().map(|v| v.content.as_str()).collect::<Vec<_>>(), ["# A", "# A\n\n```rust\nx\n```"]);
+        assert_eq!(v[1].lang, "md");
     }
 }
