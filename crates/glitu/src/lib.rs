@@ -24,4 +24,5 @@ pub mod settings;
 pub mod source;
 pub mod standalone;
 pub mod themes;
+pub mod video;
 pub mod zip;

@@ -106,6 +106,15 @@ fn run(command: Command, say: &Say) -> Result<bool, String> {
             let unit = if n == 1 { unit.trim_end_matches('s') } else { unit };
             say.line(format_args!("Built {} ({n} {unit})", out.display()));
         }
+        Command::Video { inputs, given, out, mut options, download_browser, yes } => {
+            use std::io::IsTerminal;
+            let project = open(&inputs, &given, say)?;
+            options.progress = !say.quiet && std::io::stderr().is_terminal();
+            glitu::video::ffmpeg(&project)?;
+            let browser = glitu::chromium::shell(download_browser, yes)?;
+            let n = glitu::video::export(&project, &out, &options, &browser)?;
+            say.line(format_args!("Built {} ({n} {})", out.display(), if n == 1 { "click" } else { "clicks" }));
+        }
         Command::Site { inputs, given, out } => {
             let site = build::site(&open(&inputs, &given, say)?, false)?;
             build::write(&site, &out)?;

@@ -113,7 +113,7 @@ pub fn parse_range(s: &str) -> Result<Vec<(usize, usize)>, String> {
         .collect()
 }
 
-fn wanted(range: &[(usize, usize)], n: usize) -> bool {
+pub(crate) fn wanted(range: &[(usize, usize)], n: usize) -> bool {
     range.is_empty() || range.iter().any(|&(a, b)| (a..=b).contains(&n))
 }
 
@@ -139,17 +139,17 @@ struct Shot {
 }
 
 /// The presentation's standalone page, written for the time of the export and removed afterwards
-struct TempPage(PathBuf);
+pub(crate) struct TempPage(PathBuf);
 
 impl TempPage {
-    fn write(project: &Project) -> Result<TempPage, String> {
+    pub(crate) fn write(project: &Project) -> Result<TempPage, String> {
         let page = standalone::bundle(&build::site(project, false)?, &standalone::Mode::Offline)?;
         let path = std::env::temp_dir().join(format!("glitu-export-{}.html", std::process::id()));
         fs::write(&path, page).map_err(|e| format!("{}: {e}", path.display()))?;
         Ok(TempPage(path))
     }
 
-    fn url(&self) -> Result<String, String> {
+    pub(crate) fn url(&self) -> Result<String, String> {
         Ok(format!("file://{}", self.0.canonicalize().map_err(|e| e.to_string())?.display()))
     }
 }
@@ -354,11 +354,11 @@ fn page_ranges(range: &[(usize, usize)], pages: usize) -> Option<String> {
 }
 
 /// Hides the navigation interface (reveal.js arrows): it has no place outside the screen
-const HIDE_CONTROLS: &str =
+pub(crate) const HIDE_CONTROLS: &str =
     "document.head.insertAdjacentHTML('beforeend', '<style>.reveal .controls{display:none!important}</style>')";
 
 /// Title and notes of the slide shown; are all its fragments already visible?
-const STATE: &str = "(() => {
+pub(crate) const STATE: &str = "(() => {
   const s = [...document.querySelectorAll('.slides section.present')].filter(e => !e.classList.contains('stack')).pop();
   if (!s) return { last: true, notes: [], title: '' };
   const a = s.querySelector('aside.notes');
@@ -590,14 +590,14 @@ fn crop(img: &raster::Rgb, [x, y, w, h]: [u32; 4]) -> raster::Rgb {
 /// A line on the standard error saying what the export does, a spinner turning in front of it while
 /// it works (also during the long waits: a stable screenshot, a terminal's recording); cleared when
 /// dropped. Without `on` (not a terminal, `--quiet`), it says nothing.
-struct Status {
+pub(crate) struct Status {
     text: Arc<Mutex<String>>,
     stop: Arc<AtomicBool>,
     thread: Option<JoinHandle<()>>,
 }
 
 impl Status {
-    fn start(on: bool) -> Status {
+    pub(crate) fn start(on: bool) -> Status {
         let (text, stop) = (Arc::new(Mutex::new(String::new())), Arc::new(AtomicBool::new(false)));
         let thread = on.then(|| {
             let (text, stop) = (text.clone(), stop.clone());
@@ -618,7 +618,7 @@ impl Status {
         Status { text, stop, thread }
     }
 
-    fn set(&self, text: impl Into<String>) {
+    pub(crate) fn set(&self, text: impl Into<String>) {
         if let Ok(mut t) = self.text.lock() {
             *t = text.into();
         }

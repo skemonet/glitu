@@ -11,12 +11,13 @@ Everything is written in English (code, comments, messages, docs). No npm, no No
   (`glitu add`: slides from examples), `build.rs`, `source.rs`, `online.rs`, `standalone.rs`,
   `serve.rs`, `engines/` (diagram engines: manifests in `crates/glitu/engines/`, tool lookup,
   confined runs, SVG sanitizer, mermaid.js), `settings.rs` (the user's `config.yaml`), `confine.rs`
-  (files a presentation may read), `export.rs` + `assets/export.js` + `pptx/` + `pdf.rs`, `browser.rs` (driving) +
+  (files a presentation may read), `export.rs` + `assets/export.js` + `pptx/` + `pdf.rs`, `video.rs` (`build video`, frame by frame + ffmpeg), `browser.rs` (driving) +
   `chromium.rs` (finding or downloading the browser), `oracle.rs`.
 - `crates/glitu-web` — wasm engine (navigation, steps, speaker view, themes' backdrops).
 - `crates/glitu-play` — native player for slow computers (winit + softbuffer + tiny-skia): plays
   `glitu build play` (`deck.rs` the format, `scene.rs` the animation, `show.rs` what the window
-  shows, `player.rs` the windows on winit, `wayland.rs` on Wayland with `keymap.rs`).
+  shows, `player.rs` the windows on winit, `wayland.rs` on Wayland with `keymap.rs`; `video.rs` +
+  `glitu.lua`: a glitu video, through mpv).
 - `themes/` — `crystal` (default), `constellation`, `paper`, `aurora`, `ascii`, `blueprint`, `iso`
   share `assets/template.css`; `black` is the reveal-md theme.
 - `tests/features/slides.md` — the demo of every syntax; `tests/oracle` its reference screenshots.

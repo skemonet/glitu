@@ -29,6 +29,7 @@ present, and the files are lighter. For a 1024 × 600 screen and 16:9 slides:
 ```sh
 glitu build pdf slides.md --clicks --width 1024 -o talk.pdf    # PDF
 glitu build play slides.md --width 1024 -o talk.glituplay     # glitu-play
+glitu build video slides.md --width 1024 -o talk.mkv          # glitu-play, through mpv
 ```
 
 With slides of another shape (for example 4:3 on a 16:9 screen), choose the width that fits the
@@ -101,8 +102,42 @@ The directory holds one PNG per click (and a few more for the arrows and the ter
 Build `glitu-play` from the sources of glitu with `cargo build --release -p glitu-play`; it runs
 on Linux (X11 or Wayland), macOS and Windows.
 
+## A video, presented with mpv
+
+`glitu build video` records the presentation as a video, one chapter per click (see
+[Export](/docs/publishing/#video)). Everything is played as it was recorded, transitions and zooms
+included: the slow computer only decodes a video, often with its graphics chip.
+
+```sh
+glitu-play talk.mkv               # full screen; --window, --start <slide>
+```
+
+`glitu-play` recognises the video and presents it with [mpv](https://mpv.io/installation/), which
+must be installed: the video pauses at each click, and the keys are those of glitu-play (→ Space
+Enter PageDown next, ← PageUp previous, Home End, `f` full screen, `q` quit). `c` switches to
+continuous play, without the pauses, for a stand. There is no speaker view yet: the notes are in
+the video's subtitle track `notes`.
+
+### Without glitu-play
+
+The pauses come from a script for mpv, which glitu-play carries and gives to mpv. To use mpv on
+its own, write the script into a file:
+
+```sh
+glitu-play --mpv-script > glitu.lua
+mpv --script=glitu.lua --fs --no-osc talk.mkv
+```
+
+Or copy `glitu.lua` into mpv's scripts folder (`~/.config/mpv/scripts/` on Linux and macOS,
+`%APPDATA%\mpv\scripts\` on Windows): it then acts on every glitu video, recognised by the tag
+`GLITU_PLAY` that `glitu build video` writes, and leaves the other videos alone.
+
+In VLC or any other player, the video plays from start to end; its chapters are the clicks (VLC:
+*Playback → Chapter*).
+
 ## What is not there yet
 
 - In glitu-play: the animated backdrop (it is still), animated code and
   animated slides (they fade), drawing on the slides.
 - Rendering with the graphics card in glitu-play, which can be turned off.
+- For a video: a speaker view, the sound of the videos of the slides.

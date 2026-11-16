@@ -5,6 +5,13 @@ and the versions [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+### Added
+- `glitu build video`: the presentation as a video (`.mkv`, H.264), one chapter per click, each
+  starting with the click frozen (`--hold`); rendered frame by frame by Chrome's headless shell on
+  a virtual clock, encoded by ffmpeg; the notes as a subtitle track, off by default.
+- `glitu-play talk.mkv` presents such a video with mpv, pausing at each click, with glitu-play's
+  keys; `glitu-play --mpv-script` prints the script, to use mpv alone.
+
 ### Security
 - The SVG sanitizer reads the entities of a diagram once, before its checks: an address written
   with entities (`&#106;avascript:`) no longer passes them, and an `&` before accented text no

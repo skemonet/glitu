@@ -16,6 +16,7 @@ mod show;
 mod skia;
 mod speaker;
 mod text;
+mod video;
 #[cfg(any(target_os = "linux", target_os = "freebsd", target_os = "openbsd", target_os = "netbsd"))]
 mod wayland;
 
@@ -26,13 +27,16 @@ const HELP: &str = "Presents a glitu presentation exported for slow computers, w
 
 Usage: glitu-play [OPTIONS] <FILE>
 
-  <FILE>  presentation of `glitu build play` (.glituplay)
+  <FILE>  presentation of `glitu build play` (.glituplay), or video of `glitu build video` (.mkv,
+          presented with mpv, which pauses at each click)
 
 Options:
   --window           Start in a window instead of full screen
   --speaker          Open the speaker view (full screen on the other screen when there are two)
   --check            Compare the native backdrop with the export's screenshots, then quit
   --start <SLIDE>    Start at this slide (from 1)
+  --mpv-script       Print the mpv script that presents a glitu video, to use mpv without
+                     glitu-play: mpv --script=glitu.lua talk.mkv
   -h, --help         Print help
   -V, --version      Print version
 
@@ -65,6 +69,7 @@ pub struct Options {
 
 fn parse(args: &[String]) -> Result<Option<Options>, String> {
     let (mut deck, mut window, mut speaker, mut check, mut start) = (None, false, false, false, 1);
+    let mut mpv_script = false;
     let mut it = args.iter();
     while let Some(a) = it.next() {
         match a.as_str() {
@@ -79,6 +84,7 @@ fn parse(args: &[String]) -> Result<Option<Options>, String> {
             "--window" => window = true,
             "--speaker" => speaker = true,
             "--check" => check = true,
+            "--mpv-script" => mpv_script = true,
             "--start" => {
                 let v = it.next().ok_or("--start: a slide number is expected")?;
                 start = v.parse().ok().filter(|&n| n >= 1).ok_or(format!("--start: invalid slide number: {v}"))?;
@@ -88,12 +94,19 @@ fn parse(args: &[String]) -> Result<Option<Options>, String> {
             s => return Err(format!("unexpected argument: {s}")),
         }
     }
+    if mpv_script {
+        print!("{}", video::SCRIPT);
+        return Ok(None);
+    }
     let deck = deck.ok_or("the .glituplay file of the presentation is expected (see --help)")?;
     Ok(Some(Options { deck, window, speaker, check, start }))
 }
 
 /// On Wayland, our own windows when the compositor can enlarge a buffer (`wayland`); else winit
 fn play(options: Options) -> Result<(), String> {
+    if video::is_video(&options.deck) {
+        return video::run(&options);
+    }
     #[cfg(any(target_os = "linux", target_os = "freebsd", target_os = "openbsd", target_os = "netbsd"))]
     if let Some(done) = wayland::run(&options) {
         return done;

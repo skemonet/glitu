@@ -492,6 +492,13 @@ Examples:
 Examples:
   glitu build play --width 1024 -o talk     Build talk.glituplay, then: glitu-play talk.glituplay")]
     Play(PlayArgs),
+    /// A video (.mkv), one chapter per click: glitu-play presents it, pausing at each click (with
+    /// mpv); any other player shows it by chapters. Needs ffmpeg and Chrome's headless shell
+    #[command(after_help = "\
+Examples:
+  glitu build video -o talk          Build talk.mkv, then: glitu-play talk.mkv
+  glitu build video --hold 2         Each click frozen for 2 s (the pause of a player without glitu)")]
+    Video(VideoArgs),
 }
 
 #[derive(Args)]
@@ -533,6 +540,23 @@ struct Shots {
     /// Skip the download confirmation
     #[arg(short, long, requires = "download_browser", help_heading = "Browser Options")]
     yes: bool,
+}
+
+#[derive(Args)]
+struct VideoArgs {
+    #[command(flatten)]
+    inputs: Inputs,
+    /// Output file [default: presentation.mkv]
+    #[arg(short, long)]
+    output: Option<PathBuf>,
+    /// Frames per second
+    #[arg(long, default_value_t = 30, value_parser = clap::value_parser!(u32).range(1..=120))]
+    fps: u32,
+    /// Seconds each click stays frozen at the start of its chapter
+    #[arg(long, value_name = "SECONDS", default_value_t = 1.0)]
+    hold: f64,
+    #[command(flatten)]
+    shots: Shots,
 }
 
 #[derive(Args)]
@@ -659,6 +683,15 @@ pub enum Command {
         download_browser: bool,
         yes: bool,
     },
+    /// `build video`; `download_browser`, `yes`: see `chromium::browser`
+    Video {
+        inputs: Vec<PathBuf>,
+        given: Given,
+        out: PathBuf,
+        options: crate::video::Options,
+        download_browser: bool,
+        yes: bool,
+    },
     /// `build site`: the static website, without a browser
     Site {
         inputs: Vec<PathBuf>,
@@ -740,7 +773,8 @@ fn command(cmd: Cmd) -> Result<Command, clap::Error> {
 /// has none; the extension of another format is a mistake (`build -o talk.pptx`)
 fn output(given: Option<PathBuf>, format: &str, ext: &str) -> Result<PathBuf, clap::Error> {
     let mut out = given.unwrap_or_else(|| PathBuf::from("presentation"));
-    let other = [("html", "html"), ("htm", "html"), ("pptx", "pptx"), ("pdf", "pdf"), ("glituplay", "play")];
+    let other =
+        [("html", "html"), ("htm", "html"), ("pptx", "pptx"), ("pdf", "pdf"), ("glituplay", "play"), ("mkv", "video")];
     match out.extension().and_then(|e| e.to_str()).map(str::to_ascii_lowercase) {
         None => {
             out.set_extension(ext);
@@ -751,6 +785,7 @@ fn output(given: Option<PathBuf>, format: &str, ext: &str) -> Result<PathBuf, cl
                     "html" => "an HTML page",
                     "pptx" => "a PowerPoint file",
                     "pdf" => "a PDF file",
+                    "video" => "a video",
                     _ => "a glitu-play file",
                 };
                 return Err(invalid(format!(
@@ -812,6 +847,24 @@ fn build_command(format: FormatCmd) -> Result<Command, clap::Error> {
         FormatCmd::Play(a) => {
             let out = output(a.output, "play", "glituplay")?;
             export(a.inputs, out, Format::Play, true, false, a.shots)
+        }
+        FormatCmd::Video(a) => {
+            let out = output(a.output, "video", "mkv")?;
+            if !(0.04..=60.0).contains(&a.hold) {
+                return Err(invalid(format!("--hold {}: between 0.04 and 60 seconds", a.hold)));
+            }
+            let range =
+                a.shots.range.as_deref().map(export::parse_range).transpose().map_err(invalid)?.unwrap_or_default();
+            let options =
+                crate::video::Options { fps: a.fps, hold: a.hold, range, pixels: a.shots.width, progress: false };
+            Ok(Command::Video {
+                given: a.inputs.given(),
+                inputs: a.inputs.files,
+                out,
+                options,
+                download_browser: a.shots.download_browser,
+                yes: a.shots.yes,
+            })
         }
     }
 }
@@ -929,6 +982,18 @@ mod tests {
             cmd("init talk --theme paper --css").unwrap(),
             Command::Init { dir: "talk".into(), theme: "paper".into(), css: true }
         );
+    }
+
+    #[test]
+    fn build_video() {
+        let Command::Video { out, options, .. } = cmd("build video --hold 2 --fps 25 --range 2-3").unwrap() else {
+            panic!()
+        };
+        assert_eq!(out, PathBuf::from("presentation.mkv"));
+        assert_eq!((options.fps, options.hold, options.range), (25, 2.0, vec![(2, 3)]));
+        assert!(cmd("build video --hold 0").is_err());
+        assert!(cmd("build video -o talk.pdf").is_err());
+        assert!(cmd("build pdf -o talk.mkv").is_err());
     }
 
     #[test]

@@ -27,12 +27,47 @@ pub struct Browser {
     _profile: crate::engines::run::Scratch,
     /// Events received while waiting for a response, kept during a recording (`film`)
     events: Option<Vec<Value>>,
+    /// The page's session, when the connection is the browser's (`launch_frames`)
+    session: Option<String>,
 }
 
 impl Browser {
     /// The browser `bin` (see `chromium`), headless, a window of `width` × `height` CSS px,
     /// `scale` screen pixels per px
     pub fn launch(bin: &Path, port: u16, width: u32, height: u32, scale: f64) -> Result<Self, String> {
+        let mut b = Self::start(bin, port, &[], false)?;
+        b.page(width, height, scale)?;
+        b.reduce_motion(true)?;
+        Ok(b)
+    }
+
+    /// The browser `bin`, rendering a frame only when asked (`frame`): the page's clock is virtual,
+    /// each frame moves it forward by the time given. Needs Chrome's headless shell
+    pub fn launch_frames(bin: &Path, port: u16, width: u32, height: u32, scale: f64) -> Result<Self, String> {
+        let mut b = Self::start(bin, port, &["--deterministic-mode"], true)?;
+        let target = b
+            .send("Target.createTarget", json!({ "url": "about:blank", "enableBeginFrameControl": true }))
+            .map_err(|e| format!("{e}: a video needs Chrome's headless shell (--download-browser)"))?;
+        let attached = b.send("Target.attachToTarget", json!({ "targetId": target["targetId"], "flatten": true }))?;
+        b.session = attached["sessionId"].as_str().map(String::from);
+        b.page(width, height, scale)?;
+        b.reduce_motion(false)?;
+        Ok(b)
+    }
+
+    /// The page's size and its seeded `Math.random`
+    fn page(&mut self, width: u32, height: u32, scale: f64) -> Result<(), String> {
+        self.send("Page.enable", json!({}))?;
+        self.send(
+            "Emulation.setDeviceMetricsOverride",
+            json!({ "width": width, "height": height, "deviceScaleFactor": scale, "mobile": false }),
+        )?;
+        self.send("Page.addScriptToEvaluateOnNewDocument", json!({ "source": SEEDED_RANDOM }))?;
+        Ok(())
+    }
+
+    /// The browser started, connected to its first page, or to the browser itself (`whole`)
+    fn start(bin: &Path, port: u16, extra: &[&str], whole: bool) -> Result<Self, String> {
         // a folder of its own (0700, a name nobody can foresee): in a temporary folder shared with
         // other users, none of them prepares the profile nor reads it
         let scratch = crate::engines::run::Scratch::new()?;
@@ -42,6 +77,7 @@ impl Browser {
         let stderr = fs::File::create(&log).map(Stdio::from).unwrap_or_else(|_| Stdio::null());
         let mut child = Command::new(bin)
             .args(["--headless", "--no-sandbox", "--disable-gpu", "--hide-scrollbars"])
+            .args(extra)
             .arg(format!("--remote-debugging-port={port}"))
             .arg(format!("--user-data-dir={}", profile.display()))
             .arg("about:blank")
@@ -49,7 +85,7 @@ impl Browser {
             .stderr(stderr)
             .spawn()
             .map_err(|e| format!("{}: {e} (set CHROMIUM to use another browser)", bin.display()))?;
-        let url = match debugger_url(port, &mut child) {
+        let url = match debugger_url(port, &mut child, whole) {
             Ok(url) => url,
             Err(exit) => {
                 let _ = child.kill();
@@ -59,15 +95,56 @@ impl Browser {
             }
         };
         let (ws, _) = tungstenite::connect(url.as_str()).map_err(|e| e.to_string())?;
-        let mut b = Browser { child, ws, id: 0, _profile: scratch, events: None };
-        b.send("Page.enable", json!({}))?;
-        b.send(
-            "Emulation.setDeviceMetricsOverride",
-            json!({ "width": width, "height": height, "deviceScaleFactor": scale, "mobile": false }),
-        )?;
-        b.reduce_motion(true)?;
-        b.send("Page.addScriptToEvaluateOnNewDocument", json!({ "source": SEEDED_RANDOM }))?;
-        Ok(b)
+        Ok(Browser { child, ws, id: 0, _profile: scratch, events: None, session: None })
+    }
+
+    /// Moves the page's virtual clock forward by `ms` (on the real clock without `virtual_time`, while
+    /// the page loads), then renders the frame: its PNG if it changed (`launch_frames`)
+    pub fn frame(&mut self, ms: f64, virtual_time: bool) -> Result<Option<Vec<u8>>, String> {
+        if virtual_time {
+            self.events = Some(Vec::new());
+            let sent = self.send("Emulation.setVirtualTimePolicy", json!({ "policy": "advance", "budget": ms }));
+            let waited = sent.and_then(|_| self.wait_event("Emulation.virtualTimeBudgetExpired"));
+            self.events = None;
+            waited?;
+        } else {
+            sleep(Duration::from_secs_f64(ms / 1000.0));
+        }
+        let r = self
+            .send("HeadlessExperimental.beginFrame", json!({ "interval": ms, "screenshot": { "format": "png" } }))
+            .map_err(|e| {
+                if e.contains("wasn't found") {
+                    "this browser cannot render frame by frame: a video needs Chrome's headless shell \
+                     (unset CHROMIUM, then --download-browser)"
+                        .to_string()
+                } else {
+                    e
+                }
+            })?;
+        r["screenshotData"]
+            .as_str()
+            .map(|d| base64::engine::general_purpose::STANDARD.decode(d).map_err(|e| e.to_string()))
+            .transpose()
+    }
+
+    /// Reads until this event arrives (the events must be kept: `events`)
+    fn wait_event(&mut self, method: &str) -> Result<(), String> {
+        loop {
+            if let Some(events) = &mut self.events
+                && let Some(i) = events.iter().position(|e| e["method"] == method)
+            {
+                events.drain(..=i);
+                return Ok(());
+            }
+            let msg = self.ws.read().map_err(|e| e.to_string())?;
+            let Message::Text(t) = msg else { continue };
+            let v: Value = serde_json::from_str(&t).map_err(|e| e.to_string())?;
+            if v.get("method").is_some()
+                && let Some(events) = &mut self.events
+            {
+                events.push(v);
+            }
+        }
     }
 
     /// `prefers-reduced-motion: reduce`, for reproducible pictures; off while an animation is
@@ -84,9 +161,11 @@ impl Browser {
     pub fn send(&mut self, method: &str, params: Value) -> Result<Value, String> {
         self.id += 1;
         let id = self.id;
-        self.ws
-            .send(Message::text(json!({ "id": id, "method": method, "params": params }).to_string()))
-            .map_err(|e| e.to_string())?;
+        let mut msg = json!({ "id": id, "method": method, "params": params });
+        if let Some(session) = &self.session {
+            msg["sessionId"] = session.clone().into();
+        }
+        self.ws.send(Message::text(msg.to_string())).map_err(|e| e.to_string())?;
         loop {
             let msg = self.ws.read().map_err(|e| e.to_string())?;
             let Message::Text(t) = msg else { continue };
@@ -199,13 +278,21 @@ impl Drop for Browser {
 
 /// The DevTools address of the browser's page, once it answers (10 s at most); otherwise its exit
 /// status if it stopped with an error, `None` if it did not answer in time
-fn debugger_url(port: u16, child: &mut Child) -> Result<String, Option<std::process::ExitStatus>> {
+fn debugger_url(port: u16, child: &mut Child, whole: bool) -> Result<String, Option<std::process::ExitStatus>> {
     for _ in 0..50 {
         sleep(Duration::from_millis(200));
         if let Ok(Some(status)) = child.try_wait()
             && !status.success()
         {
             return Err(Some(status));
+        }
+        if whole {
+            let Ok(version) = http_get(port, "/json/version") else { continue };
+            let v: Value = serde_json::from_str(&version).unwrap_or(Value::Null);
+            if let Some(url) = v["webSocketDebuggerUrl"].as_str() {
+                return Ok(url.to_string());
+            }
+            continue;
         }
         let Ok(list) = http_get(port, "/json") else { continue };
         let v: Value = serde_json::from_str(&list).unwrap_or(Value::Null);

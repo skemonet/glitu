@@ -50,7 +50,33 @@ pub fn browser(download: bool, yes: bool) -> Result<PathBuf, String> {
     if !download {
         return Err(help());
     }
-    fetch_shell(yes)
+    fetch_shell(yes, "No Chromium-based browser was found")
+}
+
+/// Chrome's headless shell, the only browser that renders frame by frame (`build video`):
+/// `CHROMIUM`, otherwise the downloaded shell; with `download`, downloaded if there is none
+pub fn shell(download: bool, yes: bool) -> Result<PathBuf, String> {
+    if std::env::var_os("CHROMIUM").is_some_and(|v| !v.is_empty()) {
+        return find().map(|f| f.unwrap_or_default());
+    }
+    if let Some(shell) = platform().map(|p| shell_exe(&shell_dir(), p)).filter(|p| p.is_file()) {
+        let missing = missing_for(&shell);
+        if !missing.is_empty() {
+            return Err(format!(
+                "Chrome's headless shell, downloaded into {}, cannot run on this system:\n{}",
+                shell_dir().display(),
+                libraries_help(&missing)
+            ));
+        }
+        return Ok(shell);
+    }
+    if !download {
+        return Err("a video needs Chrome's headless shell, which renders the page frame by frame (an \
+                    installed Chrome renders at its own pace): add --download-browser to download it \
+                    (about 100 MB, once), or set CHROMIUM to a chrome-headless-shell"
+            .into());
+    }
+    fetch_shell(yes, "A video needs Chrome's headless shell")
 }
 
 /// `CHROMIUM`, the downloaded shell, or an installed browser; an unusable `CHROMIUM` is an error
@@ -124,7 +150,7 @@ fn installed() -> Vec<PathBuf> {
 }
 
 /// A name in the PATH (`.exe` added on Windows)
-fn in_path(name: &str) -> Option<PathBuf> {
+pub(crate) fn in_path(name: &str) -> Option<PathBuf> {
     in_dirs(name, std::env::split_paths(&std::env::var_os("PATH")?).collect())
 }
 
@@ -213,7 +239,7 @@ fn shell_url(platform: &str) -> String {
 }
 
 /// Says what the download does, asks (unless `yes`), downloads, checks, unpacks
-fn fetch_shell(yes: bool) -> Result<PathBuf, String> {
+fn fetch_shell(yes: bool, why: &str) -> Result<PathBuf, String> {
     let platform = platform().ok_or_else(|| {
         format!(
             "no headless shell is available for this platform ({} {}); install Chromium, or set CHROMIUM to a browser",
@@ -236,7 +262,7 @@ fn fetch_shell(yes: bool) -> Result<PathBuf, String> {
         ));
     }
     eprintln!(
-        "No Chromium-based browser was found. glitu will:\n\
+        "{why}. glitu will:\n\
          \x20 1. Download Chrome's headless shell {SHELL_VERSION} for {platform} (about 100 MB), from Google's\n\
          \x20    \"Chrome for Testing\" builds:\n\
          \x20    {url}\n\

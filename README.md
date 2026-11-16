@@ -315,6 +315,7 @@ glitu build pdf    [files…|folder] [-o presentation.pdf]  [--clicks]   [--rang
 glitu build png    [files…|folder] [-o presentation]      [--clicks]   [--range …] [--width …]
 glitu build play   [files…|folder] [-o presentation.glituplay]          [--range …] [--width …]
 ```
+glitu build video  [files…|folder] [-o presentation.mkv] [--fps 30] [--hold 1] [--range …] [--width …]
 
 Each format has its options and its help (`glitu build pptx --help`); an output without an
 extension gets the format's. **The input**: without files, the current folder (a folder given
@@ -366,6 +367,14 @@ protocol.
 - **play** (`glitu build play`): one `.glituplay` file for `glitu-play`, the native player (see
   below): an uncompressed zip archive of the pictures, their animations and the markdown.
 
+- **video** (`glitu build video`): an `.mkv` video (H.264), one chapter per click. Each chapter
+  starts with the click's state, frozen (`--hold`, 1 s), then the animation to the next click,
+  rendered frame by frame on the page's virtual clock (`--fps`, 30), so that it does not depend on
+  the computer's speed; the videos of the slides are moved forward with it. The tag `GLITU_PLAY`
+  marks the file; the speaker notes are a subtitle track `notes`, off by default. Needs ffmpeg
+  (`--tool ffmpeg=PATH`) and Chrome's headless shell (`--download-browser`). `glitu-play talk.mkv`
+  presents it through mpv, pausing at each click; `glitu-play --mpv-script` prints the script, for
+  mpv alone (see `docs/design/video-export.md`).
 ## Slow computers
 
 On a computer too slow for a browser (an old netbook), present pictures prepared on another

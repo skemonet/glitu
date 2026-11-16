@@ -45,6 +45,7 @@ glitu build pdf -o talk.pdf               # vector PDF
 glitu build png -o images                 # one PNG image per slide
 glitu build site -o dist                  # static website
 glitu build play -o talk.glituplay        # for glitu-play, on a slow computer
+glitu build video -o talk.mkv             # a video, one chapter per click
 ```
 
 The format comes after `build`, with its own options (`glitu build pdf --help`). These options
@@ -85,6 +86,22 @@ the output directory (`presentation/` by default).
 `glitu build play` writes one `.glituplay` file for `glitu-play`, which presents without a
 browser: one picture per click, the description of what moves, and the Markdown (`glitu unpack`
 gets it back). See [Slow computers](/docs/slow-computers/).
+
+### Video
+
+`glitu build video` records the presentation as a video (`.mkv`, H.264), one chapter per click.
+Each chapter starts with the click's state, frozen for a second (`--hold`), then plays the
+animation to the next click: transitions, zooms, terminals and videos are recorded as the browser
+plays them, frame by frame (`--fps`, 30 by default), whatever the speed of the computer. The
+speaker notes go into a subtitle track named `notes`, off by default.
+
+It needs [ffmpeg](https://ffmpeg.org/download.html) (in the PATH, or `--tool ffmpeg=PATH`) and
+Chrome's headless shell (`--download-browser`): an installed Chrome renders the page at its own
+pace, not frame by frame.
+
+`glitu-play talk.mkv` presents the video with [mpv](https://mpv.io/installation/), pausing at each
+click. Any other player shows it by chapters, one per click, without pausing. See
+[Slow computers](/docs/slow-computers/#a-video-presented-with-mpv).
 
 ### Static website
 
