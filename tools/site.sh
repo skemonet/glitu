@@ -18,11 +18,9 @@ rm -rf "$out"
 mkdir -p "$out"
 cp "$root/site/index.html" "$out/"
 cp -r "$root/site/img" "$out/"
-"$glitu" build "$root/tests/features/slides.md" -o "$out/demo.html"
+"$glitu" build "$root/demo/slides.md" -o "$out/demo.html"
 cargo run --quiet --locked -p glitu --example assets -- "$out/static" "$root/themes"
 # the documentation (site/docs/*.md), sitemap.xml and robots.txt
 cargo run --quiet --locked -p glitu --example docs -- "$root/site/docs" "$out"
-# the page shown by the demo's {.iframe} slide, next to demo.html
-cp -r "$root/tests/features/public/." "$out/"
 # GitHub Pages: serve the files as they are
 touch "$out/.nojekyll"

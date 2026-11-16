@@ -12,6 +12,11 @@ and the versions [Semantic Versioning](https://semver.org/).
 - `glitu-play talk.mkv` presents such a video with mpv, pausing at each click, with glitu-play's
   keys; `glitu-play --mpv-script` prints the script, to use mpv alone.
 
+### Changed
+- The website's demo is a new short deck, `demo/slides.md`: the markdown you write, a skemo diagram,
+  a terminal, a video that waits for the presenter (*Big Buck Bunny*, Blender Foundation, CC BY 3.0),
+  the themes. `tests/features` stays the tour of every syntax, for the oracle.
+
 ### Security
 - The SVG sanitizer reads the entities of a diagram once, before its checks: an address written
   with entities (`&#106;avascript:`) no longer passes them, and an `&` before accented text no

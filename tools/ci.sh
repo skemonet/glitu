@@ -43,8 +43,8 @@ export PATH="${CARGO_HOME:-$HOME/.cargo}/bin:$PATH"
 if ! skemo --version 2> /dev/null | grep -qx "skemo $skemo_version"; then
   cargo install --git https://github.com/skemonet/skemo --tag "v$skemo_version" skemo-cli
 fi
-# the tools the engine tests must find (the CI adds dot and d2); the demo also draws with d2,
-# dot and mermaid (a Chromium-based browser)
+# the tools the engine tests must find (the CI adds dot and d2); tests/features also draws with
+# d2, dot and mermaid (a Chromium-based browser)
 export GLITU_TOOL_SKEMO="$(command -v skemo)" GLITU_REQUIRE_TOOLS="${GLITU_REQUIRE_TOOLS:-skemo}"
 
 step "lints (clippy, -D warnings): --all-features, then the default build"
@@ -80,8 +80,8 @@ g=target/debug/glitu
 d=$(mktemp -d)
 "$g" --version
 "$g" version
-"$g" build tests/features/slides.md -o "$d/demo.html"
-"$g" build site tests/features/slides.md -o "$d/site"
+"$g" build demo/slides.md -o "$d/demo.html"
+"$g" build site demo/slides.md -o "$d/site"
 test -s "$d/site/index.html" && test -s "$d/demo.html"
 "$g" init "$d/talk" --theme mine
 "$g" build "$d/talk/slides.md" -o "$d/talk.html"

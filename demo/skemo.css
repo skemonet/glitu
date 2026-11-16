@@ -1,0 +1,4 @@
+/* Diagram types of the demo, next to the theme's own */
+.file   { --c: #64748b; }
+.tool   { --c: #2563eb; }
+.output { --c: #0891b2; }

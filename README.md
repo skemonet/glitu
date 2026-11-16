@@ -10,14 +10,15 @@
 
 **Website:** https://glitu.net — the demo as one page: https://glitu.net/demo.html
 
-[**`tests/features/slides.md`**](tests/features/slides.md) presents glitu itself: its publishing
-modes, a frieze, the architecture diagram built click by click, its own source with the project
-tree, and a terminal recording of `glitu build`; then a tour of every syntax.
+[**`demo/slides.md`**](demo/slides.md) presents glitu in a dozen slides: the markdown you write, a
+skemo diagram built click by click, a terminal recording, a video that waits for the presenter,
+the themes. [`tests/features/slides.md`](tests/features/slides.md) is the tour of every syntax,
+the reference of the oracle.
 
 ```sh
 rustup target add wasm32-unknown-unknown
 cargo build --release
-target/release/glitu server tests/features/slides.md    # http://localhost:8000
+target/release/glitu server demo/slides.md    # http://localhost:8000
 ```
 
 Diagrams are drawn by [skemo](https://github.com/skemonet/skemo), a git dependency fetched by
@@ -314,8 +315,8 @@ glitu build pptx   [files…|folder] [-o presentation.pptx] [--images]   [--rang
 glitu build pdf    [files…|folder] [-o presentation.pdf]  [--clicks]   [--range …] [--width …]
 glitu build png    [files…|folder] [-o presentation]      [--clicks]   [--range …] [--width …]
 glitu build play   [files…|folder] [-o presentation.glituplay]          [--range …] [--width …]
-```
 glitu build video  [files…|folder] [-o presentation.mkv] [--fps 30] [--hold 1] [--range …] [--width …]
+```
 
 Each format has its options and its help (`glitu build pptx --help`); an output without an
 extension gets the format's. **The input**: without files, the current folder (a folder given
@@ -366,7 +367,6 @@ protocol.
   given folder (default `presentation/`).
 - **play** (`glitu build play`): one `.glituplay` file for `glitu-play`, the native player (see
   below): an uncompressed zip archive of the pictures, their animations and the markdown.
-
 - **video** (`glitu build video`): an `.mkv` video (H.264), one chapter per click. Each chapter
   starts with the click's state, frozen (`--hold`, 1 s), then the animation to the next click,
   rendered frame by frame on the page's virtual clock (`--fps`, 30), so that it does not depend on
@@ -375,6 +375,7 @@ protocol.
   (`--tool ffmpeg=PATH`) and Chrome's headless shell (`--download-browser`). `glitu-play talk.mkv`
   presents it through mpv, pausing at each click; `glitu-play --mpv-script` prints the script, for
   mpv alone (see `docs/design/video-export.md`).
+
 ## Slow computers
 
 On a computer too slow for a browser (an old netbook), present pictures prepared on another
@@ -441,7 +442,7 @@ theme: ./my-themes/x       # third-party theme, path relative to the presentatio
 
 `tools/site.sh [site/dist]` writes the website: the home page `site/index.html` (with its
 `site/img/`), the documentation (`site/docs/*.md`, rendered by the `docs` example of
-`crates/glitu`, with `sitemap.xml` and `robots.txt`), the demo, `tests/features/slides.md`, built as one standalone page (`demo.html`),
+`crates/glitu`, with `sitemap.xml` and `robots.txt`), the demo, `demo/slides.md`, built as one standalone page (`demo.html`),
 and `static/`, the assets of the light pages: `static/glitu/<version>/` (the engine, at the
 version last released) and `static/themes/<name>/<version>/` (the `"version"` of each theme's
 `glitu.yaml`, required), written by the `assets` example of `crates/glitu`. A deployment replaces
@@ -600,7 +601,7 @@ transitions, centring. `tests/compat/` checks this rendering against that of rev
 
 ## Oracle
 
-`tests/oracle/` keeps a capture of each state (slide × click) of the demo, `tests/features`: the
+`tests/oracle/` keeps a capture of each state (slide × click) of `tests/features`, every syntax: the
 reference of the engine, which must stay identical to the pixel. `glitu oracle` is a development
 command, left out of the released binary:
 
@@ -630,7 +631,8 @@ crates/glitu/assets/       styles of the engine (glitu.css, template.css; reveal
                            vendor/), survey of the screen for the PowerPoint export (export.js),
                            formula font
 site/                      the website glitu.net: home page and its images (built by tools/site.sh)
-tests/features/            the demo: glitu presented with glitu, then every syntax
+demo/                      the demo: glitu in a dozen slides (the website's demo.html)
+tests/features/            every syntax, glitu presented with glitu (the oracle's deck)
 tests/oracle/              reference captures of tests/features (crystal theme)
 tests/compat/           markdown examples of reveal.js and reveal-md, reference rendering
 tools/                     ci.sh (the pipeline), install.sh, site.sh, asciicast.py and

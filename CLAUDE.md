@@ -20,7 +20,9 @@ Everything is written in English (code, comments, messages, docs). No npm, no No
   `glitu.lua`: a glitu video, through mpv).
 - `themes/` — `crystal` (default), `constellation`, `paper`, `aurora`, `ascii`, `blueprint`, `iso`
   share `assets/template.css`; `black` is the reveal-md theme.
-- `tests/features/slides.md` — the demo of every syntax; `tests/oracle` its reference screenshots.
+- `demo/slides.md` — the short demo (the website's `demo.html`, its terminal written by
+  `tools/build_cast.py`).
+- `tests/features/slides.md` — every syntax; `tests/oracle` its reference screenshots.
 - `tests/security/` — hostile presentations (`crates/glitu/tests/security.rs`); see
   `docs/design/diagram-engines.md` §9.
 

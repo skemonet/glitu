@@ -17,7 +17,7 @@ glitu is written in Rust, in the browser too (WebAssembly); there is no Node and
 ```sh
 rustup target add wasm32-unknown-unknown
 cargo build --release
-target/release/glitu server tests/features/slides.md
+target/release/glitu server demo/slides.md
 ```
 
 The oldest supported compiler is the `rust-version` of `Cargo.toml`.
