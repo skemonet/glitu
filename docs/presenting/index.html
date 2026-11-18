@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Presenting · glitu documentation</title>
+<meta name="description" content="Keyboard shortcuts, the speaker view with notes and timer, rehearsals, synchronized windows, a phone as a remote control, drawing on slides and the scroll view.">
+<link rel="canonical" href="https://glitu.net/docs/presenting/">
+<meta name="theme-color" content="#070b16">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="glitu">
+<meta property="og:title" content="Presenting">
+<meta property="og:description" content="Keyboard shortcuts, the speaker view with notes and timer, rehearsals, synchronized windows, a phone as a remote control, drawing on slides and the scroll view.">
+<meta property="og:url" content="https://glitu.net/docs/presenting/">
+<meta property="og:image" content="https://glitu.net/img/cover.webp">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230b1020'/%3E%3Cpath d='M9 22 15 10h4l-6 12zM15 22l6-12h3l-6 12z' fill='%2322d3ee'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/docs/docs.css">
+<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"TechArticle","headline":"Presenting","description":"Keyboard shortcuts, the speaker view with notes and timer, rehearsals, synchronized windows, a phone as a remote control, drawing on slides and the scroll view.","url":"https://glitu.net/docs/presenting/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"glitu","url":"https://glitu.net/"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"glitu","item":"https://glitu.net/"},{"@type":"ListItem","position":2,"name":"Documentation","item":"https://glitu.net/docs/"},{"@type":"ListItem","position":3,"name":"Presenting","item":"https://glitu.net/docs/presenting/"}]}]}</script>
+</head>
+<body>
+<a class="skip" href="#content">Skip to content</a>
+<header class="top">
+  <a class="brand" href="/">gl<span>i</span>tu</a>
+  <nav aria-label="Site">
+    <a href="/docs/" aria-current="true">Docs</a>
+    <a href="/demo.html">Demo</a>
+    <a href="https://github.com/skemonet/glitu">GitHub</a>
+  </nav>
+</header>
+<div class="layout">
+  <nav class="side" aria-label="Documentation"><ul><li><a href="/docs/">Getting started</a></li><li><a href="/docs/writing/">Writing slides</a></li><li><a href="/docs/steps/">Steps and animations</a></li><li><a href="/docs/layouts/">Layouts and media</a></li><li><a href="/docs/code/">Code, diagrams and terminals</a></li><li><a href="/docs/presenting/" aria-current="page">Presenting</a></li><li><a href="/docs/publishing/">Building and exporting</a></li><li><a href="/docs/themes/">Themes</a></li><li><a href="/docs/slow-computers/">Slow computers</a></li></ul></nav>
+  <main id="content">
+    <article>
+      <h1>Presenting</h1>
+      <p class="lead">Keyboard shortcuts, the speaker view with notes and timer, rehearsals, synchronized windows, a phone as a remote control, drawing on slides and the scroll view.</p>
+<h2 id="keyboard-shortcuts"><a class="anchor" href="#keyboard-shortcuts">Keyboard shortcuts</a></h2>
+<p><kbd>?</kbd> shows this list during the presentation.</p>
+<table><thead><tr><th>Key</th><th>Action</th></tr></thead><tbody>
+<tr><td><kbd>→</kbd> <kbd>Space</kbd> <kbd>N</kbd></td><td>Next step or slide, in reading order</td></tr>
+<tr><td><kbd>←</kbd> <kbd>Shift</kbd>+<kbd>Space</kbd> <kbd>P</kbd></td><td>Previous step or slide</td></tr>
+<tr><td><kbd>Page↓</kbd> <kbd>Page↑</kbd></td><td>Next or previous chapter in 2D navigation, otherwise next or previous slide</td></tr>
+<tr><td><kbd>↓</kbd> <kbd>↑</kbd></td><td>Within the chapter; <kbd>H</kbd> <kbd>J</kbd> <kbd>K</kbd> <kbd>L</kbd> for left, down, up, right</td></tr>
+<tr><td><kbd>Home</kbd> <kbd>End</kbd></td><td>First or last slide</td></tr>
+<tr><td><kbd>G</kbd></td><td>Go to a slide: its number, <code>5.2</code>, or its identifier</td></tr>
+<tr><td><kbd>Esc</kbd> <kbd>O</kbd></td><td>Overview: choose with the arrows, then <kbd>Enter</kbd> or a click</td></tr>
+<tr><td><kbd>F</kbd></td><td>Full screen</td></tr>
+<tr><td><kbd>S</kbd></td><td>Speaker view</td></tr>
+<tr><td><kbd>D</kbd></td><td>Draw on the slide</td></tr>
+<tr><td><kbd>B</kbd> <kbd>V</kbd> <kbd>.</kbd></td><td>Black screen, then resume</td></tr>
+<tr><td><kbd>A</kbd></td><td>Pause or resume the automatic advance</td></tr>
+<tr><td><kbd>Alt</kbd>+click (<kbd>Ctrl</kbd>+click on Linux)</td><td>Zoom on an element, then back</td></tr>
+</tbody></table>
+<p>On a touch screen, swipe with one finger to change slides, and use two fingers to zoom and pan.
+The mouse wheel changes slides when the theme's <code>glitu.yaml</code> sets <code>mouseWheel: true</code>.</p>
+<h2 id="speaker-view"><a class="anchor" href="#speaker-view">Speaker view</a></h2>
+<p><kbd>S</kbd> opens the speaker view in a separate window. It shows the current slide as the
+audience sees it, the next step, the notes, the clock and a timer. The passage of the notes that
+matches the current click is highlighted (see <code>[click]</code> in <a href="/docs/writing/#speaker-notes">Writing slides</a>).</p>
+<p>All the shortcuts work in the speaker view, so you can drive the presentation from it. Drag the
+separators to resize the columns and use <kbd>A−</kbd> <kbd>A+</kbd> to change the size of the
+notes; the browser remembers the layout. The timer survives a reload or a closed speaker window,
+and <code>⋯</code> resets it or changes the layout.</p>
+<h2 id="timing-and-rehearsals"><a class="anchor" href="#timing-and-rehearsals">Timing and rehearsals</a></h2>
+<p>A planned duration is written at the end of a slide title:</p>
+<pre><code class="language-markdown"><span class="hljs-section">## Live demo ⏳95🏃3</span></code></pre>
+<p>The slide is planned for 95 seconds, averaged over 3 rehearsals (<code>🏃3</code> is optional). Under the
+current slide, the speaker view lists the planned and actual time of every slide, and its bottom
+bar shows whether you are ahead of or behind schedule.</p>
+<p>To time a rehearsal, run <code>glitu server</code>, open the speaker view, then choose <code>⋯</code> → <strong>Rehearse from
+the start</strong> (or <strong>from here</strong>). <kbd>↺</kbd> restarts the current slide and <kbd>⏸</kbd> pauses.
+<strong>Finish</strong> shows the time measured for each slide and what to do with it: average it with the
+previous rehearsals (the default), replace the planned duration, or skip it. glitu then writes the
+durations into the slide titles of the Markdown file, so save your edits first.</p>
+<h2 id="synchronized-windows-and-remote-control"><a class="anchor" href="#synchronized-windows-and-remote-control">Synchronized windows and remote control</a></h2>
+<p>Under <code>glitu server</code>, every window that shows the presentation stays on the same slide: projector,
+laptop and tablet follow each other.</p>
+<p>To use a phone as a remote control, allow your local network when starting the server:</p>
+<pre><code class="language-sh"><span class="hljs-title function_">glitu</span> server <span class="hljs-params">--allow</span> 192.168.0.0/16</code></pre>
+<p>Then open the address shown, followed by <code>?remote</code>, on the phone. The remote shows the current
+slide, two large buttons and the notes, and joins the presentation where it is. <code>?follow</code> shows
+the presentation in sync, without the buttons.</p>
+<h2 id="drawing"><a class="anchor" href="#drawing">Drawing</a></h2>
+<p><kbd>D</kbd> turns the slide into a drawing surface for the mouse, a finger or a stylus. Keys
+<kbd>1</kbd> to <kbd>5</kbd> choose the colour, <kbd>Z</kbd> undoes, <kbd>X</kbd> clears, and
+<kbd>D</kbd> or <kbd>Esc</kbd> leaves. The drawings stay with their slide and the browser keeps them
+from one session to the next.</p>
+<h2 id="scroll-view"><a class="anchor" href="#scroll-view">Scroll view</a></h2>
+<p>Adding <code>?view=scroll</code> to the address shows the slides one below the other, at the width of the
+window, with every step visible: the presentation reads like a web page. Phones (windows narrower
+than 435 px) get this view by default, except as a remote; in landscape, they switch back to the
+presentation.</p>
+<h2 id="printing"><a class="anchor" href="#printing">Printing</a></h2>
+<p>Adding <code>?print-pdf</code> to the address lays out one slide per page with every step visible; print it
+to PDF from the browser. <code>glitu build pdf -o talk.pdf</code> does the same from the command line: see
+<a href="/docs/publishing/#pdf">Building and exporting</a>.</p>
+
+    </article>
+    <nav class="pager" aria-label="Pages"><a class="prev" rel="prev" href="/docs/code/"><span>Previous</span>Code, diagrams and terminals</a><a class="next" rel="next" href="/docs/publishing/"><span>Next</span>Building and exporting</a></nav>
+  </main>
+  <nav class="toc" aria-label="On this page"><p>On this page</p><ul><li><a href="#keyboard-shortcuts">Keyboard shortcuts</a></li><li><a href="#speaker-view">Speaker view</a></li><li><a href="#timing-and-rehearsals">Timing and rehearsals</a></li><li><a href="#synchronized-windows-and-remote-control">Synchronized windows and remote control</a></li><li><a href="#drawing">Drawing</a></li><li><a href="#scroll-view">Scroll view</a></li><li><a href="#printing">Printing</a></li></ul></nav>
+</div>
+<footer>glitu is dual-licensed under MIT or Apache-2.0. <a href="https://github.com/skemonet/glitu/edit/main/site/docs/presenting.md">Edit this page on GitHub</a></footer>
+</body>
+</html>

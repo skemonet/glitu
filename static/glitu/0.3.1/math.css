@@ -1,0 +1,12 @@
+/* Formulas (MathML, written at build from the LaTeX of the slides): Latin Modern Math font
+   (GUST Font License, see LICENSE-latin-modern-math.txt), loaded only by the presentations
+   that have formulas */
+@font-face {
+  font-family: 'Latin Modern Math';
+  font-style: normal;
+  font-weight: 400;
+  src: url(latinmodern-math.woff2) format('woff2');
+}
+math { font-family: 'Latin Modern Math', math; }
+math[display="block"] { margin: .4em 0; }
+.formula { display: flex; align-items: center; justify-content: center; height: 100%; font-size: 2em; }

@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Code, diagrams and terminals · glitu documentation</title>
+<meta name="description" content="Show code windows with line highlighting and annotations, import code from files, draw skemo diagrams that build up click by click, and replay terminal recordings.">
+<link rel="canonical" href="https://glitu.net/docs/code/">
+<meta name="theme-color" content="#070b16">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="glitu">
+<meta property="og:title" content="Code, diagrams and terminals">
+<meta property="og:description" content="Show code windows with line highlighting and annotations, import code from files, draw skemo diagrams that build up click by click, and replay terminal recordings.">
+<meta property="og:url" content="https://glitu.net/docs/code/">
+<meta property="og:image" content="https://glitu.net/img/cover.webp">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230b1020'/%3E%3Cpath d='M9 22 15 10h4l-6 12zM15 22l6-12h3l-6 12z' fill='%2322d3ee'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/docs/docs.css">
+<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"TechArticle","headline":"Code, diagrams and terminals","description":"Show code windows with line highlighting and annotations, import code from files, draw skemo diagrams that build up click by click, and replay terminal recordings.","url":"https://glitu.net/docs/code/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"glitu","url":"https://glitu.net/"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"glitu","item":"https://glitu.net/"},{"@type":"ListItem","position":2,"name":"Documentation","item":"https://glitu.net/docs/"},{"@type":"ListItem","position":3,"name":"Code, diagrams and terminals","item":"https://glitu.net/docs/code/"}]}]}</script>
+</head>
+<body>
+<a class="skip" href="#content">Skip to content</a>
+<header class="top">
+  <a class="brand" href="/">gl<span>i</span>tu</a>
+  <nav aria-label="Site">
+    <a href="/docs/" aria-current="true">Docs</a>
+    <a href="/demo.html">Demo</a>
+    <a href="https://github.com/skemonet/glitu">GitHub</a>
+  </nav>
+</header>
+<div class="layout">
+  <nav class="side" aria-label="Documentation"><ul><li><a href="/docs/">Getting started</a></li><li><a href="/docs/writing/">Writing slides</a></li><li><a href="/docs/steps/">Steps and animations</a></li><li><a href="/docs/layouts/">Layouts and media</a></li><li><a href="/docs/code/" aria-current="page">Code, diagrams and terminals</a></li><li><a href="/docs/presenting/">Presenting</a></li><li><a href="/docs/publishing/">Building and exporting</a></li><li><a href="/docs/themes/">Themes</a></li><li><a href="/docs/slow-computers/">Slow computers</a></li></ul></nav>
+  <main id="content">
+    <article>
+      <h1>Code, diagrams and terminals</h1>
+      <p class="lead">Show code windows with line highlighting and annotations, import code from files, draw skemo diagrams that build up click by click, and replay terminal recordings.</p>
+<h2 id="code-windows"><a class="anchor" href="#code-windows">Code windows</a></h2>
+<p>A fenced code block is shown in a window. Its attributes give the window a title and highlight
+lines click by click:</p>
+<pre><code class="language-markdown"><span class="hljs-code">```</span><span class="hljs-literal">yaml</span> title=&quot;deployment.yml&quot; lines=&quot;2|4-6&quot; @1
+<span class="hljs-code">apiVersion: apps/v1</span>
+<span class="hljs-code">kind: Deployment</span>
+<span class="hljs-code">spec:</span>
+  <span class="hljs-code">replicas: 3</span>
+  <span class="hljs-code">template:</span>
+    <span class="hljs-code">spec: {}</span>
+<span class="hljs-code">```</span></code></pre>
+<table><thead><tr><th>Attribute</th><th>Effect</th></tr></thead><tbody>
+<tr><td><code>title="…"</code></td><td>The title of the window</td></tr>
+<tr><td><code>lines="2|4-6"</code></td><td>Highlighted lines, one group per click; lines are numbered from 1</td></tr>
+<tr><td><code>file="roles/web/tasks/main.yml"</code></td><td>The file shown: an explorer lists the files seen so far in the presentation</td></tr>
+<tr><td><code>@n</code></td><td>The window appears at click <em>n</em></td></tr>
+</tbody></table>
+<p>Code is highlighted when the presentation is built, with the grammars of the bat project: about
+200 languages (Rust, Python, Go, TypeScript, Bash, YAML, TOML, Dockerfile, HCL, SQL…), named
+after the fence by name or extension (<code>rust</code> or <code>rs</code>). An unknown language is shown as plain
+text. A theme sets the colours with its <code>--hl-*</code> variables (<code>--hl-keyword</code>, <code>--hl-string</code>…). Keep a window under fifteen lines: use <code>lines=</code> or
+<code>[!code focus]</code> to guide the eye through longer code.</p>
+<h2 id="annotations"><a class="anchor" href="#annotations">Annotations</a></h2>
+<p>An annotation, in a comment at the end of a line, marks that line. It is removed from the code
+shown.</p>
+<pre><code class="language-rust"><span class="hljs-keyword">let</span> total <span class="hljs-operator">=</span> price <span class="hljs-operator">*</span> quantity;   <span class="hljs-comment">// [!code --]</span>
+<span class="hljs-keyword">let</span> total <span class="hljs-operator">=</span> price <span class="hljs-operator">*</span> quantity <span class="hljs-operator">*</span> (<span class="hljs-number">1.0</span> <span class="hljs-operator">+</span> tax);   <span class="hljs-comment">// [!code ++]</span>
+<span class="hljs-built_in">println!</span>(<span class="hljs-string">&quot;</span><span class="hljs-subst">{total}</span><span class="hljs-string">&quot;</span>);            <span class="hljs-comment">// [!code focus]</span></code></pre>
+<table><thead><tr><th>Annotation</th><th>Effect</th></tr></thead><tbody>
+<tr><td><code>[!code ++]</code>, <code>[!code --]</code></td><td>A line added or removed</td></tr>
+<tr><td><code>[!code focus]</code></td><td>The other lines fade</td></tr>
+<tr><td><code>[!code highlight]</code></td><td>A highlighted line</td></tr>
+<tr><td><code>[!code error]</code>, <code>[!code warning]</code></td><td>A line marked as an error or a warning</td></tr>
+</tbody></table>
+<h2 id="code-from-files"><a class="anchor" href="#code-from-files">Code from files</a></h2>
+<p>A line starting with <code>&lt;&lt;&lt;</code> imports code from a file, relative to the Markdown file:</p>
+<pre><code class="language-markdown">&lt;&lt;&lt; src/main.rs
+&lt;&lt;&lt; src/main.rs#setup            ← the region between // #region setup and // #endregion
+&lt;&lt;&lt; src/main.rs#L3-L8 rust title=&quot;main.rs&quot; @2</code></pre>
+<p>After the path, you can give the language and the attributes of the code block. The imported code
+is embedded in the built page, so <code>glitu unpack</code> recovers it too.</p>
+<h2 id="animated-code"><a class="anchor" href="#animated-code">Animated code</a></h2>
+<p>A <code>````md magic-move</code> block (four backticks) holds several versions of the code, one per click:
+the tokens that are kept slide to their new place. See
+<a href="/docs/steps/#animated-code">Steps and animations</a>. Between two versions, a <code>&lt;&lt;&lt;</code> line can import
+one of them.</p>
+<h2 id="diagrams"><a class="anchor" href="#diagrams">Diagrams</a></h2>
+<p>A diagram block is rendered when the presentation is built, by a tool of your machine: <code>skemo</code>
+for <code>```skemo</code>, mermaid.js in the browser of the exports (or <code>mmdc</code>) for <code>```mermaid</code>, <code>d2</code>
+for <code>```d2</code>, Graphviz's <code>dot</code> for <code>```dot</code>. Changing a diagram redraws it immediately under
+<code>glitu server</code>, which shows a missing tool or a faulty line in the slide. <code>glitu config --engines</code>
+lists the engines and the tools found; your choices (tool paths, default engines, options) go in
+<code>~/.config/glitu/config.yaml</code>.</p>
+<p>A presentation chooses an engine (<code>```mermaid engine=mmdc</code>, <code>engine.mermaid: mmdc</code> in the front
+matter) and its declared options (<code>```d2 d2.layout=elk</code>), never a program, a path or raw
+arguments: building a presentation received from anyone runs nothing you did not install, reads
+only the files of its folder (another folder: <code>--allow-read DIR</code>), and the tools run confined
+(Landlock on Linux, Seatbelt on macOS). Their SVG is sanitized before it enters the page.</p>
+<p>Diagrams in the <a href="https://skemo.net">skemo</a> language take step markers like the rest of the
+slide (the other engines' diagrams appear as a whole: <code>```mermaid @2</code>):</p>
+<pre><code class="language-pug">card#api.system Kubernetes API   @2:up        //- appears at click 2, entering from below
+  to(k1 k2).dashed orders         @4           //- arrows drawn at click 4
+card#note.note Closed ports       @1-2         //- visible at clicks 1 and 2
+card#p1.pod front                 @3:halo      //- highlighted at click 3
+card#p2.pod(tag=&quot;:8080 @1&quot;) back               //- its tag appears at click 1</code></pre>
+<p>A diagram with <code>diagram(layout="frieze" …)</code> is a frieze: the strip scrolls to centre the card of
+each step. Any skemo error fails the build and names the faulty line of the block.</p>
+<p><strong>Sizes.</strong> Aim for text of 16 px or more on screen: a full-width diagram fits in about
+1150 × 590 px. The theme sets the text size of the diagrams (<code>skemo: { fontScale: 1.35 }</code> in
+its <code>glitu.yaml</code>), and a block can override it: <code>```skemo font-scale="2"</code>.
+<code>diagram(fit="2:1")</code> fails the build if the proportions are more than 15 % away from the target.</p>
+<p><strong>Types.</strong> The theme's <code>skemo.css</code> defines the types of cards (<code>.system</code>, <code>.pod</code>…). A
+<code>skemo.css</code> next to the presentation adds your own:</p>
+<pre><code class="language-css">.<span class="hljs-selector-class">pod</span> { --<span class="hljs-type">c</span>: #<span class="hljs-literal">2563eb</span>; --<span class="hljs-type">label</span>: <span class="hljs-string">&quot;POD&quot;</span>; }</code></pre>
+<h2 id="terminals"><a class="anchor" href="#terminals">Terminals</a></h2>
+<p>An <a href="https://docs.asciinema.org/manual/asciicast/v2/">asciicast</a> recording (version 2 or 3) is
+replayed as a terminal, one segment per click:</p>
+<pre><code class="language-markdown">![~/project](<span class="hljs-link">casts/build.cast</span>)</code></pre>
+<p>The text of the image is the title of the window. The player types each command and stops at each
+marker until the next click; a click during the typing ends the current segment. To add markers,
+record with <code>asciinema rec</code> and its marker key (<code>rec.add_marker_key</code>), or add
+<code>[time, "m", "label"]</code> lines to the file.</p>
+
+    </article>
+    <nav class="pager" aria-label="Pages"><a class="prev" rel="prev" href="/docs/layouts/"><span>Previous</span>Layouts and media</a><a class="next" rel="next" href="/docs/presenting/"><span>Next</span>Presenting</a></nav>
+  </main>
+  <nav class="toc" aria-label="On this page"><p>On this page</p><ul><li><a href="#code-windows">Code windows</a></li><li><a href="#annotations">Annotations</a></li><li><a href="#code-from-files">Code from files</a></li><li><a href="#animated-code">Animated code</a></li><li><a href="#diagrams">Diagrams</a></li><li><a href="#terminals">Terminals</a></li></ul></nav>
+</div>
+<footer>glitu is dual-licensed under MIT or Apache-2.0. <a href="https://github.com/skemonet/glitu/edit/main/site/docs/code.md">Edit this page on GitHub</a></footer>
+</body>
+</html>

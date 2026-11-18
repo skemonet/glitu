@@ -1,0 +1,52 @@
+/* ==========================================================================
+   "graphite" theme on the shared template (glitu/template.css): palette, fonts, veils.
+   Graphite: charcoal, a purple glow in a corner, purple accents, monospace labels, one backdrop
+   for the whole screen: the text panel has neither a background nor a separation of its own.
+   Animated "graphite" backdrop (glitu.yaml).
+   ========================================================================== */
+:root {
+  --font: "IBM Plex Sans", "Segoe UI", "Noto Color Emoji", "Apple Color Emoji", "Segoe UI Emoji", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", "DejaVu Sans Mono", ui-monospace, monospace;
+  --title-font: var(--font);
+  --title-weight: 700;
+  --label-font: var(--mono);
+  /* Solid white titles, a purple subtitle, overline without a pill, solid purple chapter number */
+  --cover-size: 96px;
+  --cover-title: linear-gradient(var(--heading), var(--heading));
+  --cover-subtitle: var(--accent-2);
+  --eyebrow-pad: 0;
+  --eyebrow-bg: transparent;
+  --eyebrow-line: transparent;
+  --chapter-num: var(--accent);
+  --chapter-num-stroke: 0 transparent;
+  --chapter-num-size: 150px;
+  --chapter-bg: transparent;
+  /* The backdrop carries its own veil */
+  --cover-veil: none;
+  --chapter-veil: none;
+  --body-veil: none;
+  --accent: #a855f7;
+  --accent-2: #c084fc;
+  --gradient: linear-gradient(90deg, var(--accent), var(--accent-2));
+  --mark: var(--accent);
+  --base: #141519;
+  --line: rgba(255,255,255,.08);
+  --text: #ececef;
+  --text-dim: #9b9da6;
+  --heading: #fff;
+  /* Glass: translucent bars; no panel to see: text and visual share the screen */
+  --bar-bg: rgba(20,21,25,.55);
+  --progress-bg: rgba(20,21,25,.55);
+  --bar-sep: rgba(255,255,255,.22);
+  --seg-bg: rgba(255,255,255,.1);
+  --panel-bg: transparent;
+  --panel-rule: transparent;
+  --stage: transparent;
+  --code-inline: #d8b4fe;
+  --code-inline-bg: rgba(168,85,247,.12);
+  --link-line: rgba(192,132,252,.45);
+  --backdrop-base: #141519;
+  --glow: rgba(168,85,247,.35);
+  --win-bg: rgba(26,27,32,.82);
+  --win-border: rgba(255,255,255,.12);
+}

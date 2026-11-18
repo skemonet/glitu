@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Layouts and media · glitu documentation</title>
+<meta name="description" content="Choose a slide layout with an attribute on its heading (columns, quote, key figure, cover, table of contents) and add images, videos, captions, focus zones, web pages and backgrounds.">
+<link rel="canonical" href="https://glitu.net/docs/layouts/">
+<meta name="theme-color" content="#070b16">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="glitu">
+<meta property="og:title" content="Layouts and media">
+<meta property="og:description" content="Choose a slide layout with an attribute on its heading (columns, quote, key figure, cover, table of contents) and add images, videos, captions, focus zones, web pages and backgrounds.">
+<meta property="og:url" content="https://glitu.net/docs/layouts/">
+<meta property="og:image" content="https://glitu.net/img/cover.webp">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230b1020'/%3E%3Cpath d='M9 22 15 10h4l-6 12zM15 22l6-12h3l-6 12z' fill='%2322d3ee'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/docs/docs.css">
+<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"TechArticle","headline":"Layouts and media","description":"Choose a slide layout with an attribute on its heading (columns, quote, key figure, cover, table of contents) and add images, videos, captions, focus zones, web pages and backgrounds.","url":"https://glitu.net/docs/layouts/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"glitu","url":"https://glitu.net/"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"glitu","item":"https://glitu.net/"},{"@type":"ListItem","position":2,"name":"Documentation","item":"https://glitu.net/docs/"},{"@type":"ListItem","position":3,"name":"Layouts and media","item":"https://glitu.net/docs/layouts/"}]}]}</script>
+</head>
+<body>
+<a class="skip" href="#content">Skip to content</a>
+<header class="top">
+  <a class="brand" href="/">gl<span>i</span>tu</a>
+  <nav aria-label="Site">
+    <a href="/docs/" aria-current="true">Docs</a>
+    <a href="/demo.html">Demo</a>
+    <a href="https://github.com/skemonet/glitu">GitHub</a>
+  </nav>
+</header>
+<div class="layout">
+  <nav class="side" aria-label="Documentation"><ul><li><a href="/docs/">Getting started</a></li><li><a href="/docs/writing/">Writing slides</a></li><li><a href="/docs/steps/">Steps and animations</a></li><li><a href="/docs/layouts/" aria-current="page">Layouts and media</a></li><li><a href="/docs/code/">Code, diagrams and terminals</a></li><li><a href="/docs/presenting/">Presenting</a></li><li><a href="/docs/publishing/">Building and exporting</a></li><li><a href="/docs/themes/">Themes</a></li><li><a href="/docs/slow-computers/">Slow computers</a></li></ul></nav>
+  <main id="content">
+    <article>
+      <h1>Layouts and media</h1>
+      <p class="lead">Choose a slide layout with an attribute on its heading (columns, quote, key figure, cover, table of contents) and add images, videos, captions, focus zones, web pages and backgrounds.</p>
+<p>By default, a slide has a text panel on the left and a visual on the right. An attribute on the
+<code>##</code> line chooses another layout.</p>
+<h2 id="layouts"><a class="anchor" href="#layouts">Layouts</a></h2>
+<table><thead><tr><th>Layout</th><th>Write</th><th>Result</th></tr></thead><tbody>
+<tr><td>Large visual</td><td><code>## Topic {.large}</code></td><td>The visual takes the full width; the bullets become a caption above it</td></tr>
+<tr><td>Full</td><td><code>## Topic {.full}</code></td><td>The visual takes the whole slide under the header, without margins</td></tr>
+<tr><td>Two columns</td><td><code>## Topic {.cols}</code></td><td>A <code>::right::</code> line separates the left column from the right one</td></tr>
+<tr><td>Quote</td><td><code>## Topic {.quote}</code></td><td>The first paragraph in large type, the next one as its author</td></tr>
+<tr><td>Key figure</td><td><code>## Topic {.fact}</code></td><td>The <code>###</code> title very large, the text as its caption</td></tr>
+<tr><td>Statement</td><td><code>## Topic {.statement}</code></td><td>The text in large type, centred; <code>{.center}</code> only centres it</td></tr>
+<tr><td>Table of contents</td><td><code>## Contents {.toc}</code></td><td>The list of chapters, as links, generated</td></tr>
+<tr><td>Title slide</td><td><code>## Title {.cover}</code> or <code>{.intro}</code></td><td>The title in large type, then a subtitle and a byline</td></tr>
+<tr><td>Interlude</td><td><code>## Part {.section}</code></td><td>A section slide, without a number or a change of chapter</td></tr>
+<tr><td>Closing slide</td><td><code>## Thank you {.end}</code></td><td>The final slide</td></tr>
+</tbody></table>
+<p>Two more attributes adjust a slide: <code>{kicker="Template"}</code> replaces the label of its header and
+<code>{.compact}</code> tightens its bullets.</p>
+<h2 id="columns"><a class="anchor" href="#columns">Columns</a></h2>
+<pre><code class="language-markdown"><span class="hljs-section">## Before and after {.cols}</span>
+
+What comes before <span class="hljs-code">`::left::`</span> spans both columns.
+
+::left::
+
+<span class="hljs-section">### Before</span>
+- A monolith
+
+::right::
+
+<span class="hljs-code">```</span><span class="hljs-literal">yaml</span>
+<span class="hljs-code">replicas: 3</span>
+<span class="hljs-code">```</span></code></pre>
+<p>Each column can hold text, code, a diagram or an image.</p>
+<h2 id="images"><a class="anchor" href="#images">Images</a></h2>
+<pre><code class="language-markdown">![](<span class="hljs-link">img/architecture.png</span>)</code></pre>
+<p>An image is the visual of its slide. To show it beside the text, covering one half of the slide,
+use <code>{.image-right}</code> or <code>{.image-left}</code>; the first image of the slide is used, or the one given
+with <code>image=</code>:</p>
+<pre><code class="language-markdown"><span class="hljs-section">## Our office {.image-right image=&quot;img/office.jpg&quot;}</span>
+
+<span class="hljs-section">### A team of twelve</span>
+- Remote first</code></pre>
+<p>Images are embedded in the built page. Files placed in <code>public/</code> are copied as they are, which is
+useful for pages loaded in an iframe.</p>
+<p>Attributes between braces, right after the image, set its click, a class, a caption or focus
+zones (see below):</p>
+<pre><code class="language-markdown">![Office](<span class="hljs-link">img/office.jpg</span>){<span class="hljs-attr">@2 .framed</span>}</code></pre>
+<p><code>box="x y w h"</code> forces the place and size of a visual, in % of the area of the visual: after an
+image (<code>{box="5 10 90 80"}</code>) or on a block (<code>```skemo box="5 10 90 80"</code>).</p>
+<h2 id="captions-and-sources"><a class="anchor" href="#captions-and-sources">Captions and sources</a></h2>
+<p>A caption is a short line under the visual, typically to credit a source. On an image (or a
+video, or a terminal recording), write it as the title of the image, or with <code>caption=</code>:</p>
+<pre><code class="language-markdown">![Population](<span class="hljs-link">img/population.png</span> <span class="hljs-string">&quot;Source: [INSEE](https://insee.fr), 2024&quot;</span>)
+![Population](<span class="hljs-link">img/population.png</span>){<span class="hljs-attr">caption</span>=<span class="hljs-string">&quot;Source: INSEE, 2024&quot;</span>}</code></pre>
+<p>On a code window, a diagram or a formula, add <code>caption="…"</code> to the block:</p>
+<pre><code class="language-markdown"><span class="hljs-code">```</span><span class="hljs-literal">skemo</span> caption=&quot;After the Kubernetes documentation&quot;
+<span class="hljs-code">diagram(dir=&quot;right&quot;)</span>
+  <span class="hljs-code">card#pod Pod</span>
+<span class="hljs-code">```</span></code></pre>
+<p>The caption is Markdown (links, emphasis), appears with its visual, and fits every layout: under
+the visual by default and in <code>{.large}</code>, <code>{.cols}</code> and <code>{.full}</code>, laid on the bottom of the image
+in <code>{.image-left}</code> and <code>{.image-right}</code>. Its colour and size follow the theme
+(<code>.visual-caption</code> in your <code>style.css</code> to change them).</p>
+<h2 id="videos"><a class="anchor" href="#videos">Videos</a></h2>
+<p>A video is written like an image; the files go into <code>img/</code> too:</p>
+<pre><code class="language-markdown">![Demo](<span class="hljs-link">img/demo.mp4</span>)
+![Demo](<span class="hljs-link">img/demo.mp4</span> <span class="hljs-string">&quot;Recorded on glitu 0.2&quot;</span>){<span class="hljs-attr">autoplay muted loop</span>}</code></pre>
+<table><thead><tr><th>Attribute</th><th>Effect</th></tr></thead><tbody>
+<tr><td><code>pauses="0:12 1:05"</code></td><td>Plays when shown, stops at each time; the next click resumes it</td></tr>
+<tr><td><code>autoplay</code></td><td>Starts when the slide is shown (without <code>pauses</code>)</td></tr>
+<tr><td><code>muted</code>, <code>loop</code></td><td>Without sound, in a loop</td></tr>
+<tr><td><code>nocontrols</code></td><td>Hides the play bar</td></tr>
+<tr><td><code>poster="img/x.jpg"</code></td><td>The picture shown before the video starts</td></tr>
+<tr><td><code>@2</code></td><td>The video appears at click 2 (and starts then, with <code>pauses</code>)</td></tr>
+</tbody></table>
+<p><code>mp4</code>, <code>webm</code> and <code>ogv</code> files are shown as videos. A video loads only when its slide gets close,
+and stops when you leave the slide. Browsers may refuse to start a video with sound before the
+first key press or click on the page: add <code>muted</code> to a video that must start on the first slide.</p>
+<h3 id="pausing-at-precise-times"><a class="anchor" href="#pausing-at-precise-times">Pausing at precise times</a></h3>
+<p><code>pauses</code> turns a video into a series of clicks. The video plays as soon as it is shown, stops
+exactly at the first time, and waits; the next click plays it to the next time, and so on until
+the end:</p>
+<pre><code class="language-markdown"><span class="hljs-section">## The rollout</span>
+
+<span class="hljs-section">### Watch the pods</span>
+- The new version starts @1
+- The old pods stop @2
+
+![](<span class="hljs-link">img/rollout.mp4</span>){<span class="hljs-attr">muted pauses</span>=<span class="hljs-string">&quot;0:08 0:21&quot;</span>}</code></pre>
+<p>Here the video stops at 0:08 and 0:21; clicks 1 and 2 resume it, and the bullets marked <code>@1</code> and
+<code>@2</code> appear at the same time. Each pause takes one click of the slide, counted from the click
+where the video appears. Going back a click replays the previous part. Times are written in
+seconds (<code>12</code>, <code>12.5</code>) or as <code>m:ss</code> and <code>h:mm:ss</code>.</p>
+<h2 id="focus-on-part-of-an-image-or-a-video"><a class="anchor" href="#focus-on-part-of-an-image-or-a-video">Focus on part of an image or a video</a></h2>
+<p><code>focus="…"</code> draws attention to zones of an image or a video: circle them, darken the rest, or
+zoom on them. A zone is written <code>x y width height</code>, as percentages of the picture measured from
+its top-left corner, followed by what happens there; zones are separated by <code>;</code>:</p>
+<pre><code class="language-markdown">![](<span class="hljs-link">img/dashboard.png</span>){<span class="hljs-attr">focus</span>=<span class="hljs-string">&quot;62 8 30 20 @1; 5 55 40 35 .box .red @2; 70 70 20 20 @3:magnify&quot;</span>}</code></pre>
+<table><thead><tr><th>In a zone</th><th>Effect</th></tr></thead><tbody>
+<tr><td>nothing</td><td>A hand-drawn circle</td></tr>
+<tr><td><code>.circle</code>, <code>.box</code>, <code>.underline</code>, <code>.highlight</code>, <code>.strike</code></td><td>The same hand-drawn marks as on words</td></tr>
+<tr><td><code>.red</code>, <code>.green</code>, <code>.blue</code>, <code>.cyan</code>, <code>.yellow</code>, <code>.purple</code></td><td>The colour of the mark (otherwise the theme's)</td></tr>
+<tr><td><code>.spot</code></td><td>The rest of the picture darkens</td></tr>
+<tr><td><code>@2</code>, <code>@2-3</code></td><td>Shown at click 2, until click 3 (without a click: from the start)</td></tr>
+<tr><td><code>@3:magnify</code>, <code>@3-4:magnify</code></td><td>The view zooms on the zone, then returns</td></tr>
+<tr><td><code>@3:halo</code>, <code>@3:chase</code></td><td>The highlights of <a href="/docs/steps/#highlights">Steps</a></td></tr>
+</tbody></table>
+<p>A zone that only zooms (<code>@3:magnify</code> alone) draws nothing. The zones stay on the picture whatever
+its size, including in <code>{.image-left}</code> and <code>{.image-right}</code>, where the image is cropped to fill
+its half: measure them on the whole image.</p>
+<p>To find the coordinates, open the image in any editor that shows the cursor position, and divide
+by the width and the height of the image: a point at 620 × 80 px in a 1000 × 400 px image is at
+<code>62 20</code>.</p>
+<h3 id="on-a-video"><a class="anchor" href="#on-a-video">On a video</a></h3>
+<p>On a video, a zone can follow the clicks as on an image, or be tied to a time range of the video:
+<code>0:12-0:18</code> shows it from 0:12 to 0:18, <code>0:12</code> from 0:12 to the end, and <code>magnify</code> zooms on it
+during that time:</p>
+<pre><code class="language-markdown">![](<span class="hljs-link">img/demo.mp4</span>){<span class="hljs-attr">muted pauses</span>=<span class="hljs-string">&quot;0:12 0:30&quot;</span> <span class="hljs-attr">focus</span>=<span class="hljs-string">&quot;10 60 25 20 0:12-0:16; 55 10 40 40 .spot 0:30; 0 0 30 30 0:20-0:24 magnify&quot;</span>}</code></pre>
+<p>With <code>pauses</code>, a zone whose range starts at a pause is shown while the video waits there: here
+the circle appears when the video stops at 0:12 and leaves four seconds after the click.</p>
+<h2 id="web-pages"><a class="anchor" href="#web-pages">Web pages</a></h2>
+<pre><code class="language-markdown"><span class="hljs-section">## Live demo {.iframe url=&quot;</span><span class="hljs-link">https://example.com&quot;}</span></code></pre>
+<p>The page fills the slide; <code>{.iframe-left}</code> and <code>{.iframe-right}</code> place it beside the text.</p>
+<h2 id="backgrounds"><a class="anchor" href="#backgrounds">Backgrounds</a></h2>
+<pre><code class="language-markdown"><span class="hljs-section">## Results {background=&quot;#0b1020&quot;}</span>
+<span class="hljs-section">## The team {background=&quot;img/team.jpg&quot;}</span></code></pre>
+<p>A background is a colour or an image, which covers the slide. The template themes also have an
+animated backdrop, shared by the whole presentation: see <a href="/docs/themes/">Themes</a>.</p>
+<h2 id="media-and-visibility"><a class="anchor" href="#media-and-visibility">Media and visibility</a></h2>
+<p>These attributes behave as in reveal.js:</p>
+<table><thead><tr><th>Attribute</th><th>Effect</th></tr></thead><tbody>
+<tr><td><code>data-autoplay</code></td><td>Starts a video or a sound when the slide is shown (on a video written as an image: <code>{autoplay}</code>)</td></tr>
+<tr><td><code>data-src</code></td><td>Loads a medium only when its slide gets close</td></tr>
+<tr><td><code>data-visibility="hidden"</code></td><td>Hides the slide</td></tr>
+<tr><td><code>data-state="x"</code></td><td>Adds the class <code>x</code> to the page while the slide is shown</td></tr>
+</tbody></table>
+
+    </article>
+    <nav class="pager" aria-label="Pages"><a class="prev" rel="prev" href="/docs/steps/"><span>Previous</span>Steps and animations</a><a class="next" rel="next" href="/docs/code/"><span>Next</span>Code, diagrams and terminals</a></nav>
+  </main>
+  <nav class="toc" aria-label="On this page"><p>On this page</p><ul><li><a href="#layouts">Layouts</a></li><li><a href="#columns">Columns</a></li><li><a href="#images">Images</a></li><li><a href="#captions-and-sources">Captions and sources</a></li><li><a href="#videos">Videos</a></li><li><a href="#focus-on-part-of-an-image-or-a-video">Focus on part of an image or a video</a></li><li><a href="#web-pages">Web pages</a></li><li><a href="#backgrounds">Backgrounds</a></li><li><a href="#media-and-visibility">Media and visibility</a></li></ul></nav>
+</div>
+<footer>glitu is dual-licensed under MIT or Apache-2.0. <a href="https://github.com/skemonet/glitu/edit/main/site/docs/layouts.md">Edit this page on GitHub</a></footer>
+</body>
+</html>
