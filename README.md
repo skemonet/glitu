@@ -27,7 +27,7 @@ Cargo.
 ## Install
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/skemonet/glitu/main/tools/install.sh | sh            # latest release into ~/.local/bin, SHA-256 checked
+curl -fsSL https://glitu.net/install.sh | sh            # latest release into ~/.local/bin, SHA-256 checked
 ```
 
 Or take a binary from the [releases](https://github.com/skemonet/glitu/releases): `glitu-linux-x86_64`,

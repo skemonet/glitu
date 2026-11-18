@@ -15,7 +15,7 @@ On Linux and macOS, the install script downloads the latest release into `~/.loc
 verifies its SHA-256 checksum:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/skemonet/glitu/main/tools/install.sh | sh
+curl -fsSL https://glitu.net/install.sh | sh
 ```
 
 You can also download a binary from the

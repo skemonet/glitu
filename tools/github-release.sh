@@ -70,7 +70,7 @@ For a computer too slow for a browser, the native player of \`glitu build play\`
 \`glitu-play-linux-x86_64\`, \`glitu-play-linux-arm64\` (glibc 2.28 and later),
 \`glitu-play-windows-x86_64.exe\`.
 
-Linux and macOS in one line: \`curl -fsSL https://raw.githubusercontent.com/$repo/main/tools/install.sh | sh\`
+Linux and macOS in one line: \`curl -fsSL https://glitu.net/install.sh | sh\`
 
 Check it against its line below (\`sha256sum -c\`, or \`shasum -a 256 -c\` on macOS).
 Start with \`glitu init talk && glitu server talk/slides.md\`.
