@@ -42,6 +42,8 @@ and the versions [Semantic Versioning](https://semver.org/).
   impossible size, images missing from the archive or of another size than the slides.
 
 ### Fixed
+- A diagram element that zooms in (`@1:zoom`) grows from its centre: it came in diagonally, from
+  the corner of the diagram.
 - A version of an animated code (`magic-move`) can hold a code block: a fence closes the version only
   when it is as long as the version's own.
 - Animated code (`magic-move`) keeps the unchanged lines in place: a word repeated far away no

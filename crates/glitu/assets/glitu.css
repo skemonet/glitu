@@ -215,7 +215,10 @@ html.print-pdf .reveal > .glitu-logo,html.scroll-view .reveal > .glitu-logo{disp
 .reveal svg.skemo .sk-morph .sk-diff { fill: var(--accent-2, #22d3ee); filter: drop-shadow(0 0 4px var(--accent-2, #22d3ee)); }   /* what changed, until the next click */
 .reveal svg.skemo .sk-off { opacity: 0 !important; }   /* hidden stays hidden, even under a highlight (sk-focus) */
 .reveal svg.skemo .sk-off[data-fx="up"]   { transform: translateY(12px); }
-.reveal svg.skemo .sk-off[data-fx="zoom"] { transform: scale(.92); transform-box: fill-box; transform-origin: center; }
+/* the origin on the element shown too: put on the hidden state alone, it went back to the corner
+   of the SVG while the zoom ran, and the card came in diagonally */
+.reveal svg.skemo [data-fx="zoom"] { transform-box: fill-box; transform-origin: center; }
+.reveal svg.skemo .sk-off[data-fx="zoom"] { transform: scale(.92); }
 .reveal svg.skemo.sk-focus :is(.card, .edge):not(.sk-focus-on) { opacity: .28; transition: opacity .45s ease; }
 .reveal svg.skemo.sk-focus .sk-focus-on :is(.card, .edge) { opacity: 1; }
 .reveal svg.skemo .sk-focus-on { filter: drop-shadow(0 0 6px rgba(34,211,238,.9)); transition: filter .45s ease; }
