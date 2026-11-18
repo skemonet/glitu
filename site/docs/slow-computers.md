@@ -99,8 +99,16 @@ to the primary one (the laptop's). The keys work in both windows.
 The directory holds one PNG per click (and a few more for the arrows and the terminals), and a
 `deck.json` that describes them; copy the whole directory to the slow computer.
 
-Build `glitu-play` from the sources of glitu with `cargo build --release -p glitu-play`; it runs
-on Linux (X11 or Wayland), macOS and Windows.
+Install `glitu-play` on Linux (X11 or Wayland, glibc 2.28 and later), into `~/.local/bin`, SHA-256
+checked:
+
+```sh
+curl -fsSL https://glitu.net/install-play.sh | sh
+```
+
+On Windows, take `glitu-play-windows-x86_64.exe` from the
+[releases](https://github.com/skemonet/glitu/releases). Elsewhere (macOS…), build it from the
+sources of glitu with `cargo build --release -p glitu-play`.
 
 ## A video, presented with mpv
 

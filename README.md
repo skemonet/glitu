@@ -388,7 +388,7 @@ glitu build play --width 1024 -o talk               # then: glitu-play talk.glit
 
 - **PDF + [pdfpc](https://pdfpc.github.io/)**: one picture per click, the speaker view with the
   notes and a timer; no animation.
-- **glitu-play** (`cargo build --release -p glitu-play`, 4 MB, no browser): shows the pictures and
+- **glitu-play** (`curl -fsSL https://glitu.net/install-play.sh | sh`, 4 MB, no browser): shows the pictures and
   animates by software only what moves: the skemo arrows drawn step by step, the terminal
   recordings typing (recorded at export), the fades. The last picture of each animation is the
   browser's, pixel for pixel. A speaker view (`s`, `--speaker`) on the other screen: the current

@@ -68,7 +68,7 @@ One binary per platform: download it, make it executable, run it.
 
 For a computer too slow for a browser, the native player of \`glitu build play\`:
 \`glitu-play-linux-x86_64\`, \`glitu-play-linux-arm64\` (glibc 2.28 and later),
-\`glitu-play-windows-x86_64.exe\`.
+\`glitu-play-windows-x86_64.exe\`; on Linux: \`curl -fsSL https://glitu.net/install-play.sh | sh\`.
 
 Linux and macOS in one line: \`curl -fsSL https://glitu.net/install.sh | sh\`
 

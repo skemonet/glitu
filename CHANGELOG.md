@@ -6,6 +6,8 @@ and the versions [Semantic Versioning](https://semver.org/).
 ## Unreleased
 
 ### Added
+- The website serves the installers: `curl -fsSL https://glitu.net/install.sh | sh` for glitu,
+  `curl -fsSL https://glitu.net/install-play.sh | sh` for glitu-play (Linux).
 - `glitu build video`: the presentation as a video (`.mkv`, H.264), one chapter per click, each
   starting with the click frozen (`--hold`); rendered frame by frame by Chrome's headless shell on
   a virtual clock, encoded by ffmpeg; the notes as a subtitle track, off by default.
