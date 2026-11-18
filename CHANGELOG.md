@@ -10,7 +10,8 @@ and the versions [Semantic Versioning](https://semver.org/).
   starting with the click frozen (`--hold`); rendered frame by frame by Chrome's headless shell on
   a virtual clock, encoded by ffmpeg; the notes as a subtitle track, off by default.
 - `glitu-play talk.mkv` presents such a video with mpv, pausing at each click, with glitu-play's
-  keys; `glitu-play --mpv-script` prints the script, to use mpv alone.
+  keys; `glitu-play --mpv-script` prints the script, to use mpv alone. mpv runs with its profile for slow computers
+  (`--profile=fast`, mpv 0.37 or later).
 
 ### Changed
 - The website's demo is a new short deck, `demo/slides.md`: the markdown you write, a skemo diagram,

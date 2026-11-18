@@ -99,7 +99,7 @@ would have to be cut and put back in place from their files. That can come later
 instead of its own windows:
 
 ```sh
-mpv --no-config --load-scripts=no --script=<glitu.lua> --fs --keep-open --no-osc \
+mpv --no-config --load-scripts=no --profile=fast --script=<glitu.lua> --fs --keep-open --no-osc \
     --hwdec=auto-safe --sub=no talk.mkv
 ```
 
@@ -107,6 +107,8 @@ mpv --no-config --load-scripts=no --script=<glitu.lua> --fs --keep-open --no-osc
   for mpv. mpv will not run a script stored inside the video, for security, and that is right.
 - `--no-config --load-scripts=no`: the user's own mpv setup and scripts cannot change the keys or
   the display of the show.
+- `--profile=fast`: mpv's built-in profile for slow computers (bilinear scaling, no dithering, no
+  HDR peak computation), since glitu-play is for them; it needs mpv 0.37 or later.
 - The options of `glitu-play` carry over: `--window` drops `--fs`; `--start <SLIDE>` starts at
   chapter `<SLIDE>.0`; `--speaker` is refused, with a message (§7).
 - mpv missing: the error explains how to install it, and that any player can still show the file

@@ -40,6 +40,9 @@ fn args(options: &Options, script: &Path) -> Vec<String> {
         // the user's own setup and scripts cannot change the keys or the display of the show
         "--no-config",
         "--load-scripts=no",
+        // mpv's own profile for slow computers (bilinear scaling, no dithering): the very machines
+        // glitu-play is for; mpv 0.37 or later
+        "--profile=fast",
         "--keep-open=yes",
         "--no-osc",
         "--osd-on-seek=no",
@@ -102,6 +105,7 @@ mod tests {
             |window, start| Options { deck: PathBuf::from("talk.mkv"), window, speaker: false, check: false, start };
         let a = args(&o(false, 1), Path::new("/tmp/g.lua"));
         assert!(a.contains(&"--fs".to_string()) && a.contains(&"--script=/tmp/g.lua".to_string()));
+        assert!(a.contains(&"--profile=fast".to_string()));
         assert_eq!(a.last().map(String::as_str), Some("talk.mkv"));
         let a = args(&o(true, 3), Path::new("/tmp/g.lua"));
         assert!(!a.contains(&"--fs".to_string()) && a.contains(&"--script-opts=glitu-start=3".to_string()));
